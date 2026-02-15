@@ -3,6 +3,7 @@ import { TransformationJson } from "../types/website-types";
 import { computeSha256 } from "../utils/hash";
 import { ConquerorsUsTransformation } from "./conquerors-us-layout/conquerors-us-transformation";
 import { QueryParamTransformation } from "./query-param-transformation";
+import { TrackingImageNormalizer } from "./tracking-img-transformation";
 
 export function applyTransformationPipeline(
   initialBuffers: { sha256: string; content: Buffer }[],
@@ -17,8 +18,8 @@ export function applyTransformationPipeline(
   }));
 
   // Apply each transformation in sequence
-  for (const { function: transformation, options } of transformations) {
-    console.log(`Applying transformation ${transformation.name}, starting with ${currentInputs.length} inputs...`);
+  for (const { function: transformation, options, name } of transformations) {
+    console.log(`Applying transformation ${name}, starting with ${currentInputs.length} inputs...`);
     
     // Step 1: Apply transformation to each input (can produce multiple outputs per input)
     const allOutputs: (TransformationOutput & { sourceSha256Values: string[] })[] = [];
@@ -82,6 +83,7 @@ export function parseJsonTransformations(transformationsJson: TransformationJson
     return {
       function: transformation.transform,
       options,
+      name
     }
   });
 }
@@ -89,4 +91,5 @@ export function parseJsonTransformations(transformationsJson: TransformationJson
 export const Transformations: Record<string, TransformationProvider> = {
   conquerorsUsLayoutTransformation: ConquerorsUsTransformation,
   queryParamTransformation: QueryParamTransformation,
+  trackingImageUrlNormalizer: TrackingImageNormalizer,
 }

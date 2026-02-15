@@ -42,7 +42,12 @@ export function writeFileHeaders(captureEntries: CaptureEntry[], filename: Filen
             }
             encounteredFilenames.add(outputFilename);
             const headersPath = path.join(archivalDir, `${outputFilename}.headers.json`);        
-            fs.writeFileSync(headersPath, JSON.stringify(cleanupHeaders(headers), null, 2));
+            const headerData = {
+                url: entry.url,
+                timestamp: entry.captureTimestamp.toISO(),
+                headers: cleanupHeaders(headers)
+            };
+            fs.writeFileSync(headersPath, JSON.stringify(headerData, null, 2));
         }
     });
 }

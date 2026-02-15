@@ -3,6 +3,7 @@ import { filterLimitedCapturesForUrl } from "../special-rules/limit-captures";
 import { DownloadFileInput, UrlEntry } from "../types/download-input-types";
 import { CdxEntry } from "../types/wayback-types";
 import { filenameToString } from "../file-name/file-name";
+import { fetchWaybackFileHeaders } from "./file-download";
 
 const WAYBACK_CDX_API_URL = 'http://web.archive.org/cdx/search/cdx';
 const REQUEST_TIMEOUT = 60000; // 60 seconds
@@ -29,7 +30,39 @@ export async function getSnapshotsForWebsiteFile(
   if (includeInvalid) {
       console.log(`Total invalid snapshots for ${filenameToString(input.filename, 'simple')}: ${invalidCdxEntries.length}`);
   }
-  return { validCdxEntries, invalidCdxEntries };
+  return {
+    validCdxEntries: validCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
+    invalidCdxEntries: invalidCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+  };
+}
+
+// warc/revisit examples at:
+// http://radgametools.com/down/bink/radtools.exe
+// http://www.microsoft.com/taiwan/products/Game/AOE/empirestips/images/y08_small.jpg
+// (does handling them require getting the file info itself...?)
+// Retrieve headers and only keep if status code is 200 and update mime/type?
+async function resolveRevisitSnapshots(snapshots: CdxEntry[]): Promise<CdxEntry[]> {
+  const result = await Promise.all(snapshots.map(async (snapshot) => {
+    if (snapshot.mimetype === "warc/revisit") {
+      console.log(`Resolving warc/revisit snapshot for ${snapshot.url} at ${snapshot.timestamp}...`);
+      const headerResult = await fetchWaybackFileHeaders(snapshot.timestamp, snapshot.url);
+      console.log(`Resolved warc/revisit snapshot for ${snapshot.url} at ${snapshot.timestamp}: status ${headerResult.statusCode}, mimetype ${headerResult.headers['content-type']}`);
+      return {
+        ...snapshot,
+        mimetype: headerResult.headers['content-type'] || 'application/octet-stream',
+        status: headerResult.statusCode,
+        metadata: {
+          revisit: 'true',
+          originalMimeType: snapshot.mimetype,
+          originalStatusCode: snapshot.status
+        }
+      }
+    }
+    else {
+      return snapshot;
+    }
+  }));
+  return result;
 }
 
 // In very rare cases, the CDX index may contain multiple snapshots with the same timestamp for the same URL.
@@ -44,15 +77,12 @@ export async function getSnapshotsForWebsiteFile(
 //
 // microsoft.com/italy/games/empires has a duplicate captures at 20071024014608 and 20090329081915 (301 and 200 status codes, 200 is the returned one)
 // microsoft.com/games/aoeexpansion/features_buildings_rendered.htm has duplicate snapshot at 20091212001836 (2x 200 status codes)
-function filterDuplicateSnapshots(requestUrl: string, keepInvalid: boolean, snapshots: CdxEntry[]) {
+// microsoft.com/msdownload/games/empires/download.htm has duplicate snapshot at 20080405205900 (301 and 404 status codes, 404 is the returned one)
+async function filterDuplicateSnapshots(requestUrl: string, keepInvalid: boolean, snapshots: CdxEntry[]) {
   const uniqueSnapshots: CdxEntry[] = [];
   let filteredValidSnapshots = 0;
   let filteredUnwantedSnapshots = 0; // these entries are quietly discarded
   let filteredInvalidSnapshots = 0; // these are logged as removed
-
-  if (snapshots.some((s) => s.mimetype === "warc/revisit")) {
-    throw new Error(`WARC revisit entries found in CDX index for ${requestUrl}! Investigate how to handle!`);
-  }
 
   // First we filter snapshots down to the statuscodes we might want to keep (2xx, 301, 302, 404)
   let filteredSnapshots = snapshots.filter(snapshot => {
@@ -108,7 +138,22 @@ function filterDuplicateSnapshots(requestUrl: string, keepInvalid: boolean, snap
       }
       // Only invalid snapshots for this timestamp
       else {
-        uniqueSnapshots.push(invalidSnapshots[0]);
+        if (invalidSnapshots.length > 1) {
+          console.log(`Found ${invalidSnapshots.length} snapshots with same timestamp ${timestamp} for ${requestUrl}. Attempting to resolve by fetching headers...`);
+          const result = await fetchWaybackFileHeaders(invalidSnapshots[0].timestamp, invalidSnapshots[0].url, invalidSnapshots.map(s => s.status));
+          const matchingSnapshot = invalidSnapshots.find(s => s.status === result.statusCode);
+          if (matchingSnapshot) {
+            uniqueSnapshots.push(matchingSnapshot);
+            filteredInvalidSnapshots += invalidSnapshots.length - 1;
+          }
+          else {
+            throw new Error(`Found ${invalidSnapshots.length} snapshots with same timestamp ${timestamp} for ${requestUrl} but couldn't find a matching status code when fetching headers.`);
+          }
+        }
+        else {
+          // Exactly 1 invalid snapshot
+          uniqueSnapshots.push(invalidSnapshots[0]);
+        }
         filteredInvalidSnapshots += invalidSnapshots.length - 1;
       }
     }
@@ -119,7 +164,12 @@ function filterDuplicateSnapshots(requestUrl: string, keepInvalid: boolean, snap
 
 async function getSnapshotsForUrl(url: UrlEntry, includeInvalid: boolean) {
   const allSnapshots = await fetchWaybackCdxIndex(url.url);
-  const { uniqueSnapshots, filteredValidSnapshots, filteredInvalidSnapshots } = filterDuplicateSnapshots(url.url, includeInvalid && !url.mirrorUrl, allSnapshots);
+  const filteredSnapshots = filterSnapshotsByTimestamp(allSnapshots, url.maxTimestamp, url.minTimestamp);
+  if (filteredSnapshots.length !== allSnapshots.length) {
+    console.log(`Filtered ${allSnapshots.length - filteredSnapshots.length} snapshots for ${url.url} based on timestamp constraints`);
+  }
+  const resolvedSnapshots = await resolveRevisitSnapshots(filteredSnapshots);
+  const { uniqueSnapshots, filteredValidSnapshots, filteredInvalidSnapshots } = await filterDuplicateSnapshots(url.url, includeInvalid && !url.mirrorUrl, resolvedSnapshots);
   const validSnapShots = uniqueSnapshots.filter(snapshot => snapshot.status.startsWith('2'));
   const invalidSnapshots = uniqueSnapshots.filter(snapshot => !snapshot.status.startsWith('2'));
   console.log(`Found ${validSnapShots.length} valid snapshots for ${url.url}`);
@@ -132,16 +182,7 @@ async function getSnapshotsForUrl(url: UrlEntry, includeInvalid: boolean) {
   if (filteredInvalidSnapshots > 0) {
     console.log(`Removed ${filteredInvalidSnapshots} duplicate invalid snapshots for ${url.url}`);
   }
-
-  const finalValidSnapshots = filterSnapshotsByTimestamp(validSnapShots, url.maxTimestamp, url.minTimestamp);
-  if (finalValidSnapshots.length !== validSnapShots.length) {
-    console.log(`Filtered ${validSnapShots.length - finalValidSnapshots.length} snapshots for ${url.url} based on timestamp constraints`);
-  }
-  const finalInvalidSnapshots = filterSnapshotsByTimestamp(invalidSnapshots, url.maxTimestamp, url.minTimestamp);
-  if (finalInvalidSnapshots.length !== invalidSnapshots.length) {
-    console.log(`Filtered ${invalidSnapshots.length - finalInvalidSnapshots.length} invalid snapshots for ${url.url} based on timestamp constraints`);
-  }
-  return { validSnapShots: finalValidSnapshots, invalidSnapshots: finalInvalidSnapshots };
+  return { validSnapShots, invalidSnapshots };
 }
 
 function filterSnapshotsByTimestamp(snapshots: CdxEntry[], maxTimestamp?: string, minTimestamp?: string) {

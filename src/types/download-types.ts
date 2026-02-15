@@ -4,6 +4,6 @@ export interface DownloadedFile {
   timestamp: string;
   headers: Record<string, any>;
   metadata?: Record<string, any>;
-  corrupt: boolean;
+  classification?: "corrupt" | "unavailable";
   statusCode: string;
 }

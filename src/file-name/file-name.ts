@@ -192,7 +192,7 @@ function writeQueryParamsToString(
 // To improve filename readability, we will format timestamps as YYYYMMDD-HHmmss instead of just YYYYMMDDHHmmss
 function timestampFormatted(input: string): string {
   if (input.length === 14) {
-    return `${input.slice(0,10)}-${input.slice(10,14)}`;
+    return `${input.slice(0,8)}-${input.slice(8,14)}`;
   }
   else {
     return input;

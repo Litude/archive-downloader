@@ -6,4 +6,5 @@ export interface CdxEntry {
   digest: string;
   mimetype: string;
   length: number;
+  metadata?: Record<string, string>;
 }

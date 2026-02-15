@@ -9,7 +9,7 @@ import { classifyEntry } from "./classification/classifier";
 import { DownloadedFile } from "./types/download-types";
 import { parseHeaderTimestamps } from "./utils/timestamp";
 import { fetchWaybackFileHeaders } from "./downloader/file-download";
-import { CaptureEntry } from "./types/capture-types";
+import { CaptureClassification, CaptureEntry } from "./types/capture-types";
 import { writeCsvSummary } from "./output/summary";
 import { writeUniqueFileEntries } from "./output/write-files";
 import { getWaybackFilename } from "./utils/wayback-filename";
@@ -17,6 +17,7 @@ import { applyTransformationPipeline } from "./transformation/transformation";
 import { filenameToString } from "./file-name/file-name";
 import { writeUnavailablePlaceholder } from "./output/unavailable";
 import { writeFileHeaders } from "./output/header-output";
+import { DateTime } from "luxon";
 
 // High level logic of app:
 // 1. Read input JSON file to get list of DownloadFileInput
@@ -40,7 +41,7 @@ function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
 }
 
 function classifyDigestFiles(uniqueDigestFiles: Map<string, DownloadedFile>, digestHashes: Map<string, { sha256: string; actualDigest: string }>) {
-  const classifications = new Map<string, string>();
+  const classifications = new Map<string, CaptureClassification>();
   
   [...uniqueDigestFiles.entries()].forEach(([digest, file]) => {
     const hashes = digestHashes.get(digest)!;
@@ -49,7 +50,7 @@ function classifyDigestFiles(uniqueDigestFiles: Map<string, DownloadedFile>, dig
       hashes.sha256, 
       file.headers['content-type'], 
       file.content, 
-      file.corrupt,
+      file.classification,
       file.statusCode
     );
     classifications.set(digest, classification);
@@ -80,14 +81,14 @@ async function processWebsiteDownloads(
     const digestFileHashes = computeDigestHashes(uniqueDigestFiles);
     const classifiedEntries = classifyDigestFiles(uniqueDigestFiles, digestFileHashes);
 
-    const enrichedDigestFiles = new Map<string, { file: DownloadedFile; classification: string; sha256: string; actualDigest: string }>();
+    const enrichedDigestFiles = new Map<string, { file: DownloadedFile; classification: CaptureClassification; sha256: string; actualDigest: string }>();
     [...uniqueDigestFiles.entries()].forEach(([digest, file]) => {
       const hashes = digestFileHashes.get(digest)!;
       const classification = classifiedEntries.get(digest)!;
       enrichedDigestFiles.set(digest, { file, classification, sha256: hashes.sha256, actualDigest: hashes.actualDigest });
     });
 
-    const baseEntries: CaptureEntry[] = allEntries.map(entry => {
+    let baseEntries: CaptureEntry[] = allEntries.map(entry => {
       const downloadedFile = uniqueDigestFiles.get(entry.digest);
       if (!downloadedFile) {
         throw new Error(`Downloaded file for digest ${entry.digest} not found?!`);
@@ -120,6 +121,36 @@ async function processWebsiteDownloads(
       }
     }).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
+    const unavailableEntries = baseEntries.filter(entry => entry.classification === 'unavailable').map((entry) => {
+      const captureTimestamp = DateTime.fromFormat(entry.timestamp, 'yyyyLLddHHmmss', { zone: 'utc' });
+      if (!captureTimestamp.isValid) {
+        throw new Error(`Invalid capture timestamp format: ${entry.timestamp}`);
+      }
+      return {
+        timestamp: entry.timestamp,
+        captureTimestamp,
+        lastModified: null,
+        url: entry.url,
+        statusCode: entry.statusCode,
+        classification: entry.classification,
+        mimetype: entry.mimetype,
+        waybackDigest: entry.waybackDigest,
+        waybackFilename: undefined,
+        waybackLength: entry.waybackLength,
+        actualDigest: '',
+        sha256: '',
+        originalSha256: undefined,
+        content: Buffer.alloc(0),
+        downloadStatus: 'unavailable',
+        headers: undefined,
+        metadata: undefined,
+       };
+    });
+    if (unavailableEntries.length > 0) {
+      console.log(`Total unavailable entries for ${filenameToString(input.filename, 'simple')}: ${unavailableEntries.length}`);
+    }
+    baseEntries = baseEntries.filter(entry => entry.classification !== 'unavailable');
+
     // If peekAllFiles is enabled, we need to query wayback for the headers of all files that were not downloaded exactly
     if (peekAllFiles) {
       const entriesToPeek = baseEntries.filter(entry => entry.downloadStatus !== 'downloaded');
@@ -127,7 +158,7 @@ async function processWebsiteDownloads(
       let currentIndex = 0;
       for (const entry of entriesToPeek) {
         console.log(`Fetching headers for ${entry.url} at ${entry.timestamp} (${++currentIndex}/${entriesToPeek.length}): `);
-        const response = await fetchWaybackFileHeaders(entry.timestamp, entry.url, entry.statusCode);
+        const response = await fetchWaybackFileHeaders(entry.timestamp, entry.url, [entry.statusCode]);
         const timestamps = parseHeaderTimestamps(response.headers, entry.timestamp);
         const waybackFilename = getWaybackFilename(response.headers);
         const existingEntry = baseEntries.find(e => e.url === entry.url && e.timestamp === entry.timestamp);
@@ -228,7 +259,8 @@ async function processWebsiteDownloads(
         writeUnavailablePlaceholder(input.filename, input.outputDirectory);
       }
       writeUniqueFileEntries(baseEntries, input.filename, input.outputDirectory);
-      await writeCsvSummary(baseEntries, input.filename, input.outputDirectory);
+      const summaryEntries = [...baseEntries, ...unavailableEntries].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+      await writeCsvSummary(summaryEntries, input.filename, input.outputDirectory);
     }
 
     if (writeHeaders) {
@@ -247,9 +279,9 @@ async function main() {
     .option('min-timestamp', { type: 'string', default: '', describe: 'Minimum timestamp for CDX index entries' })
     .option('json', { type: 'string', describe: 'Path to JSON input file' })
     .option('mirrors', { type: 'boolean', default: true, describe: 'Use mirrors and additional URLs' })
-    .option('peek-all', { type: 'boolean', default: false, describe: 'Peek into all downloaded files to get accurate last-modified timestamps and wayback filenames' })
-    .option('headers', { type: 'boolean', default: false, describe: 'Write HTTP headers for each downloaded file (requires --peek-all)' })
-    .option('include-invalid', { type: 'boolean', default: false, describe: 'Include invalid snapshots when downloading' })
+    .option('peek-all', { type: 'boolean', default: true, describe: 'Peek into all downloaded files to get accurate last-modified timestamps and wayback filenames' })
+    .option('headers', { type: 'boolean', default: true, describe: 'Write HTTP headers for each downloaded file (requires --peek-all)' })
+    .option('include-invalid', { type: 'boolean', default: true, describe: 'Include invalid snapshots when downloading' })
     .demandCommand(0)
     .parse();
 
@@ -259,13 +291,26 @@ async function main() {
     }
 
     if (argv.json) {
-        const downloadInputs = readWebsiteJsonConfig(argv.json, argv['output-dir'], { noMirrors: !argv['mirrors'] });
-        await processWebsiteDownloads(downloadInputs, {
-          includeInvalid: argv['include-invalid'],
-          peekAllFiles: argv['peek-all'],
-          writeHeaders: argv['headers'],
-        });
-        return;
+      console.log('=== Command line settings ===');
+      console.log(`JSON input file: ${argv.json ?? 'None'}`);
+      console.log(`Output directory: ${argv['output-dir']}`);
+      console.log(`Use mirrors: ${argv['mirrors']}`);
+      console.log(`Peek all files: ${argv['peek-all']}`);
+      console.log(`Write headers: ${argv['headers']}`);
+      console.log(`Include invalid: ${argv['include-invalid']}`);
+      console.log(`Max timestamp: ${argv['max-timestamp'] || 'None'}`);
+      console.log(`Min timestamp: ${argv['min-timestamp'] || 'None'}`);
+      console.log('================\n');
+      const downloadInputs = readWebsiteJsonConfig(argv.json, argv['output-dir'], { noMirrors: !argv['mirrors'] });
+      await processWebsiteDownloads(downloadInputs, {
+        includeInvalid: argv['include-invalid'],
+        peekAllFiles: argv['peek-all'],
+        writeHeaders: argv['headers'],
+      });
+      return;
+    }
+    else {
+      console.log('No input JSON file specified, nothing to do.');
     }
 };
 

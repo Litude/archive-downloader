@@ -14,11 +14,11 @@ describe('Classifier', () => {
       'def456',
       'text/html',
       Buffer.from('content'),
-      false,
+      undefined,
       "200",
       testConfig
     );
-    expect(result).toBe('transient_retry_page');
+    expect(result).toBe('transient_retry');
   });
 
   it('should classify not found page by content', () => {
@@ -27,11 +27,11 @@ describe('Classifier', () => {
       'xyz',
       'text/html',
       Buffer.from('<html>page not found</html>'),
-      false,
+      undefined,
       "200",
       testConfig
     );
-    expect(result).toBe('not_found_page');
+    expect(result).toBe('not_found');
   });
 
   it('should classify page not matching any criteria as ok', () => {
@@ -40,7 +40,7 @@ describe('Classifier', () => {
       'xyz',
       'text/html',
       Buffer.from('<html>Hello World!</html>'),
-      false,
+      undefined,
       "200",
       testConfig
     );

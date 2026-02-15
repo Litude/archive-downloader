@@ -18,4 +18,5 @@ export interface TransformationProvider {
 export type Transformation = {
   function: (input: TransformationInput, transformationOptions: Record<string, any>) => TransformationOutput[];
   options: Record<string, any>;
+  name: string;
 };

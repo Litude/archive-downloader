@@ -36,7 +36,7 @@ function getEntryUrls(
         : { url: u.url, maxTimestamp: u.maxTimestamp ?? entry.maxTimestamp ?? maxTimestamp, minTimestamp: u.minTimestamp ?? entry.minTimestamp ?? minTimestamp }
         );
     } else if (entry.url) {
-        return [{ url: entry.url, maxTimestamp: entry.maxTimestamp, minTimestamp: entry.minTimestamp }];
+        return [{ url: entry.url, maxTimestamp: entry.maxTimestamp ?? maxTimestamp, minTimestamp: entry.minTimestamp ?? minTimestamp }];
     } else {
         throw new Error('Each file entry must have either "url" or "urls" field');
     }

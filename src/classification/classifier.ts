@@ -1,6 +1,7 @@
 import JSON5 from 'json5';
 import fs from 'fs';
 import path from 'path';
+import { CaptureClassification } from '../types/capture-types';
 
 export interface ClassifierConfig {
   notFoundStrings: string[];
@@ -38,12 +39,15 @@ export function classifyEntryWithConfig(
     sha256: string,
     mimetype: string,
     content: Buffer,
-    corrupt: boolean,
+    downloadClassification: "corrupt" | "unavailable" | undefined,
     statusCode: string,
     config: ClassifierConfig
-): "ok" | "corrupt" | "not_found" | "transient_retry" | "redirect" {
-  if (corrupt) {
+): CaptureClassification {
+  if (downloadClassification === "corrupt") {
     return "corrupt";
+  }
+  else if (downloadClassification === "unavailable") {
+    return "unavailable";
   }
   else if (statusCode === "404") {
     return "not_found";
@@ -74,11 +78,11 @@ export function classifyEntry(
     sha256: string,
     mimetype: string,
     content: Buffer,
-    corrupt: boolean,
+    downloadClassification: "corrupt" | "unavailable" | undefined,
     statusCode: string
-): "ok" | "corrupt" | "not_found_page" | "transient_retry_page" | "not_found" | "redirect" {
+): CaptureClassification {
   const config = loadDefaultConfig();
-  return classifyEntryWithConfig(url, sha256, mimetype, content, corrupt, statusCode, config);
+  return classifyEntryWithConfig(url, sha256, mimetype, content, downloadClassification, statusCode, config);
 }
 
 let defaultConfig : ClassifierConfig | null = null;
@@ -87,7 +91,7 @@ function loadDefaultConfig(): ClassifierConfig {
     return defaultConfig;
   }
   defaultConfig = {
-    notFoundStrings: JSON5.parse(fs.readFileSync(path.join(__dirname, '../../data/settings/not_found_strings.json'), 'utf-8')),
+    notFoundStrings: JSON5.parse(fs.readFileSync(path.join(__dirname, '../../data/settings/not_found_strings.json'), 'utf-8')).map((s: string) => s.toLowerCase()),
     notFoundSha256: JSON5.parse(fs.readFileSync(path.join(__dirname, '../../data/settings/not_found_sha256.json'), 'utf-8')),
     transientRedirectSha256: JSON5.parse(fs.readFileSync(path.join(__dirname, '../../data/settings/transient_redirect_sha256.json'), 'utf-8'))
   };

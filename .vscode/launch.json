@@ -27,7 +27,7 @@
         "args": [
             "--no-mirrors",
             "--json",
-            "data/inputs/aoe2x-ms-usa-asp.json"
+            ".\\data\\inputs\\jp-test.json"
         ],
 
         // Files to exclude from debugger (e.g. call stack)

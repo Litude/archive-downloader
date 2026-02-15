@@ -6,7 +6,7 @@ export interface CaptureEntry {
   lastModified: DateTime<true> | null;
   url: string;
   statusCode: string;
-  classification: string;
+  classification: CaptureClassification;
   mimetype: string;
   waybackDigest: string;
   actualDigest: string;
@@ -19,3 +19,5 @@ export interface CaptureEntry {
   headers?: Record<string, string>;
   metadata?: Record<string, any>;
 }
+
+export type CaptureClassification = "ok" | "corrupt" | "not_found" | "transient_retry" | "redirect" | "unavailable";

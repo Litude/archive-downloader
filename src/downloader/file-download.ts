@@ -12,10 +12,24 @@ const REQUEST_HEADERS = {
   'Accept-Encoding': 'identity'
 };
 
-function getResponse(waybackUrl: string, statusCode: string) {
+async function getResponse(waybackUrl: string, statusCode: string) {
   if (statusCode && !statusCode.startsWith('2')) {
-    if (["301", "302"].includes(statusCode)) {
+    if (["302"].includes(statusCode)) {
       return axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: 'arraybuffer', maxRedirects: 0, validateStatus: status => status === Number(statusCode), timeout: REQUEST_TIMEOUT });
+    }
+    else if (["301"].includes(statusCode)) {
+      // Sometimes 301 captures seem to be unavailable (web archive instead returns 302 to a different capture)
+      const response = await axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: 'arraybuffer', maxRedirects: 0, validateStatus: status => status === 301 || status === 302, timeout: REQUEST_TIMEOUT });
+      if (response.status === 301) {
+        return response;
+      } else {
+        if (response.headers['x-archive-redirect-reason'].startsWith('found capture at')) {
+          return response;
+        }
+        else {
+          throw new Error(`Expected 301 response but got ${response.status} for ${waybackUrl}`);
+        }
+      }
     }
     else if (["404"].includes(statusCode)) {
       return axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: 'arraybuffer', validateStatus: status => status === Number(statusCode), timeout: REQUEST_TIMEOUT });
@@ -29,21 +43,19 @@ function getResponse(waybackUrl: string, statusCode: string) {
   }
 }
 
-function getResponseHeaders(waybackUrl: string, statusCode: string) {
-  if (statusCode && !statusCode.startsWith('2')) {
-    if (["301", "302"].includes(statusCode)) {
-      return axios.head(waybackUrl, { headers: REQUEST_HEADERS, maxRedirects: 0, validateStatus: status => status === Number(statusCode), timeout: REQUEST_TIMEOUT });
+function getResponseHeaders(waybackUrl: string, statusCodes?: string[]) {
+  return axios.head(
+    waybackUrl, {
+      headers: REQUEST_HEADERS,
+      maxRedirects: 0,
+      timeout: REQUEST_TIMEOUT,
+      validateStatus: status => (statusCodes ? statusCodes.includes(status.toString()) : true)
     }
-    else if (["404"].includes(statusCode)) {
-      return axios.head(waybackUrl, { headers: REQUEST_HEADERS, validateStatus: status => status === Number(statusCode), timeout: REQUEST_TIMEOUT });
-    }
-    else {
-      throw new Error(`Unsupported status code for special fetch: ${statusCode}`);
-    }
-  }
-  else {
-    return axios.head(waybackUrl, { headers: REQUEST_HEADERS, timeout: REQUEST_TIMEOUT });
-  }
+  );
+}
+
+function getRevisitFileHeaders(waybackUrl: string) {
+  return axios.head(waybackUrl, { headers: REQUEST_HEADERS,  maxRedirects: 0, validateStatus: status => [200, 301, 302, 404].includes(status), timeout: REQUEST_TIMEOUT });
 }
 
 export async function fetchWaybackFile(
@@ -63,8 +75,9 @@ export async function fetchWaybackFile(
       if (ERROR_STATUS_CODES.includes(response.status)) {
         throw new Error(`HTTP ${response.status}`)
       };
+      const classification = statusCode === "301" && response.status === 302 ? "unavailable" : undefined;
       const content = Buffer.from(response.data);
-      return { content, url, timestamp, headers: response.headers, corrupt: false, statusCode: response.status.toString() };
+      return { content, url, timestamp, headers: response.headers, classification, statusCode: response.status.toString() };
     } catch (e: unknown) {
       if (e instanceof Error && e.message === "incorrect header check") {
         // This seems to happen sometimes with corrupted gzip data
@@ -97,11 +110,10 @@ export async function fetchWaybackFile(
   }
 }
 
-
 export async function fetchWaybackFileHeaders(
-    timestamp: string,
-    url: string,
-    statusCode: string
+  timestamp: string,
+  url: string,
+  statusCodes?: string[]
 ): Promise<Omit<DownloadedFile, 'content' | 'corrupt'>> {
   const waybackUrl = createWaybackDownloadUrl(timestamp, url);
   let attempt = 1;
@@ -109,13 +121,39 @@ export async function fetchWaybackFileHeaders(
   while (true) {
     try {
       console.log(`Fetching file headers for ${timestamp}-${url} (attempt ${attempt})...`);
-      const response = await getResponseHeaders(waybackUrl, statusCode);
+      // TODO: Need some robust way to detect if the response is an error page (e.g. 404 page from web archive) instead of the actual capture
+      // Perhaps the presence of some specific header, e.g. x-archive-src or memento-datetime could be used?
+      const response = await getResponseHeaders(waybackUrl, statusCodes);
       if (ERROR_STATUS_CODES.includes(response.status)) {
         throw new Error(`HTTP ${response.status}`);
       }
       return { url, timestamp, headers: response.headers, statusCode: response.status.toString() };
     } catch (e: unknown) {
-      console.log(`Error fetching headers for ${url}: ${e}, retrying in ${backoff / 1000}s...`);
+      console.log(`Error fetching headers for ${timestamp}-${url}: ${e}, retrying in ${backoff / 1000}s...`);
+      await new Promise(res => setTimeout(res, backoff));
+      backoff = Math.min(backoff * 2, MAX_BACKOFF);
+      attempt++;
+    }
+  }
+}
+
+export async function fetchWaybackRevisitFileHeaders(
+  timestamp: string,
+  url: string
+): Promise<Omit<DownloadedFile, 'content' | 'corrupt'>> {
+  const waybackUrl = createWaybackDownloadUrl(timestamp, url);
+  let attempt = 1;
+  let backoff = INITIAL_BACKOFF;
+  while (true) {
+    try {
+      console.log(`Fetching file headers for ${timestamp}-${url} (attempt ${attempt})...`);
+      const response = await getRevisitFileHeaders(waybackUrl);
+      if (ERROR_STATUS_CODES.includes(response.status)) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return { url, timestamp, headers: response.headers, statusCode: response.status.toString() };
+    } catch (e: unknown) {
+      console.log(`Error fetching headers for ${timestamp}-${url}: ${e}, retrying in ${backoff / 1000}s...`);
       await new Promise(res => setTimeout(res, backoff));
       backoff = Math.min(backoff * 2, MAX_BACKOFF);
       attempt++;
@@ -142,7 +180,7 @@ async function fetchCorruptFileWithoutDecompression(
         throw new Error(`HTTP ${response.status}`);
       }
       const content = Buffer.from(response.data);
-      return { content, url, timestamp, headers: response.headers, corrupt: true, statusCode: response.status.toString() };
+      return { content, url, timestamp, headers: response.headers, classification: "corrupt", statusCode: response.status.toString() };
     } catch (e: unknown) {
       console.log(`Error fetching raw file for ${url}: ${e}, retrying in ${backoff / 1000}s...`);
       await new Promise(res => setTimeout(res, backoff));
@@ -168,7 +206,7 @@ async function fetchPartialFile(
         url,
         timestamp,
         headers,
-        corrupt: !valid,
+        classification: !valid ? "corrupt" : undefined,
         metadata: !valid ? {
             downloadedSize: fetchedLength.toString(),
             actualSize: headers['content-length'] ? headers['content-length'].toString() : undefined
