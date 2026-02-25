@@ -41,9 +41,13 @@ export function classifyEntryWithConfig(
     content: Buffer,
     downloadClassification: "corrupt" | "unavailable" | undefined,
     statusCode: string,
+    classificationOverrides: Record<string, CaptureClassification> | undefined,
     config: ClassifierConfig
 ): CaptureClassification {
-  if (downloadClassification === "corrupt") {
+  if (classificationOverrides && classificationOverrides[sha256]) {
+    return classificationOverrides[sha256];
+  }
+  if (downloadClassification === "corrupt" || (statusCode === "200" && content.length === 0)) {
     return "corrupt";
   }
   else if (downloadClassification === "unavailable") {
@@ -69,6 +73,10 @@ export function classifyEntryWithConfig(
       return "transient_retry";
     }
   }
+  // This is last because sometimes not found pages have returned 403 error codes but they will de detected by the not found string detection
+  if (statusCode === "403") {
+    return "forbidden";
+  }
 
   return "ok";
 }
@@ -79,10 +87,11 @@ export function classifyEntry(
     mimetype: string,
     content: Buffer,
     downloadClassification: "corrupt" | "unavailable" | undefined,
-    statusCode: string
+    statusCode: string,
+    classificationOverrides?: Record<string, CaptureClassification>
 ): CaptureClassification {
   const config = loadDefaultConfig();
-  return classifyEntryWithConfig(url, sha256, mimetype, content, downloadClassification, statusCode, config);
+  return classifyEntryWithConfig(url, sha256, mimetype, content, downloadClassification, statusCode, classificationOverrides, config);
 }
 
 let defaultConfig : ClassifierConfig | null = null;

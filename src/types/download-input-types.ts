@@ -1,3 +1,4 @@
+import { CaptureClassification } from "./capture-types";
 import { Transformation } from "./transformation-types";
 import { QueryHashParameter } from "./website-types";
 
@@ -8,6 +9,7 @@ export interface DownloadFileInput {
   limitedCaptures: LimitedCaptureRange[];
   transformations: Transformation[];
   queryHashParameters?: QueryHashParameter[];
+  classifications?: Record<string, CaptureClassification>;
 }
 
 

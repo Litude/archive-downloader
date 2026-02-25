@@ -30,7 +30,8 @@ async function downloadToBuffer(url: string, requestHeaders: Record<string, stri
       method: 'GET',
       responseType: 'stream',
       timeout: 60000,
-      validateStatus: () => true,
+      maxRedirects: 0,
+      validateStatus: (status) => status === 200 || status === 206, // Accept both full content and partial content responses
       headers: { 
         'Accept-Encoding': 'identity',
         ...requestHeaders

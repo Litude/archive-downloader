@@ -1,3 +1,5 @@
+import { CaptureClassification } from "./capture-types";
+
 export interface QueryHashParameter {
   paramName: string;
   outputName?: string;
@@ -9,7 +11,7 @@ export interface QueryHashParameter {
 export interface WebsiteFileEntryJson {
   url?: string;
   urls?: (string | { url: string, maxTimestamp?: string, minTimestamp?: string })[];
-  additionalMirrors?: string[];
+  additionalMirrors?: (string | MirrorData)[];
   transformations?: TransformationJson[];
   filename?: string;
   queryParams?: Record<string, string>;
@@ -17,6 +19,7 @@ export interface WebsiteFileEntryJson {
   maxTimestamp?: string;
   minTimestamp?: string;
   additionalUrls?: string[];
+  classifications?: Record<string, CaptureClassification>;
   /** @deprecated should be handled by classifier or by getting all headers */
   excludedCaptures?: string[];
   /** @deprecated should be handled by getting all headers */
@@ -29,5 +32,14 @@ export interface WebsiteFileEntryJson {
 
 export interface TransformationJson {
     name: string;
-    options: Record<string, any>;
+    options?: Record<string, any>;
+}
+
+export interface MirrorData {
+    url: string;
+    mirrors: (string | {
+        url: string;
+        maxTimestamp?: string;
+        minTimestamp?: string;
+    })[];
 }

@@ -29,6 +29,10 @@ function transformQueryParams(
       }
       continue;
     }
+    if (hashParam.outputName === null) {
+      // If outputName is explicitly set to null, we want to remove this param from the output
+      continue;
+    }
 
     try {
       const regex = new RegExp(hashParam.pattern);
@@ -148,7 +152,8 @@ function escapeFilename(filename: string): string {
 
 function writeQueryParamsToString(
   queryParams: Record<string, string> | undefined,
-  queryHashParameters?: QueryHashParameter[]
+  queryHashParameters?: QueryHashParameter[],
+  escape = true
 ): string {
   if (!queryParams) {
     return '';
@@ -181,7 +186,7 @@ function writeQueryParamsToString(
       return `~h${result}`
     }
     else {
-      return escapeFilename(`?${result}`);
+      return escape ? escapeFilename(`?${result}`) : `?${result}`;
     }
   }
   else {
@@ -229,7 +234,13 @@ export function getOriginalQueryString(
   // If queryHashParameters are provided, return the untransformed version
   if (filename.queryHashParameters && filename.queryHashParameters.length > 0) {
     // Write without transformation
-    return writeQueryParamsToString(filename.queryParams);
+    const queryString = writeQueryParamsToString(filename.queryParams, undefined, false);
+    if (queryString.startsWith('?')) {
+      return queryString.slice(1);
+    }
+    else {
+      return queryString;
+    }
   }
   
   // Otherwise, no transformation applies, so return undefined

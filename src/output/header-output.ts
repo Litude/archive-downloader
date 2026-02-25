@@ -4,7 +4,7 @@ import { CaptureEntry } from "../types/capture-types";
 import { Filename } from "../types/download-input-types";
 import { filenameToString } from "../file-name/file-name";
 
-const ARCHIVED_COMMON_HEADERS = ['content-type', 'content-length', 'location'];
+const ARCHIVED_COMMON_HEADERS = ['content-type', 'content-length', 'location', 'content-disposition'];
 const ARCHIVED_WAYBACK_HEADERS = ['memento-datetime', 'x-archive-src'];
 const WAYBACK_ORIGINAL_HEADER_PREFIX = 'x-archive-orig-';
 
@@ -13,11 +13,15 @@ const ALL_HEADERS_TO_STORE = [
     ...ARCHIVED_WAYBACK_HEADERS
 ];
 
+function cleanupLocationHeader(location: string): string {
+    return location.replace(/^https?:\/\/web\.archive\.org\/web\/\d+[^\/]*\//, '');
+}
+
 function cleanupHeaders(headers: Record<string, string>): Record<string, string> {
     const cleanedHeaders: Record<string, string> = {};
     for (const [key, value] of Object.entries(headers)) {
         if (value && (ALL_HEADERS_TO_STORE.includes(key.toLowerCase()) || key.toLowerCase().startsWith(WAYBACK_ORIGINAL_HEADER_PREFIX))) {
-            cleanedHeaders[key] = value;
+            cleanedHeaders[key] = key.toLowerCase() === 'location' ? cleanupLocationHeader(value) : value;
         }
     }
     return cleanedHeaders;

@@ -3,6 +3,7 @@ import { TransformationJson } from "../types/website-types";
 import { computeSha256 } from "../utils/hash";
 import { ConquerorsUsTransformation } from "./conquerors-us-layout/conquerors-us-transformation";
 import { QueryParamTransformation } from "./query-param-transformation";
+import { QueryParamFilter } from "./query-param-filter";
 import { TrackingImageNormalizer } from "./tracking-img-transformation";
 
 export function applyTransformationPipeline(
@@ -77,12 +78,12 @@ export function parseJsonTransformations(transformationsJson: TransformationJson
     if (!transformation) {
       throw new Error(`Unknown transformation: ${name}`);
     }
-    if (transformation.validateOptions && !transformation.validateOptions(options)) {
+    if (transformation.validateOptions && !transformation.validateOptions(options || {})) {
       throw new Error(`Invalid options for transformation ${name}`);
     }
     return {
       function: transformation.transform,
-      options,
+      options: options || {},
       name
     }
   });
@@ -91,5 +92,6 @@ export function parseJsonTransformations(transformationsJson: TransformationJson
 export const Transformations: Record<string, TransformationProvider> = {
   conquerorsUsLayoutTransformation: ConquerorsUsTransformation,
   queryParamTransformation: QueryParamTransformation,
+  queryParamFilter: QueryParamFilter,
   trackingImageUrlNormalizer: TrackingImageNormalizer,
 }

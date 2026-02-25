@@ -3,15 +3,7 @@ import JSON5 from "json5";
 import fs from "fs";
 import { timestampMax, timestampMin } from "../utils/timestamp";
 import { UrlEntry } from "../types/download-input-types";
-
-interface MirrorData {
-    url: string;
-    mirrors: {
-        url: string;
-        maxTimestamp?: string;
-        minTimestamp?: string;
-    }[];
-}
+import { MirrorData } from "../types/website-types";
 
 function normalizeUrl(url: string): string {
     let normalized = url;
@@ -48,7 +40,7 @@ function loadDefaultMirrors(): MirrorData[] {
 
 export function createMirrorUrlsWithConfig(
   urls: UrlEntry[],
-  additionalMirrors: string[],
+  additionalMirrors: (string | MirrorData)[],
   mirrorData: MirrorData[],
 ): UrlEntry[] {
   const parsed: UrlEntry[] = [];
@@ -65,15 +57,35 @@ export function createMirrorUrlsWithConfig(
     const pathAndParams = urlObj.pathname + urlObj.search + urlObj.hash;
     if (availableBaseMirrors) {
       for (const mirror of availableBaseMirrors.mirrors) {
-        const maxTimestamp = timestampMin(mirror.maxTimestamp, urlEntry.maxTimestamp);
-        const minTimestamp = timestampMax(mirror.minTimestamp, urlEntry.minTimestamp);
-        parsed.push({ url: `${mirror.url}${pathAndParams}`, mirrorUrl: true, maxTimestamp, minTimestamp });
+        if (typeof mirror === "string") {
+          parsed.push({ url: `${mirror}${pathAndParams}`, mirrorUrl: true, maxTimestamp: urlEntry.maxTimestamp, minTimestamp: urlEntry.minTimestamp });
+        }
+        else {
+          const maxTimestamp = timestampMin(mirror.maxTimestamp, urlEntry.maxTimestamp);
+          const minTimestamp = timestampMax(mirror.minTimestamp, urlEntry.minTimestamp);
+          parsed.push({ url: `${mirror.url}${pathAndParams}`, mirrorUrl: true, maxTimestamp, minTimestamp });
+        }
       }
     }
 
     // Add special mirrors defined in the site json file
     for (const mirror of additionalMirrors) {
-      parsed.push({ url: `${mirror}${pathAndParams}`, mirrorUrl: true, maxTimestamp: urlEntry.maxTimestamp, minTimestamp: urlEntry.minTimestamp });
+      if (typeof mirror === "string") {
+        parsed.push({ url: `${mirror}${pathAndParams}`, mirrorUrl: true, maxTimestamp: urlEntry.maxTimestamp, minTimestamp: urlEntry.minTimestamp });
+      } else {
+        if (normalizeUrl(mirror.url) === cleanedUrl) {
+          for (const m of mirror.mirrors) {
+            if (typeof m === "string") {
+              parsed.push({ url: `${m}${pathAndParams}`, mirrorUrl: true, maxTimestamp: urlEntry.maxTimestamp, minTimestamp: urlEntry.minTimestamp });
+            }
+            else {
+              const maxTimestamp = timestampMin(m.maxTimestamp, urlEntry.maxTimestamp);
+              const minTimestamp = timestampMax(m.minTimestamp, urlEntry.minTimestamp);
+              parsed.push({ url: `${m.url}${pathAndParams}`, mirrorUrl: true, maxTimestamp, minTimestamp });
+            }
+          }
+        }
+      }
     }
   }
 
@@ -82,7 +94,7 @@ export function createMirrorUrlsWithConfig(
 
 export function createMirrorUrls(
   urls: UrlEntry[],
-  additionalMirrors: string[],
+  additionalMirrors: (string | MirrorData)[],
 ): UrlEntry[] {
   const mirrorData = loadDefaultMirrors();
   return createMirrorUrlsWithConfig(urls, additionalMirrors, mirrorData);

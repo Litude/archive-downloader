@@ -26,8 +26,10 @@
         "internalConsoleOptions": "neverOpen",
         "args": [
             "--no-mirrors",
+            "--no-peek-all",
+            "--no-headers",
             "--json",
-            ".\\data\\inputs\\jp-test.json"
+            ".\\data\\inputs\\aoe2x-ms-usa-asp.json"
         ],
 
         // Files to exclude from debugger (e.g. call stack)

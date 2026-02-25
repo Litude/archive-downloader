@@ -1,6 +1,14 @@
 import { TransformationInput, TransformationOutput } from "../types/transformation-types";
 
-function normalizeTrackingImageUrl(content: Buffer): Buffer {
+export interface TrackingImageTransformationOptions {
+  path?: string; // default is to lowercase the path, but can be overridden with a specific value
+}
+
+function encodeURIComponentLowerCase(str: string): string {
+    return encodeURIComponent(str).replace(/%[0-9a-f]{2}/gi, match => match.toLowerCase());
+}
+
+function normalizeTrackingImageUrl(content: Buffer, options: TrackingImageTransformationOptions): Buffer {
     let htmlContent = content.toString("latin1");
     const hasTrackingImage = htmlContent.includes('function footerjs(doc)');
     if (!hasTrackingImage) {
@@ -25,24 +33,58 @@ function normalizeTrackingImageUrl(content: Buffer): Buffer {
             return "source=www";
         }
         else if (part.startsWith("URI=")) {
-            let subParts = part.split(encodeURIComponent("&"));
+            const content = decodeURIComponent(part.substring("URI=".length));
+            const [basePart, params] = content.split("?");
+            if (!params) {
+                return part;
+            }
+            let subParts = params.split("&");
+
             subParts = subParts.map(subPart => {
-                if (subPart.startsWith("h%3d")) {
-                    if (subPart !== "h%3dwww%252Emicrosoft%252Ecom") {
+                if (subPart.startsWith("h=")) {
+                    if (subPart !== "h=www%2Emicrosoft%2Ecom") {
                         modified = true;
                     }
-                    return "h%3dwww%252Emicrosoft%252Ecom";
+                    return "h=www%2Emicrosoft%2Ecom";
+                }
+                else if (subPart.startsWith("r=") && subPart.length > "r=".length) {
+                    modified = true;
+                    return "r=";
                 }
                 else {
                     return subPart;
                 }
-            })
-            return subParts.join(encodeURIComponent("&"));
+            });
+            const modifiedParts = subParts.join("&");
+            const combinedResult = `${basePart}?${modifiedParts}`;
+            return "URI=" + encodeURIComponentLowerCase(combinedResult);
+        }
+        // Path parameter, which respects the case of the actual URL but must be lowercased to be normalized
+        else if (part.startsWith("p=")) {
+            if (options.path) {
+                const newValue = `p=${options.path}`;
+                if (part !== newValue) {
+                    modified = true;
+                }
+                return newValue;
+            }
+            else {
+                const lowerCased = part.toLowerCase();
+                if (part !== lowerCased) {
+                    modified = true;
+                }
+                return lowerCased;
+            }
+        }
+        // Referrer parameter, this will be removed to normalize the content
+        else if (part.startsWith("r=")) {
+            modified = true;
+            return null;
         }
         else {
             return part;
         }
-    })
+    }).filter(part => part !== null);
 
     if (!modified) {
         return content;
@@ -54,7 +96,7 @@ function normalizeTrackingImageUrl(content: Buffer): Buffer {
 }
 
 function transformInputs(input: TransformationInput, transformationOptions: Record<string, any>): TransformationOutput[] {
-    const normalizedContent = normalizeTrackingImageUrl(input.content);
+    const normalizedContent = normalizeTrackingImageUrl(input.content, transformationOptions as TrackingImageTransformationOptions);
     return [{
         content: normalizedContent,
         queryParams: {},

@@ -2,7 +2,7 @@ import axios from "axios";
 import { fetchPartiallyArchivedFileData } from "./partial-file";
 import { DownloadedFile } from "../types/download-types";
 
-const WEB_ARCHIVE = 'http://web.archive.org/web';
+const WEB_ARCHIVE = 'web.archive.org/web';
 const REQUEST_TIMEOUT = 60_000; // 60 seconds
 const INITIAL_BACKOFF = 30_000; // 30 seconds
 const MAX_BACKOFF = 600_000; // 10 minutes
@@ -19,8 +19,12 @@ async function getResponse(waybackUrl: string, statusCode: string) {
     }
     else if (["301"].includes(statusCode)) {
       // Sometimes 301 captures seem to be unavailable (web archive instead returns 302 to a different capture)
-      const response = await axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: 'arraybuffer', maxRedirects: 0, validateStatus: status => status === 301 || status === 302, timeout: REQUEST_TIMEOUT });
+      const response = await axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: 'arraybuffer', maxRedirects: 0, validateStatus: status => status === 301 || status === 302 || status === 404, timeout: REQUEST_TIMEOUT });
       if (response.status === 301) {
+        return response;
+      } else if (response.status === 404) {
+        console.log(`Received 404 for ${waybackUrl} which was expected to be a 301. This might indicate that the capture is unavailable and the web archive returned a 404 page instead.`);
+        // if there are no valid captures, the 301 might be replaced with a 404 page
         return response;
       } else {
         if (response.headers['x-archive-redirect-reason'].startsWith('found capture at')) {
@@ -31,15 +35,15 @@ async function getResponse(waybackUrl: string, statusCode: string) {
         }
       }
     }
-    else if (["404"].includes(statusCode)) {
-      return axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: 'arraybuffer', validateStatus: status => status === Number(statusCode), timeout: REQUEST_TIMEOUT });
+    else if (["403", "404"].includes(statusCode)) {
+      return axios.get(waybackUrl, { headers: REQUEST_HEADERS, maxRedirects: 0, responseType: 'arraybuffer', validateStatus: status => status === Number(statusCode), timeout: REQUEST_TIMEOUT });
     }
     else {
       throw new Error(`Unsupported status code for special fetch: ${statusCode}`);
     }
   }
   else {
-    return axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: 'arraybuffer', timeout: REQUEST_TIMEOUT });
+    return axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: 'arraybuffer', maxRedirects: 0, validateStatus: status => status === Number(statusCode), timeout: REQUEST_TIMEOUT });
   }
 }
 
@@ -75,7 +79,7 @@ export async function fetchWaybackFile(
       if (ERROR_STATUS_CODES.includes(response.status)) {
         throw new Error(`HTTP ${response.status}`)
       };
-      const classification = statusCode === "301" && response.status === 302 ? "unavailable" : undefined;
+      const classification = statusCode === "301" && (response.status === 302 || response.status === 404) ? "unavailable" : undefined;
       const content = Buffer.from(response.data);
       return { content, url, timestamp, headers: response.headers, classification, statusCode: response.status.toString() };
     } catch (e: unknown) {
@@ -115,11 +119,11 @@ export async function fetchWaybackFileHeaders(
   url: string,
   statusCodes?: string[]
 ): Promise<Omit<DownloadedFile, 'content' | 'corrupt'>> {
-  const waybackUrl = createWaybackDownloadUrl(timestamp, url);
   let attempt = 1;
   let backoff = INITIAL_BACKOFF;
   while (true) {
     try {
+      const waybackUrl = createWaybackDownloadUrl(timestamp, url, attempt - 1);
       console.log(`Fetching file headers for ${timestamp}-${url} (attempt ${attempt})...`);
       // TODO: Need some robust way to detect if the response is an error page (e.g. 404 page from web archive) instead of the actual capture
       // Perhaps the presence of some specific header, e.g. x-archive-src or memento-datetime could be used?
@@ -161,8 +165,9 @@ export async function fetchWaybackRevisitFileHeaders(
   }
 }
 
-function createWaybackDownloadUrl(timestamp: string, url: string): string {
-    return `${WEB_ARCHIVE}/${timestamp}id_/${url.replaceAll('\\', '%5C')}`;
+function createWaybackDownloadUrl(timestamp: string, url: string, attempt?: number): string {
+  const protocol = (attempt || 0) % 2 === 0 ? 'http' : 'https';
+  return `${protocol}://${WEB_ARCHIVE}/${timestamp}id_/${url.replaceAll('\\', '%5C')}`;
 }
 
 async function fetchCorruptFileWithoutDecompression(
@@ -175,7 +180,7 @@ async function fetchCorruptFileWithoutDecompression(
   while (true) {
     try {
       console.log(`Fetching raw file content for ${url} (attempt ${attempt})...`);
-      const response = await axios.get(waybackUrl, { decompress: false, responseType: 'arraybuffer', timeout: REQUEST_TIMEOUT });
+      const response = await axios.get(waybackUrl, { decompress: false, maxRedirects: 0, responseType: 'arraybuffer', timeout: REQUEST_TIMEOUT });
       if (ERROR_STATUS_CODES.includes(response.status)) {
         throw new Error(`HTTP ${response.status}`);
       }

@@ -40,7 +40,7 @@ function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
   return digestHashes;
 }
 
-function classifyDigestFiles(uniqueDigestFiles: Map<string, DownloadedFile>, digestHashes: Map<string, { sha256: string; actualDigest: string }>) {
+function classifyDigestFiles(uniqueDigestFiles: Map<string, DownloadedFile>, digestHashes: Map<string, { sha256: string; actualDigest: string }>, classificationOverrides?: Record<string, CaptureClassification>) {
   const classifications = new Map<string, CaptureClassification>();
   
   [...uniqueDigestFiles.entries()].forEach(([digest, file]) => {
@@ -51,7 +51,8 @@ function classifyDigestFiles(uniqueDigestFiles: Map<string, DownloadedFile>, dig
       file.headers['content-type'], 
       file.content, 
       file.classification,
-      file.statusCode
+      file.statusCode,
+      classificationOverrides,
     );
     classifications.set(digest, classification);
   });
@@ -79,7 +80,7 @@ async function processWebsiteDownloads(
     const allEntries = [...validCdxEntries, ...invalidCdxEntries];
     const uniqueDigestFiles = await downloadUniqueDigestsForSnapshots(allEntries);
     const digestFileHashes = computeDigestHashes(uniqueDigestFiles);
-    const classifiedEntries = classifyDigestFiles(uniqueDigestFiles, digestFileHashes);
+    const classifiedEntries = classifyDigestFiles(uniqueDigestFiles, digestFileHashes, input.classifications);
 
     const enrichedDigestFiles = new Map<string, { file: DownloadedFile; classification: CaptureClassification; sha256: string; actualDigest: string }>();
     [...uniqueDigestFiles.entries()].forEach(([digest, file]) => {
@@ -215,13 +216,14 @@ async function processWebsiteDownloads(
       for (const [queryParamKey, outputs] of groupedByQueryParams.entries()) {
         console.log(`Writing files for query params: ${queryParamKey} (${outputs.length} files)`);
         const queryParams = queryParamKey.split('&').reduce((acc, pair) => {
-          const [k, v] = pair.split('=');
-          acc[k] = v;
+          const [k, ...v] = pair.split('=');
+          acc[k] = v.join('=');
           return acc;
         }, {} as Record<string, string>);
 
         const filename = structuredClone(input.filename);
         filename.queryParams = Object.assign(filename.queryParams ?? {}, queryParams);
+        filename.queryHashParameters = input.queryHashParameters;
 
         const updatedEntries = validBaseEntries.map(entry => ({ ...entry }));
 

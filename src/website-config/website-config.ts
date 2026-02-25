@@ -1,10 +1,13 @@
+import JSON5 from "json5";
+import fs from "fs";
+import path from "path";
 import { DownloadFileInput, UrlEntry } from "../types/download-input-types";
 import { determineFilenameFromUrls, determineOutputSubdirectoryFromUrls } from "../file-name/file-name";
 import { createMirrorUrls } from "../mirrors/mirrors";
 import { createAdditionalUrls } from "../mirrors/additional-urls";
 import { checkForLimitedCaptureUrl } from "../special-rules/limit-captures";
 import { readFileAsJson5 } from "../utils/file-json";
-import { WebsiteFileEntryJson } from "../types/website-types";
+import { MirrorData, WebsiteFileEntryJson } from "../types/website-types";
 import { parseJsonTransformations } from "../transformation/transformation";
 
 // Timestamps can be limited at several levels:
@@ -47,7 +50,7 @@ function getEntryUrls(
 function createAllMirrorUrls(
   urls: UrlEntry[],
   file: WebsiteFileEntryJson,
-  mirrors: string[],
+  mirrors: (string | MirrorData)[],
   {
     maxTimestamp,
     minTimestamp
@@ -61,12 +64,50 @@ function createAllMirrorUrls(
     return [...mirrorUrls, ...additionalUrls];
 }
 
+
+
+function replaceJsonConfigVariables<T>(obj: T, variables: Record<string, any>): T {
+  if (typeof obj === "string") {
+    return obj.replace(/\{var:([^}]+)\}/g, (match, varName) => {
+      if (!(varName in variables)) {
+        throw new Error(`Variable "${varName}" not found in variable map`);
+      }
+      return variables[varName];
+    }) as T;
+  } else if (Array.isArray(obj)) {
+    return obj.map(item => replaceJsonConfigVariables(item, variables)) as T;
+  } else if (obj !== null && typeof obj === "object") {
+    return Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => [k, replaceJsonConfigVariables(v, variables)])
+    ) as T;
+  }
+  return obj;
+}
+
+function readVariables(): Record<string, any> {
+  const variablesPath = path.join(__dirname, '../../data/settings/variables.json');
+  if (fs.existsSync(variablesPath)) {
+    try {
+      const variablesContent = fs.readFileSync(variablesPath, 'utf-8');
+      return JSON5.parse(variablesContent);
+    } catch (error) {
+      console.error(`Error reading variables from ${variablesPath}:`, error);
+      return {};
+    }
+  } else {
+    console.warn(`Variables file not found at ${variablesPath}, proceeding without variable substitution.`);
+    return {};
+  }
+}
+
 export function readWebsiteJsonConfig(jsonPath: string, baseDirectory: string, {
   noMirrors = false
 }): DownloadFileInput[] {
-  const config = readFileAsJson5(jsonPath);
+  let config = readFileAsJson5(jsonPath);
+  const variables = readVariables();
+  config = replaceJsonConfigVariables(config, variables);
 
-  const commonMirrors: string[] = config.commonSettings?.additionalMirrors || [];
+  const commonMirrors: (string | MirrorData)[] = config.commonSettings?.additionalMirrors || [];
   const maxTimestamp: string | undefined = config.commonSettings?.maxTimestamp;
   const minTimestamp: string | undefined = config.commonSettings?.minTimestamp;
 
@@ -106,6 +147,7 @@ export function readWebsiteJsonConfig(jsonPath: string, baseDirectory: string, {
       limitedCaptures,
       transformations,
       queryHashParameters: file.queryHashParameters,
+      classifications: file.classifications
     };
   });
 

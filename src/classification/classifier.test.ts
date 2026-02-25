@@ -16,6 +16,7 @@ describe('Classifier', () => {
       Buffer.from('content'),
       undefined,
       "200",
+      undefined,
       testConfig
     );
     expect(result).toBe('transient_retry');
@@ -29,6 +30,7 @@ describe('Classifier', () => {
       Buffer.from('<html>page not found</html>'),
       undefined,
       "200",
+      undefined,
       testConfig
     );
     expect(result).toBe('not_found');
@@ -42,6 +44,7 @@ describe('Classifier', () => {
       Buffer.from('<html>Hello World!</html>'),
       undefined,
       "200",
+      undefined,
       testConfig
     );
     expect(result).toBe('ok');

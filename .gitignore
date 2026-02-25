@@ -1,6 +1,5 @@
 node_modules/
-output/
-/output_old/
+output*/
 data/
 *.ps1
 redirect.txt
