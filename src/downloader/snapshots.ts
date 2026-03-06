@@ -1,6 +1,6 @@
 import axios, { AxiosResponse } from "axios";
 import { filterLimitedCapturesForUrl } from "../special-rules/limit-captures";
-import { DownloadFileInput, UrlEntry } from "../types/download-input-types";
+import { DownloadFileInput, LimitedCaptureRange, UrlEntry } from "../types/download-input-types";
 import { CdxEntry } from "../types/wayback-types";
 import { filenameToString } from "../file-name/file-name";
 import { fetchWaybackFileHeaders } from "./file-download";
@@ -8,6 +8,9 @@ import { DownloadedFile } from "../types/download-types";
 
 const WAYBACK_CDX_API_URL = 'http://web.archive.org/cdx/search/cdx';
 const REQUEST_TIMEOUT = 60000; // 60 seconds
+
+const INITIAL_BACKOFF = 30_000; // 30 seconds
+const MAX_BACKOFF = 600_000; // 10 minutes
 
 // Redirects and not found are the most likely codes when a page no longer exists
 const INVALID_ALLOWED_STATUS_CODES = ['301', '302', '403', '404'];
@@ -19,13 +22,17 @@ export async function getSnapshotsForWebsiteFile(
   const validCdxEntries: CdxEntry[] = [];
   const invalidCdxEntries: CdxEntry[] = [];
   for (const url of input.urls) {
-      const { validSnapShots, invalidSnapshots } = await getSnapshotsForUrl(url, includeInvalid);
+      const { validSnapShots, invalidSnapshots } = await getSnapshotsForUrl(url, includeInvalid, input.limitedCaptures);
       const filteredSnapshots = filterLimitedCapturesForUrl(validSnapShots, input.limitedCaptures);
       if (filteredSnapshots.length !== validSnapShots.length) {
         console.log(`Filtered ${validSnapShots.length - filteredSnapshots.length} snapshots for ${url.url} based on limited captures.`);
       }
+      const filteredInvalidSnapshots = filterLimitedCapturesForUrl(invalidSnapshots, input.limitedCaptures);
+      if (filteredInvalidSnapshots.length !== invalidSnapshots.length) {
+        console.log(`Filtered ${invalidSnapshots.length - filteredInvalidSnapshots.length} invalid snapshots for ${url.url} based on limited captures.`);
+      }
       validCdxEntries.push(...filteredSnapshots);
-      invalidCdxEntries.push(...invalidSnapshots);
+      invalidCdxEntries.push(...filteredInvalidSnapshots);
   }
   console.log(`Total valid snapshots for ${filenameToString(input.filename, 'simple')}: ${validCdxEntries.length}`);
   if (includeInvalid) {
@@ -37,55 +44,33 @@ export async function getSnapshotsForWebsiteFile(
   };
 }
 
-// warc/revisit examples at:
-// http://radgametools.com/down/bink/radtools.exe
-// http://www.microsoft.com/taiwan/products/Game/AOE/empirestips/images/y08_small.jpg
-// (does handling them require getting the file info itself...?)
-// Retrieve headers and only keep if status code is 200 and update mime/type?
-//
-// This is deprecated, can be resolved automatically by the CDX API with the resolveRevisits parameter, but we keep it here just in case we need to do some manual resolving for some reason
-async function resolveRevisitSnapshots(snapshots: CdxEntry[]): Promise<CdxEntry[]> {
-  const result = await Promise.all(snapshots.map(async (snapshot) => {
-    if (snapshot.mimetype === "warc/revisit") {
-      throw new Error(`Snapshot for ${snapshot.url} at ${snapshot.timestamp} is a warc/revisit snapshot. These should be resolved by the API parameter, something is wrong!.`);
-      console.log(`Resolving warc/revisit snapshot for ${snapshot.url} at ${snapshot.timestamp}...`);
-      while (true) {
-        try {
-          const headerResult = await fetchWaybackFileHeaders(snapshot.timestamp, snapshot.url);
-          if (!headerResult.headers['x-archive-src']) {
-            throw new Error(`Missing x-archive-src header in response when resolving warc/revisit snapshot for ${snapshot.url} at ${snapshot.timestamp}`);
-          }
-          console.log(`Resolved warc/revisit snapshot for ${snapshot.url} at ${snapshot.timestamp}: status ${headerResult.statusCode}, mimetype ${headerResult.headers['content-type']}`);
-          return {
-            ...snapshot,
-            mimetype: headerResult.headers['content-type'] || 'application/octet-stream',
-            status: headerResult.statusCode,
-            metadata: {
-              revisit: 'true',
-              originalMimeType: snapshot.mimetype,
-              originalStatusCode: snapshot.status
-            }
-          }
-        } catch (error) {
-          console.log(`Error resolving warc/revisit snapshot for ${snapshot.url} at ${snapshot.timestamp}: ${error}, retrying in 30s...`);
-          await new Promise(res => setTimeout(res, 30000));
-        }
-      }
-    }
-    else {
-      return snapshot;
-    }
-  }));
-  return result;
+function validateNoRevisitSnapshots(snapshots: CdxEntry[]): void {
+  const revisitSnapshot = snapshots.find(snapshot => snapshot.mimetype === "warc/revisit");
+  if (revisitSnapshot) {
+    throw new Error(`Snapshot for ${revisitSnapshot.url} at ${revisitSnapshot.timestamp} is a warc/revisit snapshot. These should be resolved by the API parameter, something is wrong!.`);
+  }
 }
 
-async function fetchHeadersUntilSuccess(timestamp: string, url: string): Promise<Omit<DownloadedFile, 'content' | 'corrupt'>> {
+async function fetchHeadersUntilSuccess(timestamp: string, url: string, statusCodes: string[]): Promise<Omit<DownloadedFile, 'content' | 'corrupt'>> {
   let attempt = 1;
+  // Redirects might not resolve to the actual capture, so we might not actually get x-archive-src.
+  // Hopefully such timestamps that also have 200 captures would always resolve to the 200 capture or other code
+  const potentialRedirect = statusCodes.every(code => ['301', '302'].includes(code));
+  let redirectAttempts = 1;
+  let redirectBackoff = INITIAL_BACKOFF;
   while (true) {
     try {
       const result = await fetchWaybackFileHeaders(timestamp, url);
       if (result.headers['x-archive-src'] === undefined) {
-        throw new Error(`Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}`);
+        if (!potentialRedirect) {
+          throw new Error(`Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}`);
+        }
+        else if (redirectAttempts < 5 && result.statusCode === '302') {
+          console.log(`Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}, this redirect only capture might be unavailable. Retrying in ${redirectBackoff / 1000}s... (attempt ${redirectAttempts})`);
+          await new Promise(res => setTimeout(res, redirectBackoff));
+          redirectBackoff = Math.min(redirectBackoff * 2, MAX_BACKOFF);
+          redirectAttempts++;
+        }
       }
       return result;
     } catch (error) {
@@ -96,7 +81,17 @@ async function fetchHeadersUntilSuccess(timestamp: string, url: string): Promise
   }
 }
 
-async function resolveDuplicateSnapshots(snapshots: CdxEntry[]): Promise<CdxEntry[]> {
+// Logic is based on
+// https://github.com/internetarchive/wayback/blob/master/wayback-core/src/main/java/org/archive/wayback/resourceindex/filters/DuplicateTimestampFilter.java
+function filterDuplicateTimestampSnapshots(snapshotsAtTimestamp: CdxEntry[]): CdxEntry {
+  return snapshotsAtTimestamp.reduce((best, current) => {
+    const bestStatus = best.status ? parseInt(best.status, 10) : 9999;
+    const currentStatus = current.status ? parseInt(current.status, 10) : 9999;
+    return currentStatus < bestStatus ? current : best;
+  });
+}
+
+async function resolveDuplicateSnapshots(snapshots: CdxEntry[], limitedCaptures: LimitedCaptureRange[]): Promise<CdxEntry[]> {
   // Group snapshots by timestamp to handle duplicates
   const snapshotsByTimestamp = new Map<string, CdxEntry[]>();
   let filteredSnapshots = 0;
@@ -107,6 +102,7 @@ async function resolveDuplicateSnapshots(snapshots: CdxEntry[]): Promise<CdxEntr
     }
     snapshotsByTimestamp.get(timestamp)!.push(snapshot);
   }
+  let limitedCaptureFiltered = 0;
 
   const uniqueSnapshots: CdxEntry[] = [];
 
@@ -116,48 +112,63 @@ async function resolveDuplicateSnapshots(snapshots: CdxEntry[]): Promise<CdxEntr
       uniqueSnapshots.push(snapshotsAtTimestamp[0]);
     }
     else {
+      // A performance optimization: If the duplicate falls inside a limited capture range, we won't even try resolving it and just filter out all duplicates here
+      if (limitedCaptures.length > 0) {
+        const inLimitedCapture = limitedCaptures.some(range => timestamp >= range.startTimestamp && timestamp <= range.endTimestamp);
+        if (inLimitedCapture) {
+          limitedCaptureFiltered += snapshotsAtTimestamp.length;
+          filteredSnapshots += snapshotsAtTimestamp.length;
+          continue;
+        }
+      }
+
+      // From testing, it seems the web archive always returns the last snapshot for a given timestamp when there are duplicates
+      // 
       console.log(`Found ${snapshotsAtTimestamp.length} snapshots with same timestamp ${timestamp} for ${snapshotsAtTimestamp[0].url} (status codes ${snapshotsAtTimestamp.map(s => s.status).join(', ')}). Attempting to resolve by fetching headers...`);
-      const result = await fetchHeadersUntilSuccess(timestamp, snapshotsAtTimestamp[0].url);
-      const matchingSnapshot = snapshotsAtTimestamp.find(s => s.status === result.statusCode);
-      if (matchingSnapshot) {
-        console.log(`Resolved duplicate snapshots for ${matchingSnapshot.url} at ${timestamp}: status ${matchingSnapshot.status}`);
-        uniqueSnapshots.push(matchingSnapshot);
-        filteredSnapshots += snapshotsAtTimestamp.length - 1;
+      while (true) {
+        try {
+          const actualSnapShot = snapshotsAtTimestamp.at(-1)!;
+          //const actualSnapShot = filterDuplicateTimestampSnapshots(snapshotsAtTimestamp);
+          const result = await fetchHeadersUntilSuccess(timestamp, actualSnapShot.url, snapshotsAtTimestamp.map(s => s.status));
+
+          const snapshot = snapshotsAtTimestamp.findLast(s => s.status === result.statusCode);
+          if (snapshot) {
+            console.log(`Resolved duplicate snapshots for ${actualSnapShot.url} at ${timestamp}: status ${actualSnapShot.status}`);
+            uniqueSnapshots.push(actualSnapShot);
+            filteredSnapshots += snapshotsAtTimestamp.length - 1;
+            break;
+          }
+          else if (result.statusCode === '302' && snapshotsAtTimestamp.some(s => s.status === '301')) {
+            // Special case for 301/302 captures where they are self redirects and there are no actual captures, the web archive will return 302 without x-archive-src
+            const redirectSnapshot = snapshotsAtTimestamp.findLast(s => s.status === '301')!;
+            console.log(`Resolved duplicate snapshots for ${actualSnapShot.url} at ${timestamp}: status ${actualSnapShot.status} (NOTE: no matching status code found, but there is a 301 and fetched status is 302)`);
+            uniqueSnapshots.push(redirectSnapshot);
+            filteredSnapshots += snapshotsAtTimestamp.length - 1;
+            break;
+          }
+          else if (result.statusCode === '404' && snapshotsAtTimestamp.every(s => ['301', '302'].includes(s.status))) {
+            // Special case for 301/302 captures where they are self redirects and there are no actual captures, the web archive will return 404
+            const redirectSnapshot = snapshotsAtTimestamp.findLast(s => ['301', '302'].includes(s.status))!;
+            console.log(`Resolved duplicate snapshots for ${actualSnapShot.url} at ${timestamp}: status ${actualSnapShot.status} (NOTE: no matching status code found, but all entries are 301/302 and fetched status is 404)`);
+            uniqueSnapshots.push(redirectSnapshot);
+            filteredSnapshots += snapshotsAtTimestamp.length - 1;
+            break;
+          }
+          else {
+            throw new Error(`Found ${snapshotsAtTimestamp.length} snapshots with same timestamp ${timestamp} for ${snapshotsAtTimestamp[0].url} but couldn't find a matching status code when fetching headers (got ${result.statusCode}, expected ${actualSnapShot.status}).`);
+          }
+        } catch (error: unknown) {
+          console.log((error as Error).message + ` Retrying in 30s...`);
+          await new Promise(res => setTimeout(res, 30000));
+        }
       }
-      else {
-        throw new Error(`Found ${snapshotsAtTimestamp.length} snapshots with same timestamp ${timestamp} for ${snapshotsAtTimestamp[0].url} but couldn't find a matching status code when fetching headers.`);
-      }
-      // const validSnapshots = snapshotsAtTimestamp.filter(s => s.status.startsWith('2'));
-      // const invalidSnapshots = snapshotsAtTimestamp.filter(s => !s.status.startsWith('2'));
-      // if (validSnapshots.length > 0) {
-      //   uniqueSnapshots.push(validSnapshots[0]);
-      //   filteredValidSnapshots += validSnapshots.length - 1;
-      //   filteredInvalidSnapshots += invalidSnapshots.length;
-      // }
-      // // Only invalid snapshots for this timestamp
-      // else {
-      //   if (invalidSnapshots.length > 1) {
-      //     console.log(`Found ${invalidSnapshots.length} snapshots with same timestamp ${timestamp} for ${requestUrl}. Attempting to resolve by fetching headers...`);
-      //     const result = await fetchWaybackFileHeaders(invalidSnapshots[0].timestamp, invalidSnapshots[0].url, invalidSnapshots.map(s => s.status));
-      //     const matchingSnapshot = invalidSnapshots.find(s => s.status === result.statusCode);
-      //     if (matchingSnapshot) {
-      //       uniqueSnapshots.push(matchingSnapshot);
-      //       filteredInvalidSnapshots += invalidSnapshots.length - 1;
-      //     }
-      //     else {
-      //       throw new Error(`Found ${invalidSnapshots.length} snapshots with same timestamp ${timestamp} for ${requestUrl} but couldn't find a matching status code when fetching headers.`);
-      //     }
-      //   }
-      //   else {
-      //     // Exactly 1 invalid snapshot
-      //     uniqueSnapshots.push(invalidSnapshots[0]);
-      //   }
-      //   filteredInvalidSnapshots += invalidSnapshots.length - 1;
-      // }
     }
   }
+  if (limitedCaptureFiltered > 0) {
+    console.log(`Filtered out ${limitedCaptureFiltered} snapshots that fell inside limited capture ranges without attempting to resolve duplicates.`);
+  }
   if (filteredSnapshots > 0) {
-    console.log(`Filtered out ${filteredSnapshots} duplicate snapshots based on timestamp.`);
+    console.log(`Filtered out ${filteredSnapshots} total duplicate snapshots based on timestamp.`);
   }
   return uniqueSnapshots;
 }
@@ -175,14 +186,14 @@ async function resolveDuplicateSnapshots(snapshots: CdxEntry[]): Promise<CdxEntr
 // microsoft.com/italy/games/empires has a duplicate captures at 20071024014608 and 20090329081915 (301 and 200 status codes, 200 is the returned one)
 // microsoft.com/games/aoeexpansion/features_buildings_rendered.htm has duplicate snapshot at 20091212001836 (2x 200 status codes)
 // microsoft.com/msdownload/games/empires/download.htm has duplicate snapshot at 20080405205900 (301 and 404 status codes, 404 is the returned one)
-async function filterDuplicateSnapshots(requestUrl: string, keepInvalid: boolean, snapshots: CdxEntry[]) {
+async function filterDuplicateSnapshots(requestUrl: string, keepInvalid: boolean, snapshots: CdxEntry[], limitedCaptures: LimitedCaptureRange[]) {
   let filteredValidSnapshots = 0;
   let filteredUnwantedSnapshots = 0; // these entries are quietly discarded
   let filteredInvalidSnapshots = 0; // these are logged as removed
 
 
   // As a very first step, we need to find all duplicate entries and resolve them by fetching the headers to see which one is actually the one that can be fetched
-  let filteredSnapshots = await resolveDuplicateSnapshots(snapshots);
+  let filteredSnapshots = await resolveDuplicateSnapshots(snapshots, limitedCaptures);
 
   // First we filter snapshots down to the statuscodes we might want to keep (2xx, 301, 302, 404)
   filteredSnapshots = filteredSnapshots.filter(snapshot => {
@@ -214,14 +225,15 @@ async function filterDuplicateSnapshots(requestUrl: string, keepInvalid: boolean
   return { uniqueSnapshots: filteredSnapshots, filteredValidSnapshots, filteredInvalidSnapshots, filteredUnwantedSnapshots };
 }
 
-async function getSnapshotsForUrl(url: UrlEntry, includeInvalid: boolean) {
+async function getSnapshotsForUrl(url: UrlEntry, includeInvalid: boolean, limitedCaptures: LimitedCaptureRange[]) {
   const allSnapshots = await fetchWaybackCdxIndex(url.url);
   const filteredSnapshots = filterSnapshotsByTimestamp(allSnapshots, url.maxTimestamp, url.minTimestamp);
   if (filteredSnapshots.length !== allSnapshots.length) {
     console.log(`Filtered ${allSnapshots.length - filteredSnapshots.length} snapshots for ${url.url} based on timestamp constraints`);
   }
-  const resolvedSnapshots = await resolveRevisitSnapshots(filteredSnapshots);
-  const { uniqueSnapshots, filteredValidSnapshots, filteredInvalidSnapshots } = await filterDuplicateSnapshots(url.url, includeInvalid && !url.mirrorUrl, resolvedSnapshots);
+  validateNoRevisitSnapshots(filteredSnapshots);
+
+  const { uniqueSnapshots, filteredValidSnapshots, filteredInvalidSnapshots } = await filterDuplicateSnapshots(url.url, includeInvalid && !url.excludeInvalid, filteredSnapshots, limitedCaptures);
   const validSnapShots = uniqueSnapshots.filter(snapshot => snapshot.status.startsWith('2'));
   const invalidSnapshots = uniqueSnapshots.filter(snapshot => !snapshot.status.startsWith('2'));
   console.log(`Found ${validSnapShots.length} valid snapshots for ${url.url}`);

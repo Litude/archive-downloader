@@ -180,7 +180,7 @@ describe('Query Hash Parameters', () => {
     const originalQueryString = getOriginalQueryString(filename);
 
     // When queryHashParameters are provided, return the untransformed version
-    expect(originalQueryString).toBe('~qother=data&param=longvalue');
+    expect(originalQueryString).toBe('other=data&param=longvalue');
   });
 
   it('should return undefined for original query string when no transformation configured', () => {

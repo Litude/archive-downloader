@@ -13,15 +13,46 @@ const ALL_HEADERS_TO_STORE = [
     ...ARCHIVED_WAYBACK_HEADERS
 ];
 
-function cleanupLocationHeader(location: string): string {
-    return location.replace(/^https?:\/\/web\.archive\.org\/web\/\d+[^\/]*\//, '');
+function urlOriginWithPort(url: URL): string {
+    let origin = url.origin;
+    // Origin includes port if it is non-default (i.e. not 80 for http or 443 for https)
+    if (url.port) {
+        return origin;
+    }
+    if (origin.startsWith('http://')) {
+        return `${origin}:80`;
+    } else if (origin.startsWith('https://')) {
+        return `${origin}:443`;
+    }
+    return origin;
 }
 
-function cleanupHeaders(headers: Record<string, string>): Record<string, string> {
+function cleanupLocationHeader(url: string, location: string): string {
+    const isAbsolute = location.startsWith('http://') || location.startsWith('https://');
+    if (isAbsolute) {
+        const cleaned = location.replace(/^https?:\/\/web\.archive\.org\/web\/\d+[^\/]*\//, '');
+        return cleaned;
+    }
+    // Relative URL
+    else {
+        const urlObj = new URL(url);
+        let cleaned = location.replace(/^\/web\/\d+[^\/]*\//, '');
+        const originWithPort = urlOriginWithPort(urlObj);
+        if (cleaned.startsWith(originWithPort)) {
+            cleaned = cleaned.substring(originWithPort.length);
+        } else if (cleaned.startsWith(urlObj.origin)) {
+            cleaned = cleaned.substring(urlObj.origin.length);
+        }
+        return cleaned;
+    }
+
+}
+
+export function cleanupHeaders(url: string, headers: Record<string, string>): Record<string, string> {
     const cleanedHeaders: Record<string, string> = {};
     for (const [key, value] of Object.entries(headers)) {
         if (value && (ALL_HEADERS_TO_STORE.includes(key.toLowerCase()) || key.toLowerCase().startsWith(WAYBACK_ORIGINAL_HEADER_PREFIX))) {
-            cleanedHeaders[key] = key.toLowerCase() === 'location' ? cleanupLocationHeader(value) : value;
+            cleanedHeaders[key] = key.toLowerCase() === 'location' ? cleanupLocationHeader(url, value) : value;
         }
     }
     return cleanedHeaders;
@@ -37,6 +68,9 @@ export function writeFileHeaders(captureEntries: CaptureEntry[], filename: Filen
         const headers = entry.headers;
         if (headers) {
             const entryFilename = structuredClone(headerFilename);
+            if (entry.classification !== "ok") {
+                entryFilename.flags = "invalid";
+            }
             entryFilename.timestamp = entry.captureTimestamp.toFormat('yyyyLLddHHmmss');
             let outputFilename = filenameToString(entryFilename, 'full');
             let counter = 1;
@@ -49,9 +83,12 @@ export function writeFileHeaders(captureEntries: CaptureEntry[], filename: Filen
             const headerData = {
                 url: entry.url,
                 timestamp: entry.captureTimestamp.toISO(),
-                headers: cleanupHeaders(headers)
+                status: +entry.statusCode,
+                headers: cleanupHeaders(entry.url, headers),
             };
             fs.writeFileSync(headersPath, JSON.stringify(headerData, null, 2));
+            const mtime = new Date(entry.captureTimestamp.toJSDate());
+            fs.utimesSync(headersPath, mtime, mtime);
         }
     });
 }

@@ -49,6 +49,7 @@ describe('mirrors', () => {
       const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
 
       expect(result[0]).toEqual({
+        excludeInvalid: false,
         url: 'http://example.com/test.html',
         maxTimestamp: undefined,
         minTimestamp: undefined,
@@ -58,6 +59,7 @@ describe('mirrors', () => {
     it('should include original per-URL timestamps in result', () => {
       const urls: UrlEntry[] = [
         {
+          excludeInvalid: false,
           url: 'http://example.com/test.html',
           maxTimestamp: '20050101000000',
           minTimestamp: '20030101000000',
@@ -71,6 +73,7 @@ describe('mirrors', () => {
       );
 
       expect(result[0]).toEqual({
+        excludeInvalid: false,
         url: 'http://example.com/test.html',
         maxTimestamp: '20050101000000',
         minTimestamp: '20030101000000',
@@ -86,6 +89,7 @@ describe('mirrors', () => {
 
       expect(result.length).toBe(2); // original + 1 mirror
       expect(result[1]).toEqual({
+        excludeInvalid: false,
         url: 'http://www.example4.com/test.html',
         mirrorUrl: true,
         maxTimestamp: undefined,

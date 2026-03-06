@@ -20,16 +20,16 @@ function loadDefaultLimitedCaptureUrls(): string[] {
 }
 
 export function checkForLimitedCaptureUrlWithConfig(url: string, limitedCaptureUrls: string[]): LimitedCaptureRange | null {
-    const isLimited = limitedCaptureUrls.some((limitedUrl) => {
-        limitedUrl.startsWith('/') ? new URL(url).pathname === limitedUrl : url === limitedUrl;
-    });
+    const isLimited = limitedCaptureUrls.some((limitedUrl) =>
+        limitedUrl.startsWith('/') ? new URL(url).pathname === limitedUrl : url === limitedUrl
+    );
     if (isLimited) {
         return {
             url,
             startTimestamp: "20000727000000",
             endTimestamp: "20001013235959",
-            frequency: 1,
-            unit: 'days'
+            capturesPerDay: 3,
+            
         };
     } else {
         return null;
@@ -42,55 +42,129 @@ export function checkForLimitedCaptureUrl(url: string) {
 }
 
 
+// This is set to 0 to force clock based capture selection for now
+const THRESHOLD_MULTIPLIER = 0;
+
+/**
+ * Given a day's captures (sorted) and a target capturesPerDay, pick captures
+ * closest to evenly-spaced clock times (UTC). Target times are offset by
+ * half an interval so spacing stays even across day boundaries.
+ */
+export function selectByClockTime(dayCapturesSorted: CdxEntry[], capturesPerDay: number): CdxEntry[] {
+    const intervalMinutes = (24 * 60) / capturesPerDay;
+    const targetMinutes: number[] = [];
+    for (let i = 0; i < capturesPerDay; i++) {
+        targetMinutes.push(intervalMinutes / 2 + i * intervalMinutes);
+    }
+
+    const selected = new Set<CdxEntry>();
+    for (const target of targetMinutes) {
+        let best: CdxEntry | null = null;
+        let bestDist = Infinity;
+        for (const snap of dayCapturesSorted) {
+            const dt = DateTime.fromFormat(snap.timestamp, 'yyyyMMddHHmmss', { zone: 'utc' });
+            const minuteOfDay = dt.hour * 60 + dt.minute;
+            const dist = Math.abs(minuteOfDay - target);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = snap;
+            }
+        }
+        if (best) {
+            selected.add(best);
+        }
+    }
+    return [...selected];
+}
+
+/**
+ * Given a day's captures (sorted) and a target capturesPerDay, pick captures
+ * at evenly-spaced indices.
+ */
+export function selectByIndex(dayCapturesSorted: CdxEntry[], capturesPerDay: number): CdxEntry[] {
+    const M = dayCapturesSorted.length;
+    const N = Math.min(capturesPerDay, M);
+    if (N <= 0) return [];
+    if (N === 1) return [dayCapturesSorted[0]];
+
+    const selected = new Map<number, CdxEntry>();
+    for (let i = 0; i < N; i++) {
+        const idx = Math.round(i * (M - 1) / (N - 1));
+        if (!selected.has(idx)) {
+            selected.set(idx, dayCapturesSorted[idx]);
+        }
+    }
+    return [...selected.values()];
+}
+
 export function filterLimitedCapturesForUrl(snapshots: CdxEntry[], limitedCaptures: LimitedCaptureRange[]) {
     if (limitedCaptures.length === 0) {
         return snapshots;
     }
-    
-    const filteredSnapshots: CdxEntry[] = [];
+
+    const selectedTimestamps = new Set<string>();
     const processedTimestamps = new Set<string>();
-    
+
     for (const capture of limitedCaptures) {
-        const capturesForThisRange = snapshots.filter(snap =>
-            snap.timestamp >= capture.startTimestamp && snap.timestamp <= capture.endTimestamp
-        );
-        // Now, we need to select captures based on frequency
-        const frequencyInMinutes = (() => {
-            switch (capture.unit) {
-                case 'days': return capture.frequency * 24 * 60;
-                case 'hours': return capture.frequency * 60;
-                case 'minutes': return capture.frequency;
-            }
-        })();
-        capturesForThisRange.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-        let lastIncludedTimestamp: string | null = null;
-        for (const snap of capturesForThisRange) {
+        const allInRange = snapshots
+            .filter(snap => snap.timestamp >= capture.startTimestamp && snap.timestamp <= capture.endTimestamp);
+
+        // Mark all timestamps in this range as processed (including non-200)
+        for (const snap of allInRange) {
             processedTimestamps.add(snap.timestamp);
-            if (lastIncludedTimestamp === null) {
-                filteredSnapshots.push(snap);
-                lastIncludedTimestamp = snap.timestamp;
+        }
+
+        // Only keep 200s for selection
+        const capturesForThisRange = allInRange
+            .filter(snap => snap.status === '200')
+            .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
+        // Group by UTC date (YYYYMMDD)
+        const byDay = new Map<string, CdxEntry[]>();
+        for (const snap of capturesForThisRange) {
+            const dayKey = snap.timestamp.slice(0, 8);
+            let arr = byDay.get(dayKey);
+            if (!arr) {
+                arr = [];
+                byDay.set(dayKey, arr);
+            }
+            arr.push(snap);
+        }
+
+        for (const [, dayCaptures] of byDay) {
+            let daySelected: CdxEntry[];
+            if (dayCaptures.length <= capture.capturesPerDay) {
+                // Not enough captures to need filtering — keep all
+                daySelected = dayCaptures;
+            } else if (dayCaptures.length > capture.capturesPerDay * THRESHOLD_MULTIPLIER) {
+                // Many captures — use clock-time matching
+                daySelected = selectByClockTime(dayCaptures, capture.capturesPerDay);
             } else {
-                const lastDate = DateTime.fromFormat(lastIncludedTimestamp, 'yyyyMMddHHmmss', { zone: 'utc' });
-                const currentDate = DateTime.fromFormat(snap.timestamp, 'yyyyMMddHHmmss', { zone: 'utc' });
-                const minutesSinceLast = currentDate.diff(lastDate, 'minutes').minutes;
-                
-                if (minutesSinceLast >= frequencyInMinutes) {
-                    filteredSnapshots.push(snap);
-                    lastIncludedTimestamp = snap.timestamp;
-                }
+                // Moderate number — use index-based spacing
+                daySelected = selectByIndex(dayCaptures, capture.capturesPerDay);
+            }
+            for (const snap of daySelected) {
+                selectedTimestamps.add(snap.timestamp);
             }
         }
     }
-    
-    // Add all snapshots that are outside the limited capture ranges
+
+    // Build result: selected captures from limited ranges + all captures outside any range
+    const result: CdxEntry[] = [];
+    const seen = new Set<string>();
     for (const snap of snapshots) {
-        if (!processedTimestamps.has(snap.timestamp)) {
-            filteredSnapshots.push(snap);
+        if (seen.has(snap.timestamp)) continue;
+        if (processedTimestamps.has(snap.timestamp)) {
+            if (selectedTimestamps.has(snap.timestamp)) {
+                result.push(snap);
+                seen.add(snap.timestamp);
+            }
+        } else {
+            result.push(snap);
+            seen.add(snap.timestamp);
         }
     }
-    
-    // Sort by timestamp to maintain order
-    filteredSnapshots.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-    
-    return filteredSnapshots;
+
+    result.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    return result;
 }

@@ -7,7 +7,7 @@ import { createMirrorUrls } from "../mirrors/mirrors";
 import { createAdditionalUrls } from "../mirrors/additional-urls";
 import { checkForLimitedCaptureUrl } from "../special-rules/limit-captures";
 import { readFileAsJson5 } from "../utils/file-json";
-import { MirrorData, WebsiteFileEntryJson } from "../types/website-types";
+import { MirrorData, MirrorUrlData, WebsiteFileEntryJson } from "../types/website-types";
 import { parseJsonTransformations } from "../transformation/transformation";
 
 // Timestamps can be limited at several levels:
@@ -50,7 +50,7 @@ function getEntryUrls(
 function createAllMirrorUrls(
   urls: UrlEntry[],
   file: WebsiteFileEntryJson,
-  mirrors: (string | MirrorData)[],
+  mirrors: (string | MirrorData | MirrorUrlData)[],
   {
     maxTimestamp,
     minTimestamp
@@ -110,6 +110,7 @@ export function readWebsiteJsonConfig(jsonPath: string, baseDirectory: string, {
   const commonMirrors: (string | MirrorData)[] = config.commonSettings?.additionalMirrors || [];
   const maxTimestamp: string | undefined = config.commonSettings?.maxTimestamp;
   const minTimestamp: string | undefined = config.commonSettings?.minTimestamp;
+  const commonClassifications = config.commonSettings?.classifications || {};
 
   const files: WebsiteFileEntryJson[] = config.files;
 
@@ -129,6 +130,8 @@ export function readWebsiteJsonConfig(jsonPath: string, baseDirectory: string, {
     const limitedCaptures = urls.map(u => checkForLimitedCaptureUrl(u.url)).filter(c => c !== null);
 
     const transformations = parseJsonTransformations(file.transformations || []);
+    
+    const allClassifications = { ...commonClassifications, ...file.classifications };
 
     if (file.excludedCaptures && file.excludedCaptures.length > 0) {
       throw new Error('The "excludedCaptures" field is deprecated and should be handled by getting all headers');
@@ -147,7 +150,7 @@ export function readWebsiteJsonConfig(jsonPath: string, baseDirectory: string, {
       limitedCaptures,
       transformations,
       queryHashParameters: file.queryHashParameters,
-      classifications: file.classifications
+      classifications: Object.keys(allClassifications).length > 0 ? allClassifications : undefined
     };
   });
 

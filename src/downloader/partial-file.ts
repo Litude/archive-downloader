@@ -1,23 +1,24 @@
 import axios from 'axios';
+import { preventAxiosRedirects } from '../utils/axios-utils';
 
-async function downloadToBufferWithRetry(url: string, requestHeaders: Record<string, string> = {}) {
-    while (true) {
-        try {
-            return await downloadToBuffer(url, requestHeaders);
-        } catch (error: unknown) {
-            // We want to catch connection refused errors and retry after a delay because the web archive
-            // rate limits quite aggressively sometimes
-            if (error instanceof Error && "code" in error && error.code === 'ECONNREFUSED') {
-                console.log(`Connection refused for ${url}, retrying after 30 seconds...`);
-                await new Promise(res => setTimeout(res, 30000));
-            } else {
-                throw error;
-            }
-        }
+async function downloadToBufferWithRetry(url: string, requestHeaders: Record<string, string> = {}, statusCode: string) {
+  while (true) {
+    try {
+      return await downloadToBuffer(url, requestHeaders, statusCode);
+    } catch (error: unknown) {
+      // We want to catch connection refused errors and retry after a delay because the web archive
+      // rate limits quite aggressively sometimes
+      if (error instanceof Error && "code" in error && error.code === 'ECONNREFUSED') {
+          console.log(`Connection refused for ${url}, retrying after 30 seconds...`);
+          await new Promise(res => setTimeout(res, 30000));
+      } else {
+          throw error;
+      }
     }
+  }
 }
 
-async function downloadToBuffer(url: string, requestHeaders: Record<string, string> = {}) {
+async function downloadToBuffer(url: string, requestHeaders: Record<string, string> = {}, statusCode: string) {
   const chunks: Buffer[] = [];
   let totalBytes = 0;
   let responseHeaders = {};
@@ -30,8 +31,9 @@ async function downloadToBuffer(url: string, requestHeaders: Record<string, stri
       method: 'GET',
       responseType: 'stream',
       timeout: 60000,
-      maxRedirects: 0,
-      validateStatus: (status) => status === 200 || status === 206, // Accept both full content and partial content responses
+      ...preventAxiosRedirects,
+      // Accept both full content and partial content responses, and also allow matching the expected status code (e.g. 404 for not found captures)
+      validateStatus: (status) => status === 200 || status === 206 || status === Number(statusCode),
       headers: { 
         'Accept-Encoding': 'identity',
         ...requestHeaders
@@ -78,7 +80,7 @@ async function downloadToBuffer(url: string, requestHeaders: Record<string, stri
   };
 }
 
-async function fetchAllBytes(url: string, maxAttempts = 10) {
+async function fetchAllBytes(url: string, statusCode: string, maxAttempts = 10) {
   let allChunks = [];
   let offset = 0;
   let total = 0;
@@ -88,7 +90,7 @@ async function fetchAllBytes(url: string, maxAttempts = 10) {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const rangeHeader = offset ? { Range: `bytes=${offset}-` } : undefined;
-    const { buffer, headers, aborted } = await downloadToBufferWithRetry(url, rangeHeader);
+    const { buffer, headers, aborted } = await downloadToBufferWithRetry(url, rangeHeader, statusCode);
     const len = buffer.length;
 
     console.log(`Partial download attempt ${attempt}: got ${len} bytes (offset ${offset})`);
@@ -121,28 +123,28 @@ async function fetchAllBytes(url: string, maxAttempts = 10) {
   };
 }
 
-export async function fetchPartiallyArchivedFileData(url: string) {
-    // Example usage:
-    const { buffer, headers, completeDownload } = await fetchAllBytes(url);
-    let finalBuffer = buffer;
-    const fetchedLength = buffer.length;
+export async function fetchPartiallyArchivedFileData(url: string, statusCode: string) {
+  // Example usage:
+  const { buffer, headers, completeDownload } = await fetchAllBytes(url, statusCode);
+  let finalBuffer = buffer;
+  const fetchedLength = buffer.length;
 
-    if (!completeDownload) {
-        const contentLength = headers?.['content-length'] ? parseInt(headers['content-length'], 10) : null;
-        const missingBytes = contentLength !== null ? contentLength - buffer.length : 0;
-        console.log(`Download incomplete after max attempts: got ${buffer.length} bytes but content size was ${headers?.['content-length']} (missing ${missingBytes} bytes)`);
+  if (!completeDownload) {
+    const contentLength = headers?.['content-length'] ? parseInt(headers['content-length'], 10) : null;
+    const missingBytes = contentLength !== null ? contentLength - buffer.length : 0;
+    console.log(`Download incomplete after max attempts: got ${buffer.length} bytes but content size was ${headers?.['content-length']} (missing ${missingBytes} bytes)`);
 
-        if (missingBytes > 0) {
-            const paddingBuffer = Buffer.alloc(missingBytes, 0);
-            finalBuffer = Buffer.concat([buffer, paddingBuffer]);
-        }
+    if (missingBytes > 0) {
+        const paddingBuffer = Buffer.alloc(missingBytes, 0);
+        finalBuffer = Buffer.concat([buffer, paddingBuffer]);
     }
+  }
 
-    return {
-        buffer: finalBuffer,
-        headers,
-        valid: completeDownload,
-        fetchedLength,
-    }
+  return {
+    buffer: finalBuffer,
+    headers,
+    valid: completeDownload,
+    fetchedLength,
+  }
 }
 

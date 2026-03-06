@@ -17,14 +17,14 @@ export interface LimitedCaptureRange {
   url: string;
   startTimestamp: string;
   endTimestamp: string;
-  frequency: number;
-  unit: 'days' | 'hours' | 'minutes';
+  capturesPerDay: number;
 }
 
 
 export interface UrlEntry {
   url: string;
   mirrorUrl?: boolean;
+  excludeInvalid?: boolean;
   maxTimestamp?: string;
   minTimestamp?: string;
 }

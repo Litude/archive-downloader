@@ -25,11 +25,9 @@
         "console": "integratedTerminal",
         "internalConsoleOptions": "neverOpen",
         "args": [
-            "--no-mirrors",
-            "--no-peek-all",
-            "--no-headers",
             "--json",
             ".\\data\\inputs\\aoe2x-ms-usa-asp.json"
+            // ".\\data\\inputs\\aoe2-ms-usa-1998-05.json"
         ],
 
         // Files to exclude from debugger (e.g. call stack)

@@ -6,6 +6,13 @@ function createTestHtml(trackingUrl: string) {
         `<layer visibility="hide"><div style="display:none"><img src="${trackingUrl}"></div></layer>`;
 }
 
+function createTestHtmlWithSecondaryUrl(trackingUrl: string, secondaryUrl: string) {
+    return `function footerjs(doc) {}
+        <layer visibility="hide"><div style="display:none"><img src="${trackingUrl}"></div></layer>
+        <layer visibility="hide"><div style="display:none"><img alt="" width="0" height="0" border="0" hspace="0" vspace="0" src="${secondaryUrl}"></div></layer>
+    `;
+}
+
 describe('normalizeTrackingImageUrl', () => {
     it('returns content unchanged when no tracking image is present', () => {
         const html = '<html><body><p>No tracking here</p></body></html>';
@@ -102,4 +109,52 @@ describe('normalizeTrackingImageUrl', () => {
         expect(resultHtml).toContain('p=brasil_games_age2');
         expect(resultHtml).toContain('&URI=%2fbrasil%2fgames%2fage2%2fcaracteristicas.aspx&GUID=1F4FC18C-F71E-47FB-8FC9-612F8EE59C61&lc=pt-br');
     });
+
+    it('lowercases url path in tracking image as well', () => {
+        const trackingUrl =
+            "http://c.microsoft.com/trans_pixel.asp?source=www&TYPE=' + tt + '&p=BRASIL_GAMES_AGE2&URI=%2fBRASIL%2fGAMES%2fAGE2%2fdefault.aspx&GUID=1F4FC18C-F71E-47FB-8FC9-612F8EE59C61&lc=pt-br";
+        const html = createTestHtml(trackingUrl);
+        const input = Buffer.from(html, 'latin1');
+        const result = TrackingImageNormalizer.normalize(input, {});
+        const resultHtml = result.toString('latin1');
+
+        expect(resultHtml).toContain('source=www');
+        expect(resultHtml).toContain('p=brasil_games_age2');
+        expect(resultHtml).toContain('&URI=%2fbrasil%2fgames%2fage2%2fdefault.aspx&GUID=1F4FC18C-F71E-47FB-8FC9-612F8EE59C61&lc=pt-br');
+    })
+
+    it('normalises url with html encoded ampersands', () => {
+        const trackingUrl1 =
+          "http://c.microsoft.com/trans_pixel.asp?source=www&TYPE=' + tt + '&p=BRASIL_GAMES_AGE2&URI=%2fBRASIL%2fGAMES%2fAGE2%2fdefault.aspx&GUID=1F4FC18C-F71E-47FB-8FC9-612F8EE59C61&lc=pt-br";
+        const trackingUrl2 =
+          "http://c.microsoft.com/trans_pixel.asp?source=www&amp;TYPE=PV&amp;p=BRASIL_GAMES_AGE2&amp;URI=%2fBRASIL%2fGAMES%2fAGE2%2fdefault.aspx&amp;GUID=1F4FC18C-F71E-47FB-8FC9-612F8EE59C61&amp;lc=pt-br";
+        const html = createTestHtmlWithSecondaryUrl(trackingUrl1, trackingUrl2);
+        const input = Buffer.from(html, 'latin1');
+        const result = TrackingImageNormalizer.normalize(input, {});
+        const resultHtml = result.toString('latin1');
+
+        expect(resultHtml).toContain('source=www');
+        expect(resultHtml).toContain('p=brasil_games_age2');
+        expect(resultHtml).toContain('&URI=%2fbrasil%2fgames%2fage2%2fdefault.aspx&GUID=1F4FC18C-F71E-47FB-8FC9-612F8EE59C61&lc=pt-br');
+        expect(resultHtml).toContain('source=www&amp;TYPE=PV&amp;p=brasil_games_age2&amp;URI=%2fbrasil%2fgames%2fage2%2fdefault.aspx&amp;GUID=1F4FC18C-F71E-47FB-8FC9-612F8EE59C61&amp;lc=pt-br');
+    })
+
+    
+    it('normalises url with html encoded ampersands', () => {
+        const trackingUrl1 =
+          "http://c.microsoft.com/trans_pixel.asp?source=www&TYPE=' + tt + '&p=games_Conquerors&URI=%2fgames%2fconquerors%2fcampaigns.aspx%3ff1%3dno&GUID=1F4FC18C-F71E-47FB-8FC9-612F8EE59C61&lc=en-us";
+        const trackingUrl2 =
+          "http://c.microsoft.com/trans_pixel.asp?source=www&amp;TYPE=PV&amp;p=games_Conquerors&amp;URI=%2fgames%2fconquerors%2fcampaigns.aspx%3ff1%3dno&amp;GUID=1F4FC18C-F71E-47FB-8FC9-612F8EE59C61&amp;lc=en-us";
+        const html = createTestHtmlWithSecondaryUrl(trackingUrl1, trackingUrl2);
+        const input = Buffer.from(html, 'latin1');
+        const result = TrackingImageNormalizer.normalize(input, {
+            stripQueryParameters: true
+        });
+        const resultHtml = result.toString('latin1');
+
+        expect(resultHtml).toContain('source=www');
+        expect(resultHtml).toContain('p=games_conquerors');
+        expect(resultHtml).toContain('&URI=%2fgames%2fconquerors%2fcampaigns.aspx&GUID=1F4FC18C-F71E-47FB-8FC9-612F8EE59C61&lc=en-us');
+        expect(resultHtml).toContain('source=www&amp;TYPE=PV&amp;p=games_conquerors&amp;URI=%2fgames%2fconquerors%2fcampaigns.aspx&amp;GUID=1F4FC18C-F71E-47FB-8FC9-612F8EE59C61&amp;lc=en-us');
+    })
 });

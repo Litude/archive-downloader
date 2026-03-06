@@ -37,7 +37,7 @@ Problems: When resolving duplicate captures, this can still be a problem. What i
 
 Actual 302 captures might return additional data fields e.g. x-archive-src, example:
 ```
-> curl -I https://web.archive.org/web/20080224035142id_/http://www.microsoft.com:80/japan/games/empires/default.as
+> curl -I https://web.archive.org/web/20080224035142id_/http://www.microsoft.com:80/japan/games/empires/default.asp
 
 HTTP/2 302
 server: nginx

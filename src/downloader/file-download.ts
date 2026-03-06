@@ -1,6 +1,11 @@
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
+import fs from "fs";
+import path from "path";
+import JSON5 from "json5";
 import { fetchPartiallyArchivedFileData } from "./partial-file";
 import { DownloadedFile } from "../types/download-types";
+import { preventAxiosRedirects } from "../utils/axios-utils";
+import { getWaybackCaptureBaseUrl } from "../utils/address";
 
 const WEB_ARCHIVE = 'web.archive.org/web';
 const REQUEST_TIMEOUT = 60_000; // 60 seconds
@@ -12,38 +17,113 @@ const REQUEST_HEADERS = {
   'Accept-Encoding': 'identity'
 };
 
-async function getResponse(waybackUrl: string, statusCode: string) {
-  if (statusCode && !statusCode.startsWith('2')) {
-    if (["302"].includes(statusCode)) {
-      return axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: 'arraybuffer', maxRedirects: 0, validateStatus: status => status === Number(statusCode), timeout: REQUEST_TIMEOUT });
-    }
-    else if (["301"].includes(statusCode)) {
-      // Sometimes 301 captures seem to be unavailable (web archive instead returns 302 to a different capture)
-      const response = await axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: 'arraybuffer', maxRedirects: 0, validateStatus: status => status === 301 || status === 302 || status === 404, timeout: REQUEST_TIMEOUT });
-      if (response.status === 301) {
+const selfRedirectUrls: { url: string, minTimestamp?: string }[] = JSON5.parse(
+    fs.readFileSync(
+        path.join(__dirname, '../../data/settings/self_redirect_urls.json'), 'utf-8'
+    )
+);
+
+// The precedence for responses is as follows:
+// 1. Expected status code with x-archive-src header (indicates the original capture is returned); this should never happen since such responses are immediately returned without calling this function
+// 2. Expected status code without x-archive-src header (self redirect)
+// 3. 301 or 302 response without x-archive-src header (self redirect, 301 might return 302 for these cases)
+// 4. 404 response without x-archive-src header (self redirect with no actual capture available)
+function isBetterRedirectResponse(response: AxiosResponse<any>, expectedStatusCode: string, bestResponse: AxiosResponse<any> | null): boolean {
+  if (!["301", "302", "404"].includes(response.status.toString())) {
+    return false;
+  }
+
+  if (!bestResponse) {
+    return true;
+  }
+  // This means we got the actual capture, but this function is not actually called in such cases
+  if (response.status.toString() === expectedStatusCode && response.headers['x-archive-src']) {
+    return true;
+  }
+  if (bestResponse.status.toString() === expectedStatusCode) {
+    return false;
+  }
+  if (response.status.toString() === expectedStatusCode) {
+    return true;
+  }
+
+  if (bestResponse.status === 404 && ["301", "302"].includes(response.status.toString())) {
+    return true;
+  }
+
+  return false;
+}
+
+async function attemptToFetchRedirectUrl(waybackUrl: string, expectedStatusCode: string): Promise<AxiosResponse<any>> {
+  let errorAttempt = 0;
+  let responseAttempt = 0;
+  // 301 or 302 captures can be redirects from non-www to www and these captures are not available, so we attempt these captures fewer times before assuming they are unavailable.
+  const baseUrlInfo = getWaybackCaptureBaseUrl(waybackUrl);
+  const isPotentialSelfRedirect = baseUrlInfo && selfRedirectUrls.some(url => baseUrlInfo.originalUrl.startsWith(url.url) && (!url.minTimestamp || baseUrlInfo.timestamp >= url.minTimestamp));
+  const maxAttempts = isPotentialSelfRedirect ? 1 : 5;
+  let bestResponse: AxiosResponse<any> | null = null;
+  let errorBackoff = INITIAL_BACKOFF;
+  let responseBackoff = INITIAL_BACKOFF;
+  while (true) {
+    try {
+      const response = await axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: 'arraybuffer', maxRedirects: 0, validateStatus: (status) => [301, 302, 404].includes(status), timeout: REQUEST_TIMEOUT });
+      if (response.status === Number(expectedStatusCode) && response.headers['x-archive-src']) {
         return response;
-      } else if (response.status === 404) {
-        console.log(`Received 404 for ${waybackUrl} which was expected to be a 301. This might indicate that the capture is unavailable and the web archive returned a 404 page instead.`);
-        // if there are no valid captures, the 301 might be replaced with a 404 page
-        return response;
-      } else {
-        if (response.headers['x-archive-redirect-reason'].startsWith('found capture at')) {
-          return response;
+      }
+
+      if (isBetterRedirectResponse(response, expectedStatusCode, bestResponse)) {
+        bestResponse = response;
+      }
+
+      responseAttempt++;
+      if (responseAttempt >= maxAttempts && bestResponse) {
+        if (isPotentialSelfRedirect) {
+          if (response.status.toString() !== expectedStatusCode) {
+            console.log(`Received ${response.status} for ${waybackUrl} which was expected to be a ${expectedStatusCode} after ${responseAttempt} attempts. Assuming that the capture is unavailable.`);
+          }
+          else {
+            console.log(`Received expected status code ${expectedStatusCode} for ${waybackUrl} after ${responseAttempt} attempts but without x-archive-src header. Assuming that the capture is unavailable.`);
+          }
+          return bestResponse;
         }
         else {
-          throw new Error(`Expected 301 response but got ${response.status} for ${waybackUrl}`);
+          console.log(`Received ${expectedStatusCode} for ${waybackUrl} ${responseAttempt} times, assuming the capture is unavailable.`);
+          return bestResponse;
         }
       }
+      if (expectedStatusCode !== response.status.toString()) {
+        console.log(`Received ${response.status} for ${waybackUrl} which was expected to be a ${expectedStatusCode}. Retrying in ${responseBackoff / 1000} seconds (Attempt ${responseAttempt})`);
+      }
+      else {
+        console.log(`Received expected status code ${expectedStatusCode} for ${waybackUrl} but without x-archive-src header. Retrying in ${responseBackoff / 1000} seconds (Attempt ${responseAttempt})`);
+      }
+      await new Promise(res => setTimeout(res, responseBackoff));
+      responseBackoff = Math.min(responseBackoff * 2, MAX_BACKOFF);
+    } catch (e: unknown) {
+      errorAttempt++;
+      console.log(`Error while attempting to fetch redirect URL for ${waybackUrl}: ${e}. Retrying in ${errorBackoff / 1000} seconds (Attempt ${errorAttempt})`);
+      await new Promise(res => setTimeout(res, errorBackoff));
+      errorBackoff = Math.min(errorBackoff * 2, MAX_BACKOFF);
+    }
+  }
+}
+
+async function getResponse(waybackUrl: string, statusCode: string) {
+  if (statusCode && !statusCode.startsWith('2')) {
+    if (["301", "302"].includes(statusCode)) {
+      // 302 can also be returned by the web archive when the capture is temporarily unavailable. And incase the original 302 capture was a self redirect, the response will be identical to an unavailable capture.
+      // Best we can do is attempt a few times and if we keep getting 302 responses, we can assume the capture is unavailable
+      return attemptToFetchRedirectUrl(waybackUrl, statusCode);
     }
     else if (["403", "404"].includes(statusCode)) {
-      return axios.get(waybackUrl, { headers: REQUEST_HEADERS, maxRedirects: 0, responseType: 'arraybuffer', validateStatus: status => status === Number(statusCode), timeout: REQUEST_TIMEOUT });
+      return axios.get(waybackUrl, { headers: REQUEST_HEADERS, ...preventAxiosRedirects, responseType: 'arraybuffer', validateStatus: status => status === Number(statusCode), timeout: REQUEST_TIMEOUT });
     }
     else {
       throw new Error(`Unsupported status code for special fetch: ${statusCode}`);
     }
   }
   else {
-    return axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: 'arraybuffer', maxRedirects: 0, validateStatus: status => status === Number(statusCode), timeout: REQUEST_TIMEOUT });
+    return axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: 'arraybuffer', ...preventAxiosRedirects, validateStatus: status => status === Number(statusCode), timeout: REQUEST_TIMEOUT });
   }
 }
 
@@ -79,7 +159,7 @@ export async function fetchWaybackFile(
       if (ERROR_STATUS_CODES.includes(response.status)) {
         throw new Error(`HTTP ${response.status}`)
       };
-      const classification = statusCode === "301" && (response.status === 302 || response.status === 404) ? "unavailable" : undefined;
+      const classification = ["301", "302"].includes(statusCode) && !response.headers['x-archive-src'] ? "unavailable" : undefined;
       const content = Buffer.from(response.data);
       return { content, url, timestamp, headers: response.headers, classification, statusCode: response.status.toString() };
     } catch (e: unknown) {
@@ -101,7 +181,7 @@ export async function fetchWaybackFile(
         await new Promise(res => setTimeout(res, backoff));
         if (abortedCount >= 3) {
           console.log(`Repeated stream abort errors for ${url}, attempting to fetch partial file...`);
-          return fetchPartialFile(timestamp, url);
+          return fetchPartialFile(timestamp, url, statusCode);
         }
       }
       else {
@@ -180,7 +260,7 @@ async function fetchCorruptFileWithoutDecompression(
   while (true) {
     try {
       console.log(`Fetching raw file content for ${url} (attempt ${attempt})...`);
-      const response = await axios.get(waybackUrl, { decompress: false, maxRedirects: 0, responseType: 'arraybuffer', timeout: REQUEST_TIMEOUT });
+      const response = await axios.get(waybackUrl, { decompress: false, ...preventAxiosRedirects, responseType: 'arraybuffer', timeout: REQUEST_TIMEOUT });
       if (ERROR_STATUS_CODES.includes(response.status)) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -197,15 +277,16 @@ async function fetchCorruptFileWithoutDecompression(
 
 async function fetchPartialFile(
     timestamp: string,
-    url: string
+    url: string,
+    statusCode: string
 ): Promise<DownloadedFile> {
   const waybackUrl = createWaybackDownloadUrl(timestamp, url);
   let attempt = 1;
   let backoff = INITIAL_BACKOFF;
   while (true) {
     try {
-      console.log(`Fetching partial file content for ${url} (attempt ${attempt})...`);
-      const { buffer, headers, valid, fetchedLength } = await fetchPartiallyArchivedFileData(waybackUrl);
+      console.log(`Fetching partial file content for ${timestamp}-${url} (attempt ${attempt})...`);
+      const { buffer, headers, valid, fetchedLength } = await fetchPartiallyArchivedFileData(waybackUrl, statusCode);
       return {
         content: buffer,
         url,
@@ -216,10 +297,10 @@ async function fetchPartialFile(
             downloadedSize: fetchedLength.toString(),
             actualSize: headers['content-length'] ? headers['content-length'].toString() : undefined
         } : {},
-        statusCode: '200'
+        statusCode
       };
     } catch (e: unknown) {
-      console.log(`Error fetching partial file for ${url}: ${e}, retrying in ${backoff / 1000}s...`);
+      console.log(`Error fetching partial file for ${timestamp}-${url}: ${e}, retrying in ${backoff / 1000}s...`);
       await new Promise(res => setTimeout(res, backoff));
       backoff = Math.min(backoff * 2, MAX_BACKOFF);
       attempt++;

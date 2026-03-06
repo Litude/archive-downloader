@@ -3,7 +3,8 @@ import JSON5 from "json5";
 import fs from "fs";
 import { timestampMax, timestampMin } from "../utils/timestamp";
 import { UrlEntry } from "../types/download-input-types";
-import { MirrorData } from "../types/website-types";
+import { MirrorData, MirrorUrlData } from "../types/website-types";
+import { urlIsIpv4Address } from "../utils/address";
 
 function normalizeUrl(url: string): string {
     let normalized = url;
@@ -38,54 +39,74 @@ function loadDefaultMirrors(): MirrorData[] {
 // This function ONLY handles mirror specific timestamps
 // - If a mirror has a max/min timestamp, it will clamp timestamp from other sources
 
+function toMirrorUrlData(mirror: string | MirrorUrlData): MirrorUrlData {
+  return typeof mirror === "string" ? { url: mirror } : mirror;
+}
+
+function collectMirrors(
+  cleanedUrl: string,
+  mirrorData: MirrorData[],
+  additionalMirrors: (string | MirrorData | MirrorUrlData)[],
+): MirrorUrlData[] {
+  const mirrors: MirrorUrlData[] = [];
+
+  // Collect from mirrorData (mirrors.json)
+  const baseMirrors = mirrorData.find(m => normalizeUrl(m.url) === cleanedUrl);
+  if (baseMirrors) {
+    for (const m of baseMirrors.mirrors) {
+      mirrors.push(toMirrorUrlData(m));
+    }
+  }
+
+  // Collect from additionalMirrors (site json)
+  for (const mirror of additionalMirrors) {
+    if (typeof mirror === "string") {
+      mirrors.push({ url: mirror });
+    } else if ("mirrors" in mirror) {
+      if (normalizeUrl(mirror.url) === cleanedUrl) {
+        for (const m of mirror.mirrors) {
+          mirrors.push(toMirrorUrlData(m));
+        }
+      }
+    } else {
+      mirrors.push(mirror);
+    }
+  }
+
+  return mirrors;
+}
+
 export function createMirrorUrlsWithConfig(
   urls: UrlEntry[],
-  additionalMirrors: (string | MirrorData)[],
+  additionalMirrors: (string | MirrorData | MirrorUrlData)[],
   mirrorData: MirrorData[],
 ): UrlEntry[] {
   const parsed: UrlEntry[] = [];
   for (const urlEntry of urls) {
     // Always add the original url first
-    parsed.push({ url: urlEntry.url, maxTimestamp: urlEntry.maxTimestamp, minTimestamp: urlEntry.minTimestamp });
+    parsed.push({
+      url: urlEntry.url,
+      excludeInvalid: false,
+      maxTimestamp: urlEntry.maxTimestamp,
+      minTimestamp: urlEntry.minTimestamp
+    });
 
     // Lookup common mirrors defined in mirrors.json
     const urlObj = new URL(urlEntry.url);
     const hostname = urlObj.hostname;
     const cleanedUrl = normalizeUrl(hostname);
-    const availableBaseMirrors = mirrorData.find(m => normalizeUrl(m.url) === cleanedUrl);
     // Preserve pathname, query parameters, and hash fragment
     const pathAndParams = urlObj.pathname + urlObj.search + urlObj.hash;
-    if (availableBaseMirrors) {
-      for (const mirror of availableBaseMirrors.mirrors) {
-        if (typeof mirror === "string") {
-          parsed.push({ url: `${mirror}${pathAndParams}`, mirrorUrl: true, maxTimestamp: urlEntry.maxTimestamp, minTimestamp: urlEntry.minTimestamp });
-        }
-        else {
-          const maxTimestamp = timestampMin(mirror.maxTimestamp, urlEntry.maxTimestamp);
-          const minTimestamp = timestampMax(mirror.minTimestamp, urlEntry.minTimestamp);
-          parsed.push({ url: `${mirror.url}${pathAndParams}`, mirrorUrl: true, maxTimestamp, minTimestamp });
-        }
-      }
-    }
 
-    // Add special mirrors defined in the site json file
-    for (const mirror of additionalMirrors) {
-      if (typeof mirror === "string") {
-        parsed.push({ url: `${mirror}${pathAndParams}`, mirrorUrl: true, maxTimestamp: urlEntry.maxTimestamp, minTimestamp: urlEntry.minTimestamp });
-      } else {
-        if (normalizeUrl(mirror.url) === cleanedUrl) {
-          for (const m of mirror.mirrors) {
-            if (typeof m === "string") {
-              parsed.push({ url: `${m}${pathAndParams}`, mirrorUrl: true, maxTimestamp: urlEntry.maxTimestamp, minTimestamp: urlEntry.minTimestamp });
-            }
-            else {
-              const maxTimestamp = timestampMin(m.maxTimestamp, urlEntry.maxTimestamp);
-              const minTimestamp = timestampMax(m.minTimestamp, urlEntry.minTimestamp);
-              parsed.push({ url: `${m.url}${pathAndParams}`, mirrorUrl: true, maxTimestamp, minTimestamp });
-            }
-          }
-        }
-      }
+    const allMirrors = collectMirrors(cleanedUrl, mirrorData, additionalMirrors);
+    for (const mirror of allMirrors) {
+      parsed.push({
+        url: `${mirror.url}${pathAndParams}`,
+        mirrorUrl: true,
+        excludeInvalid: mirror.excludeInvalid ?? urlIsIpv4Address(mirror.url),
+        maxTimestamp: timestampMin(mirror.maxTimestamp, urlEntry.maxTimestamp),
+        minTimestamp: timestampMax(mirror.minTimestamp, urlEntry.minTimestamp),
+      });
     }
   }
 
@@ -94,7 +115,7 @@ export function createMirrorUrlsWithConfig(
 
 export function createMirrorUrls(
   urls: UrlEntry[],
-  additionalMirrors: (string | MirrorData)[],
+  additionalMirrors: (string | MirrorUrlData)[],
 ): UrlEntry[] {
   const mirrorData = loadDefaultMirrors();
   return createMirrorUrlsWithConfig(urls, additionalMirrors, mirrorData);

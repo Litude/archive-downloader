@@ -26,8 +26,6 @@ import { DateTime } from "luxon";
 // 4. Find all unique digests across all URLs for the file
 // 5. Download each unique snapshot once and save to output directory
 
-
-
 function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
   const digestHashes = new Map<string, { sha256: string; actualDigest: string }>();
   
@@ -171,7 +169,6 @@ async function processWebsiteDownloads(
         existingEntry.headers = response.headers;
       }
     }
-    // TODO: Else we may have some legacy special rules to handle missing last-modified headers (forcedUniqueEntries)
     const anyValidEntries = baseEntries.some(entry => entry.classification === 'ok');
 
 
@@ -211,9 +208,9 @@ async function processWebsiteDownloads(
 
       // For each group of query params, write the files (with the updated filename acc to the query params)
 
-      const outputSha256Set = new Set<string>();
 
       for (const [queryParamKey, outputs] of groupedByQueryParams.entries()) {
+        const outputSha256Set = new Set<string>();
         console.log(`Writing files for query params: ${queryParamKey} (${outputs.length} files)`);
         const queryParams = queryParamKey.split('&').reduce((acc, pair) => {
           const [k, ...v] = pair.split('=');
@@ -245,13 +242,24 @@ async function processWebsiteDownloads(
         writeUniqueFileEntries(updatedEntries, filename, input.outputDirectory);
         const summaryEntries = [...updatedEntries, ...invalidEntries].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
         await writeCsvSummary(summaryEntries, filename, input.outputDirectory);
+        const rawFiles = baseEntries.filter(entry => entry.classification !== 'ok' || !outputSha256Set.has(entry.sha256));
+        const rawFilename = structuredClone(filename);
+        rawFilename.flags = "raw";
+        writeUniqueFileEntries(rawFiles, rawFilename, input.outputDirectory);
+        // Invalid entries are only written once for the "base" file later
+        if (writeHeaders) {
+          writeFileHeaders(updatedEntries, filename, input.outputDirectory);
+        }
       }
 
       // Finally write out any raw files that were not part of the transformations
-      const rawFiles = baseEntries.filter(entry => entry.classification !== 'ok' || !outputSha256Set.has(entry.sha256));
-      const rawFilename = structuredClone(input.filename);
-      rawFilename.flags = "raw";
-      writeUniqueFileEntries(rawFiles, rawFilename, input.outputDirectory);
+      // const rawFiles = baseEntries.filter(entry => entry.classification !== 'ok' || !outputSha256Set.has(entry.sha256));
+      // const rawFilename = structuredClone(input.filename);
+      // rawFilename.flags = "raw";
+      // writeUniqueFileEntries(rawFiles, rawFilename, input.outputDirectory);
+      // if (writeHeaders) {
+      //   writeFileHeaders(invalidEntries, input.filename, input.outputDirectory);
+      // }
 
     }
     else {
@@ -263,11 +271,11 @@ async function processWebsiteDownloads(
       writeUniqueFileEntries(baseEntries, input.filename, input.outputDirectory);
       const summaryEntries = [...baseEntries, ...unavailableEntries].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
       await writeCsvSummary(summaryEntries, input.filename, input.outputDirectory);
+      if (writeHeaders) {
+        writeFileHeaders(baseEntries, input.filename, input.outputDirectory);
+      }
     }
 
-    if (writeHeaders) {
-      writeFileHeaders(baseEntries, input.filename, input.outputDirectory);
-    }
 
     console.log('\n----------------------------------------\n');
   }
