@@ -6,7 +6,6 @@ export interface DownloadFileInput {
   urls: UrlEntry[];
   filename: Filename;
   outputDirectory: string;
-  limitedCaptures: LimitedCaptureRange[];
   transformations: Transformation[];
   queryHashParameters?: QueryHashParameter[];
   classifications?: Record<string, CaptureClassification>;
@@ -14,12 +13,19 @@ export interface DownloadFileInput {
 
 
 export interface LimitedCaptureRange {
-  url: string;
   startTimestamp: string;
   endTimestamp: string;
   capturesPerDay: number;
+  mirrorCapturesPerDay?: number;
 }
 
+export interface LimitedCaptureConfig {
+  startTimestamp: string;
+  endTimestamp: string;
+  threshold: number;
+  capturesPerDay: number;
+  mirrorCapturesPerDay?: number;
+}
 
 export interface UrlEntry {
   url: string;

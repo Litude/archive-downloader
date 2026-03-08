@@ -5,7 +5,6 @@ import { DownloadFileInput, UrlEntry } from "../types/download-input-types";
 import { determineFilenameFromUrls, determineOutputSubdirectoryFromUrls } from "../file-name/file-name";
 import { createMirrorUrls } from "../mirrors/mirrors";
 import { createAdditionalUrls } from "../mirrors/additional-urls";
-import { checkForLimitedCaptureUrl } from "../special-rules/limit-captures";
 import { readFileAsJson5 } from "../utils/file-json";
 import { MirrorData, MirrorUrlData, WebsiteFileEntryJson } from "../types/website-types";
 import { parseJsonTransformations } from "../transformation/transformation";
@@ -127,8 +126,6 @@ export function readWebsiteJsonConfig(jsonPath: string, baseDirectory: string, {
 
     const allUrls = noMirrors ? urls : createAllMirrorUrls(urls, file, mirrors, { maxTimestamp, minTimestamp });
 
-    const limitedCaptures = urls.map(u => checkForLimitedCaptureUrl(u.url)).filter(c => c !== null);
-
     const transformations = parseJsonTransformations(file.transformations || []);
     
     const allClassifications = { ...commonClassifications, ...file.classifications };
@@ -147,7 +144,6 @@ export function readWebsiteJsonConfig(jsonPath: string, baseDirectory: string, {
       urls: allUrls,
       filename,
       outputDirectory: outputDir,
-      limitedCaptures,
       transformations,
       queryHashParameters: file.queryHashParameters,
       classifications: Object.keys(allClassifications).length > 0 ? allClassifications : undefined

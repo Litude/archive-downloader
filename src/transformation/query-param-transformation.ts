@@ -114,7 +114,7 @@ function queryParamTransformer(
     
     outputs.push({
       content: Buffer.from(contentStr, 'latin1'),
-      queryParams: { [paramName]: defaultValue || null }
+      queryParams: { [paramName]: null }
     });
   }
   

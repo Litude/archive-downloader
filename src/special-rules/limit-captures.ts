@@ -2,43 +2,42 @@ import JSON5 from "json5";
 import fs from "fs";
 import path from "path";
 import { DateTime } from "luxon";
-import { LimitedCaptureRange, UrlEntry } from "../types/download-input-types";
+import { LimitedCaptureConfig, LimitedCaptureRange } from "../types/download-input-types";
 import { CdxEntry } from "../types/wayback-types";
 
-let defaultLimitedCaptures: string[] | null = null;
-function loadDefaultLimitedCaptureUrls(): string[] {
+let defaultLimitedCaptures: LimitedCaptureConfig[] | null = null;
+function loadDefaultLimitedCaptureConfigs(): LimitedCaptureConfig[] {
   if (defaultLimitedCaptures !== null) {
     return defaultLimitedCaptures;
   }
-  const limitedCaptureUrls: string[] = JSON5.parse(
+  const limitedCaptureUrls: LimitedCaptureConfig[] = JSON5.parse(
     fs.readFileSync(
-        path.join(__dirname, '../../data/settings/limited_capture_urls.json'), 'utf-8'
+        path.join(__dirname, '../../data/settings/limited_capture_config.json'), 'utf-8'
     )
 );
   defaultLimitedCaptures = limitedCaptureUrls;
   return limitedCaptureUrls;
 }
 
-export function checkForLimitedCaptureUrlWithConfig(url: string, limitedCaptureUrls: string[]): LimitedCaptureRange | null {
-    const isLimited = limitedCaptureUrls.some((limitedUrl) =>
-        limitedUrl.startsWith('/') ? new URL(url).pathname === limitedUrl : url === limitedUrl
-    );
-    if (isLimited) {
-        return {
-            url,
-            startTimestamp: "20000727000000",
-            endTimestamp: "20001013235959",
-            capturesPerDay: 3,
-            
-        };
-    } else {
-        return null;
+export function checkForLimitedCaptureWithConfig(captures: CdxEntry[], limitedCaptureConfigs: LimitedCaptureConfig[]): LimitedCaptureRange[] {
+    const results: LimitedCaptureRange[] = [];
+    for (const config of limitedCaptureConfigs) {
+        const inRange = captures.filter(snap => snap.timestamp >= config.startTimestamp && snap.timestamp <= config.endTimestamp);
+        if (inRange.length > config.threshold) {
+            results.push({
+                startTimestamp: config.startTimestamp,
+                endTimestamp: config.endTimestamp,
+                capturesPerDay: config.capturesPerDay,
+                mirrorCapturesPerDay: config.mirrorCapturesPerDay
+            });
+        }
     }
+    return results;
 }
 
-export function checkForLimitedCaptureUrl(url: string) {
-    const defaultLimitedCaptureUrls = loadDefaultLimitedCaptureUrls();
-    return checkForLimitedCaptureUrlWithConfig(url, defaultLimitedCaptureUrls);
+export function checkForLimitedCapture(captures: CdxEntry[]) {
+    const defaultLimitedCaptureUrls = loadDefaultLimitedCaptureConfigs();
+    return checkForLimitedCaptureWithConfig(captures, defaultLimitedCaptureUrls);
 }
 
 
@@ -97,7 +96,7 @@ export function selectByIndex(dayCapturesSorted: CdxEntry[], capturesPerDay: num
     return [...selected.values()];
 }
 
-export function filterLimitedCapturesForUrl(snapshots: CdxEntry[], limitedCaptures: LimitedCaptureRange[]) {
+export function filterLimitedCapturesForUrl(snapshots: CdxEntry[], limitedCaptures: LimitedCaptureRange[], isMirror?: boolean): CdxEntry[] {
     if (limitedCaptures.length === 0) {
         return snapshots;
     }
@@ -106,6 +105,7 @@ export function filterLimitedCapturesForUrl(snapshots: CdxEntry[], limitedCaptur
     const processedTimestamps = new Set<string>();
 
     for (const capture of limitedCaptures) {
+        const capturesPerDay = isMirror && capture.mirrorCapturesPerDay !== undefined ? capture.mirrorCapturesPerDay : capture.capturesPerDay;
         const allInRange = snapshots
             .filter(snap => snap.timestamp >= capture.startTimestamp && snap.timestamp <= capture.endTimestamp);
 
@@ -133,15 +133,15 @@ export function filterLimitedCapturesForUrl(snapshots: CdxEntry[], limitedCaptur
 
         for (const [, dayCaptures] of byDay) {
             let daySelected: CdxEntry[];
-            if (dayCaptures.length <= capture.capturesPerDay) {
+            if (dayCaptures.length <= capturesPerDay) {
                 // Not enough captures to need filtering — keep all
                 daySelected = dayCaptures;
-            } else if (dayCaptures.length > capture.capturesPerDay * THRESHOLD_MULTIPLIER) {
+            } else if (dayCaptures.length > capturesPerDay * THRESHOLD_MULTIPLIER) {
                 // Many captures — use clock-time matching
-                daySelected = selectByClockTime(dayCaptures, capture.capturesPerDay);
+                daySelected = selectByClockTime(dayCaptures, capturesPerDay);
             } else {
                 // Moderate number — use index-based spacing
-                daySelected = selectByIndex(dayCaptures, capture.capturesPerDay);
+                daySelected = selectByIndex(dayCaptures, capturesPerDay);
             }
             for (const snap of daySelected) {
                 selectedTimestamps.add(snap.timestamp);

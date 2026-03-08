@@ -10,7 +10,6 @@ type Transform = (captureGroups: string[]) => string[];
 const TRANSFORMS: Record<string, Transform> = {
     captureToLowerCase: (groups) => groups.map(g => g.toLowerCase()),
     captureToUpperCase: (groups) => groups.map(g => g.toUpperCase()),
-    // Add more transforms as needed
 };
 
 function applyTransforms(captureGroups: string[], transformNames?: string[]): string[] {

@@ -26,7 +26,11 @@
         "internalConsoleOptions": "neverOpen",
         "args": [
             "--json",
-            ".\\data\\inputs\\aoe2x-ms-usa-asp.json"
+            ".\\data\\inputs\\aoe2x-ms-usa-aspx.json",
+            "--no-mirrors",
+            "--no-include-invalid",
+            "--no-headers",
+            "--no-peek-all"
             // ".\\data\\inputs\\aoe2-ms-usa-1998-05.json"
         ],
 

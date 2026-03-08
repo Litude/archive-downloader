@@ -1,10 +1,10 @@
 import axios, { AxiosResponse } from "axios";
-import { filterLimitedCapturesForUrl } from "../special-rules/limit-captures";
 import { DownloadFileInput, LimitedCaptureRange, UrlEntry } from "../types/download-input-types";
 import { CdxEntry } from "../types/wayback-types";
 import { filenameToString } from "../file-name/file-name";
 import { fetchWaybackFileHeaders } from "./file-download";
 import { DownloadedFile } from "../types/download-types";
+import { checkForLimitedCapture, filterLimitedCapturesForUrl } from "../special-rules/limit-captures";
 
 const WAYBACK_CDX_API_URL = 'http://web.archive.org/cdx/search/cdx';
 const REQUEST_TIMEOUT = 60000; // 60 seconds
@@ -15,24 +15,67 @@ const MAX_BACKOFF = 600_000; // 10 minutes
 // Redirects and not found are the most likely codes when a page no longer exists
 const INVALID_ALLOWED_STATUS_CODES = ['301', '302', '403', '404'];
 
+
 export async function getSnapshotsForWebsiteFile(
   input: DownloadFileInput, includeInvalid = false
 ) {
   console.log(`Processing ${filenameToString(input.filename, 'simple')} with output directory: ${input.outputDirectory}`);
+
+  const preliminaryResults: {
+    snapshots: CdxEntry[],
+    url: UrlEntry,
+  }[] = []
+  const allSnapshots: CdxEntry[] = [];
+  for (const url of input.urls) {
+      const snapshots = await getSnapshotsForUrl(url);
+      preliminaryResults.push({ snapshots, url });
+      allSnapshots.push(...snapshots);
+  }
   const validCdxEntries: CdxEntry[] = [];
   const invalidCdxEntries: CdxEntry[] = [];
-  for (const url of input.urls) {
-      const { validSnapShots, invalidSnapshots } = await getSnapshotsForUrl(url, includeInvalid, input.limitedCaptures);
-      const filteredSnapshots = filterLimitedCapturesForUrl(validSnapShots, input.limitedCaptures);
-      if (filteredSnapshots.length !== validSnapShots.length) {
-        console.log(`Filtered ${validSnapShots.length - filteredSnapshots.length} snapshots for ${url.url} based on limited captures.`);
-      }
-      const filteredInvalidSnapshots = filterLimitedCapturesForUrl(invalidSnapshots, input.limitedCaptures);
-      if (filteredInvalidSnapshots.length !== invalidSnapshots.length) {
-        console.log(`Filtered ${invalidSnapshots.length - filteredInvalidSnapshots.length} invalid snapshots for ${url.url} based on limited captures.`);
-      }
-      validCdxEntries.push(...filteredSnapshots);
-      invalidCdxEntries.push(...filteredInvalidSnapshots);
+
+  console.log(`Total snapshots found: ${allSnapshots.length}`)
+  const limitedCaptureConfigs = checkForLimitedCapture(allSnapshots);
+  if (limitedCaptureConfigs.length > 0) {
+    console.log(`Found ${limitedCaptureConfigs.length} limited capture ranges that will be applied during postprocessing:`);
+    for (const config of limitedCaptureConfigs) {
+      console.log(`- from ${config.startTimestamp} to ${config.endTimestamp} (captures per day: ${config.capturesPerDay}${config.mirrorCapturesPerDay ? `, for mirrors: ${config.mirrorCapturesPerDay}` : ''})`);
+    }
+  }
+
+  let limitedCaptureFiltered = 0;
+
+  for (const { snapshots, url } of preliminaryResults) {
+    console.log(`Postprocessing ${url.url}`)
+    const { uniqueSnapshots, filteredValidSnapshots, filteredInvalidSnapshots } = await filterDuplicateSnapshots(url.url, includeInvalid && !url.excludeInvalid, snapshots, limitedCaptureConfigs);
+    let validSnapShots = uniqueSnapshots.filter(snapshot => snapshot.status.startsWith('2'));
+    let invalidSnapshots = uniqueSnapshots.filter(snapshot => !snapshot.status.startsWith('2'));
+    console.log(`Found ${validSnapShots.length} valid snapshots for ${url.url}`);
+    if (invalidSnapshots.length > 0) {
+      console.log(`Found ${invalidSnapshots.length} invalid snapshots for ${url.url}`);
+    }
+    if (filteredValidSnapshots > 0) {
+      console.log(`Removed ${filteredValidSnapshots} duplicate valid snapshots for ${url.url}`);
+    }
+    if (filteredInvalidSnapshots > 0) {
+      console.log(`Removed ${filteredInvalidSnapshots} duplicate invalid snapshots for ${url.url}`);
+    }
+
+    const originalValidCount = validSnapShots.length;
+    validSnapShots = filterLimitedCapturesForUrl(validSnapShots, limitedCaptureConfigs, url.mirrorUrl);
+    if (validSnapShots.length !== originalValidCount) {
+      console.log(`Filtered ${originalValidCount - validSnapShots.length} snapshots for ${url.url} based on limited captures.`);
+      limitedCaptureFiltered += originalValidCount - validSnapShots.length;
+    }
+    const originalInvalidCount = invalidSnapshots.length;
+    invalidSnapshots = filterLimitedCapturesForUrl(invalidSnapshots, limitedCaptureConfigs, url.mirrorUrl);
+    if (invalidSnapshots.length !== originalInvalidCount) {
+      console.log(`Filtered ${originalInvalidCount - invalidSnapshots.length} invalid snapshots for ${url.url} based on limited captures.`);
+      limitedCaptureFiltered += originalInvalidCount - invalidSnapshots.length;
+    }
+    validCdxEntries.push(...validSnapShots);
+    invalidCdxEntries.push(...invalidSnapshots);
+    //const filteredSnapshots = filterLimitedCaptures(snapshots, limitedCaptureConfigs, isMirror);
   }
   console.log(`Total valid snapshots for ${filenameToString(input.filename, 'simple')}: ${validCdxEntries.length}`);
   if (includeInvalid) {
@@ -40,7 +83,13 @@ export async function getSnapshotsForWebsiteFile(
   }
   return {
     validCdxEntries: validCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
-    invalidCdxEntries: invalidCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+    invalidCdxEntries: invalidCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
+    metadata: limitedCaptureFiltered ? {
+      limitedCapture: {
+        limitedCaptureConfigs,
+        filteredEntries: limitedCaptureFiltered,
+      }
+    } : undefined,
   };
 }
 
@@ -225,28 +274,15 @@ async function filterDuplicateSnapshots(requestUrl: string, keepInvalid: boolean
   return { uniqueSnapshots: filteredSnapshots, filteredValidSnapshots, filteredInvalidSnapshots, filteredUnwantedSnapshots };
 }
 
-async function getSnapshotsForUrl(url: UrlEntry, includeInvalid: boolean, limitedCaptures: LimitedCaptureRange[]) {
+async function getSnapshotsForUrl(url: UrlEntry) {
   const allSnapshots = await fetchWaybackCdxIndex(url.url);
+  console.log(`Found ${allSnapshots.length} total snapshots for ${url.url}.`);
   const filteredSnapshots = filterSnapshotsByTimestamp(allSnapshots, url.maxTimestamp, url.minTimestamp);
   if (filteredSnapshots.length !== allSnapshots.length) {
     console.log(`Filtered ${allSnapshots.length - filteredSnapshots.length} snapshots for ${url.url} based on timestamp constraints`);
   }
   validateNoRevisitSnapshots(filteredSnapshots);
-
-  const { uniqueSnapshots, filteredValidSnapshots, filteredInvalidSnapshots } = await filterDuplicateSnapshots(url.url, includeInvalid && !url.excludeInvalid, filteredSnapshots, limitedCaptures);
-  const validSnapShots = uniqueSnapshots.filter(snapshot => snapshot.status.startsWith('2'));
-  const invalidSnapshots = uniqueSnapshots.filter(snapshot => !snapshot.status.startsWith('2'));
-  console.log(`Found ${validSnapShots.length} valid snapshots for ${url.url}`);
-  if (invalidSnapshots.length > 0) {
-    console.log(`Found ${invalidSnapshots.length} invalid snapshots for ${url.url}`);
-  }
-  if (filteredValidSnapshots > 0) {
-    console.log(`Removed ${filteredValidSnapshots} duplicate valid snapshots for ${url.url}`);
-  }
-  if (filteredInvalidSnapshots > 0) {
-    console.log(`Removed ${filteredInvalidSnapshots} duplicate invalid snapshots for ${url.url}`);
-  }
-  return { validSnapShots, invalidSnapshots };
+  return filteredSnapshots;
 }
 
 function filterSnapshotsByTimestamp(snapshots: CdxEntry[], maxTimestamp?: string, minTimestamp?: string) {

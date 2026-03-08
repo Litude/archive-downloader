@@ -18,6 +18,7 @@ import { filenameToString } from "./file-name/file-name";
 import { writeUnavailablePlaceholder } from "./output/unavailable";
 import { writeFileHeaders } from "./output/header-output";
 import { DateTime } from "luxon";
+import { writeUrlMetadata } from "./output/url-metadata";
 
 // High level logic of app:
 // 1. Read input JSON file to get list of DownloadFileInput
@@ -72,7 +73,7 @@ async function processWebsiteDownloads(
 ) {
   for (const input of downloadInputs) {
 
-    const { validCdxEntries, invalidCdxEntries } = await getSnapshotsForWebsiteFile(
+    const { validCdxEntries, invalidCdxEntries, metadata } = await getSnapshotsForWebsiteFile(
       input, includeInvalid
     );
     const allEntries = [...validCdxEntries, ...invalidCdxEntries];
@@ -274,6 +275,10 @@ async function processWebsiteDownloads(
       if (writeHeaders) {
         writeFileHeaders(baseEntries, input.filename, input.outputDirectory);
       }
+    }
+
+    if (metadata?.limitedCapture) {
+      writeUrlMetadata(metadata, input.filename, input.outputDirectory);
     }
 
 

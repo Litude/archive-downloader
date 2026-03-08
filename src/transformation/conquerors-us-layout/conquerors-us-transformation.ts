@@ -1,35 +1,18 @@
-import fs from 'fs';
 import path from 'path';
 import { TransformationInput, TransformationOutput } from '../../types/transformation-types';
+import { ConquerorsUsLayoutNormalizationVariant, ConquerorsUsLayoutSpecialPage } from './layout_transforms';
+import { ConquerorsUsLayoutTransforms } from './layout_transforms';
 
-const htmlDir = "html";
+type LayoutType = "html" | "flash";
 
 export interface ConquerorsUsNormalizationOptions {
     url: string;
-    specialPage?: "default" | "civ_aztecs" | "civ_huns" | "civ_koreans" | "civ_mayans" | "civ_spanish";
+    variant?: ConquerorsUsLayoutNormalizationVariant; // asp is default, aspx has special handling
+    specialPage?: ConquerorsUsLayoutSpecialPage;
     f2?: string;
     f3?: string;
     f4?: string;
 }
-
-type LayoutType = "html" | "flash";
-
-const htmlMenuStr = fs.readFileSync(path.join(__dirname, htmlDir, 'menu_noflash.html'), 'latin1');
-const flashMenuStr = fs.readFileSync(path.join(__dirname, htmlDir, 'menu_flash.html'), 'latin1');
-
-const soundCivAztecsFlashStr = fs.readFileSync(path.join(__dirname, htmlDir, 'snd_civ_aztecs_flash.html'), 'latin1');
-const soundCivHunsFlashStr = fs.readFileSync(path.join(__dirname, htmlDir, 'snd_civ_huns_flash.html'), 'latin1');
-const soundCivKoreansFlashStr = fs.readFileSync(path.join(__dirname, htmlDir, 'snd_civ_koreans_flash.html'), 'latin1');
-const soundCivMayansFlashStr = fs.readFileSync(path.join(__dirname, htmlDir, 'snd_civ_mayans_flash.html'), 'latin1');
-const soundCivSpanishFlashStr = fs.readFileSync(path.join(__dirname, htmlDir, 'snd_civ_spanish_flash.html'), 'latin1');
-const soundCivAztecsNoFlashStr = fs.readFileSync(path.join(__dirname, htmlDir, 'snd_civ_aztecs_noflash.html'), 'latin1');
-const soundCivHunsNoFlashStr = fs.readFileSync(path.join(__dirname, htmlDir, 'snd_civ_huns_noflash.html'), 'latin1');
-const soundCivKoreansNoFlashStr = fs.readFileSync(path.join(__dirname, htmlDir, 'snd_civ_koreans_noflash.html'), 'latin1');
-const soundCivMayansNoFlashStr = fs.readFileSync(path.join(__dirname, htmlDir, 'snd_civ_mayans_noflash.html'), 'latin1');
-const soundCivSpanishNoFlashStr = fs.readFileSync(path.join(__dirname, htmlDir, 'snd_civ_spanish_noflash.html'), 'latin1');
-
-const soundDefaultFlashStr = fs.readFileSync(path.join(__dirname, htmlDir, 'snd_default_flash.html'), 'latin1');
-const soundDefaultNoFlashStr = fs.readFileSync(path.join(__dirname, htmlDir, 'snd_default_noflash.html'), 'latin1');
 
 const tagIdentifier = 'DLNORMALIZATION';
 
@@ -38,26 +21,39 @@ const layoutSwitchReplacementString = `<!-- ${tagIdentifier}: INCLUDE SWITCH_LAY
 const layoutSoundEffectReplacementString = `<!-- ${tagIdentifier}: INCLUDE SOUND_EFFECT -->`
 const flashNormalizationTag = `${tagIdentifier}_FLASHENABLED`;
 
-const switchReplacementRegex1 = new RegExp(/ \r\n    <a href="\/games\/conquerors\/.+\?f1=.*&f2=.*&f3=.*&f4=.*" CLASS="ROLL">HTML Site<\/a>/, "i");
-const switchReplacementRegex2 = new RegExp(/\r\n<a href="\/games\/conquerors\/.+\?f1=.*&f2=.*&f3=.*&f4=.*" CLASS="ROLL">Flash Enhanced Site<\/a>/, "i");
+const aspSwitchReplacementRegex1 = new RegExp(/ \r\n    <a href="\/games\/conquerors\/.+\?f1=.*&f2=.*&f3=.*&f4=.*" CLASS="ROLL">HTML Site<\/a>/, "i");
+const aspSwitchReplacementRegex2 = new RegExp(/\r\n<a href="\/games\/conquerors\/.+\?f1=.*&f2=.*&f3=.*&f4=.*" CLASS="ROLL">Flash Enhanced Site<\/a>/, "i");
+const aspxSwitchReplacementRegex1 = new RegExp(/\r\n                    <a href="\/games\/conquerors\/.+\?f1=.*&f2=.*&f3=.*&f4=.*" class="ROLL">HTML\r\n                        Site<\/a>/, "i");
+const aspxSwitchReplacementRegex2 = new RegExp(/\r\n                    <a href="\/games\/conquerors\/.+\?f1=.*&f2=.*&f3=.*&f4=.*" class="ROLL">\r\n                        Flash Enhanced Site<\/a>/, "i");
 
 
 // Normalize menu, might be either HTML or flash so we just normalize both (the other one will not match anything)
-function normalizeMenu(inputString: string): string {
-    let outputString = inputString.replace(htmlMenuStr, menuReplacementString);
-    outputString = outputString.replace(flashMenuStr, menuReplacementString);
+function normalizeMenu(inputString: string, variant: ConquerorsUsLayoutNormalizationVariant = "asp", specialPage?: ConquerorsUsLayoutSpecialPage): string {
+    let outputString = inputString;
+    if (variant === "aspx" && ["campaigns", "civilizations", "civ_aztecs", "civ_huns", "civ_koreans", "civ_mayans", "civ_spanish"].includes(specialPage ?? "")) {
+        // aspx campaigns and civilization pages have a slightly differently formatted html menu
+        outputString = inputString.replace(ConquerorsUsLayoutTransforms.AspxSpecialHtmlMenu, menuReplacementString);
+        outputString = outputString.replace(ConquerorsUsLayoutTransforms.Menu[variant].flash, menuReplacementString);
+    } else {
+        outputString = inputString.replace(ConquerorsUsLayoutTransforms.Menu[variant].html, menuReplacementString);
+        outputString = outputString.replace(ConquerorsUsLayoutTransforms.Menu[variant].flash, menuReplacementString);
+    }
     if (outputString === inputString) {
         throw new Error("Menu normalization failed, no matches found!");
     }
     return outputString;
 }
 
-function generateMenu(inputString: string, layout: LayoutType): string {
+function generateMenu(inputString: string, layout: LayoutType, variant: ConquerorsUsLayoutNormalizationVariant = "asp", specialPage?: ConquerorsUsLayoutSpecialPage): string {
     let outputString = inputString;
     if (layout === "flash") {
-        outputString = outputString.replace(new RegExp(menuReplacementString, 'g'), flashMenuStr);
+        outputString = outputString.replace(new RegExp(menuReplacementString, 'g'), ConquerorsUsLayoutTransforms.Menu[variant].flash);
     } else {
-        outputString = outputString.replace(new RegExp(menuReplacementString, 'g'), htmlMenuStr);
+        if (variant === "aspx" && ["campaigns", "civilizations", "civ_aztecs", "civ_huns", "civ_koreans", "civ_mayans", "civ_spanish"].includes(specialPage ?? "")) {
+            outputString = outputString.replace(new RegExp(menuReplacementString, 'g'), ConquerorsUsLayoutTransforms.AspxSpecialHtmlMenu);
+        } else {
+            outputString = outputString.replace(new RegExp(menuReplacementString, 'g'), ConquerorsUsLayoutTransforms.Menu[variant].html);
+        }
     }
     if (outputString === inputString) {
         throw new Error("Menu generation failed, no matches found!");
@@ -66,9 +62,15 @@ function generateMenu(inputString: string, layout: LayoutType): string {
 }
 
 // Normalize layout HTML/Flash menu toggle links
-function normalizeLayoutToggleLinks(inputString: string): string {
-    let outputString = inputString.replace(switchReplacementRegex1, layoutSwitchReplacementString)
-                           .replace(switchReplacementRegex2, layoutSwitchReplacementString);
+function normalizeLayoutToggleLinks(inputString: string, variant: ConquerorsUsLayoutNormalizationVariant = "asp"): string {
+    let outputString = inputString;
+    if (variant === "asp") {
+        outputString = outputString.replace(aspSwitchReplacementRegex1, layoutSwitchReplacementString)
+                                   .replace(aspSwitchReplacementRegex2, layoutSwitchReplacementString);
+    } else if (variant === "aspx") {
+        outputString = outputString.replace(aspxSwitchReplacementRegex1, layoutSwitchReplacementString)
+                                   .replace(aspxSwitchReplacementRegex2, layoutSwitchReplacementString);
+    }
     if (outputString === inputString) {
         throw new Error("Layout toggle link normalization failed, no matches found!");
     }
@@ -86,15 +88,25 @@ function parseUrl(urlString: string): string {
     }
 }
 
-function generateLayoutSwitchLinks(inputString: string, layout: LayoutType, mainUrl: string, { f2, f3, f4 }: { f2?: string, f3?: string, f4?: string }): string {
+function generateLayoutSwitchLinks(inputString: string, layout: LayoutType, mainUrl: string, { f2, f3, f4 }: { f2?: string, f3?: string, f4?: string }, variant: ConquerorsUsLayoutNormalizationVariant = "asp"): string {
     let outputString = inputString;
     const urlPath = parseUrl(mainUrl);
-    if (layout === "flash") {
-        outputString = outputString.replace(new RegExp(layoutSwitchReplacementString, 'g'), 
-            ` \r\n    <a href="/games/conquerors/${path.basename(urlPath).toLowerCase()}?f1=no&f2=${f2 ?? ""}&f3=${f3 ?? ""}&f4=${f4 ?? ""}" CLASS="ROLL">HTML Site</a>`);
+    if (variant === "aspx") {
+        if (layout === "flash") {
+            outputString = outputString.replace(new RegExp(layoutSwitchReplacementString, 'g'), 
+                `\r\n                    <a href="/games/conquerors/${path.basename(urlPath).toLowerCase()}?f1=no&f2=${f2 ?? ""}&f3=${f3 ?? ""}&f4=${f4 ?? ""}" class="ROLL">HTML\r\n                        Site</a>`);
+        } else {
+            outputString = outputString.replace(new RegExp(layoutSwitchReplacementString, 'g'), 
+                `\r\n                    <a href="/games/conquerors/${path.basename(urlPath).toLowerCase()}?f1=yes&f2=${f2 ?? ""}&f3=${f3 ?? ""}&f4=${f4 ?? ""}" class="ROLL">\r\n                        Flash Enhanced Site</a>`);
+        }
     } else {
-        outputString = outputString.replace(new RegExp(layoutSwitchReplacementString, 'g'), 
-            `\r\n<a href="/games/conquerors/${path.basename(urlPath).toLowerCase()}?f1=yes&f2=${f2 ?? ""}&f3=${f3 ?? ""}&f4=${f4 ?? ""}" CLASS="ROLL">Flash Enhanced Site</a>`);
+        if (layout === "flash") {
+            outputString = outputString.replace(new RegExp(layoutSwitchReplacementString, 'g'), 
+                ` \r\n    <a href="/games/conquerors/${path.basename(urlPath).toLowerCase()}?f1=no&f2=${f2 ?? ""}&f3=${f3 ?? ""}&f4=${f4 ?? ""}" CLASS="ROLL">HTML Site</a>`);
+        } else {
+            outputString = outputString.replace(new RegExp(layoutSwitchReplacementString, 'g'), 
+                `\r\n<a href="/games/conquerors/${path.basename(urlPath).toLowerCase()}?f1=yes&f2=${f2 ?? ""}&f3=${f3 ?? ""}&f4=${f4 ?? ""}" CLASS="ROLL">Flash Enhanced Site</a>`);
+        }
     }
     if (outputString === inputString) {
         throw new Error("Layout switch link generation failed, no matches found!");
@@ -127,37 +139,18 @@ function generateQueryParameterLinks(inputString: string, layout: LayoutType): s
     return outputString;
 }
 
-function normalizeSoundEffectLinks(inputString: string, specialPage?: "default" | "civ_aztecs" | "civ_huns" | "civ_koreans" | "civ_mayans" | "civ_spanish"): string {
-    if (!specialPage) {
+function normalizeSoundEffectLinks(inputString: string, specialPage?: ConquerorsUsLayoutSpecialPage, variant: ConquerorsUsLayoutNormalizationVariant = "asp"): string {
+    if (!specialPage || specialPage === "campaigns" || specialPage === "civilizations") {
         return inputString;
     }
 
     let outputString = inputString;
 
-    if (specialPage === "default") {
-        outputString = outputString.replace(soundDefaultFlashStr, layoutSoundEffectReplacementString)
-                           .replace(soundDefaultNoFlashStr, layoutSoundEffectReplacementString);
-    }
-    else if (specialPage === "civ_aztecs") {
-        outputString = outputString.replace(soundCivAztecsFlashStr, layoutSoundEffectReplacementString)
-                           .replace(soundCivAztecsNoFlashStr, layoutSoundEffectReplacementString);
-    }
-    else if (specialPage === "civ_huns") {
-        outputString = outputString.replace(soundCivHunsFlashStr, layoutSoundEffectReplacementString)
-                                   .replace(soundCivHunsNoFlashStr, layoutSoundEffectReplacementString);
-    }
-    else if (specialPage === "civ_koreans") {
-        outputString = outputString.replace(soundCivKoreansFlashStr, layoutSoundEffectReplacementString)
-                                   .replace(soundCivKoreansNoFlashStr, layoutSoundEffectReplacementString);
-    }
-    else if (specialPage === "civ_mayans") {
-        outputString = outputString.replace(soundCivMayansFlashStr, layoutSoundEffectReplacementString)
-                                   .replace(soundCivMayansNoFlashStr, layoutSoundEffectReplacementString);
-    }
-    else if (specialPage === "civ_spanish") {
-        outputString = outputString.replace(soundCivSpanishFlashStr, layoutSoundEffectReplacementString)
-                                   .replace(soundCivSpanishNoFlashStr, layoutSoundEffectReplacementString);
-    }
+    const flashReplacementString = ConquerorsUsLayoutTransforms.Sound[specialPage][variant].flash;
+    const htmlReplacementString = ConquerorsUsLayoutTransforms.Sound[specialPage][variant].html;
+    
+    outputString = outputString.replace(flashReplacementString, layoutSoundEffectReplacementString)
+                        .replace(htmlReplacementString, layoutSoundEffectReplacementString);
 
     if (outputString === inputString) {
         throw new Error("Sound effect normalization failed, no matches found!");
@@ -166,37 +159,15 @@ function normalizeSoundEffectLinks(inputString: string, specialPage?: "default" 
 }
 
 
-function generateSoundEffectLinks(inputString: string, layout: LayoutType, specialPage?: "default" | "civ_aztecs" | "civ_huns" | "civ_koreans" | "civ_mayans" | "civ_spanish"): string {
-    if (!specialPage) {
+function generateSoundEffectLinks(inputString: string, layout: LayoutType, variant: ConquerorsUsLayoutNormalizationVariant = "asp", specialPage?: ConquerorsUsLayoutSpecialPage): string {
+    if (!specialPage || specialPage === "campaigns" || specialPage === "civilizations") {
         return inputString;
     }
 
     let outputString = inputString;
 
-    if (specialPage === "default") {
-        const replacement = layout === "flash" ? soundDefaultFlashStr : soundDefaultNoFlashStr;
-        outputString = outputString.replace(new RegExp(layoutSoundEffectReplacementString, 'g'), replacement);
-    }
-    else if (specialPage === "civ_aztecs") {
-        const replacement = layout === "flash" ? soundCivAztecsFlashStr : soundCivAztecsNoFlashStr;
-        outputString = outputString.replace(new RegExp(layoutSoundEffectReplacementString, 'g'), replacement);
-    }
-    else if (specialPage === "civ_huns") {
-        const replacement = layout === "flash" ? soundCivHunsFlashStr : soundCivHunsNoFlashStr;
-        outputString = outputString.replace(new RegExp(layoutSoundEffectReplacementString, 'g'), replacement);
-    }
-    else if (specialPage === "civ_koreans") {
-        const replacement = layout === "flash" ? soundCivKoreansFlashStr : soundCivKoreansNoFlashStr;
-        outputString = outputString.replace(new RegExp(layoutSoundEffectReplacementString, 'g'), replacement);
-    }
-    else if (specialPage === "civ_mayans") {
-        const replacement = layout === "flash" ? soundCivMayansFlashStr : soundCivMayansNoFlashStr;
-        outputString = outputString.replace(new RegExp(layoutSoundEffectReplacementString, 'g'), replacement);
-    }
-    else if (specialPage === "civ_spanish") {
-        const replacement = layout === "flash" ? soundCivSpanishFlashStr : soundCivSpanishNoFlashStr;
-        outputString = outputString.replace(new RegExp(layoutSoundEffectReplacementString, 'g'), replacement);
-    }
+    const replacement = ConquerorsUsLayoutTransforms.Sound[specialPage][variant][layout];
+    outputString = outputString.replace(new RegExp(layoutSoundEffectReplacementString, 'g'), replacement);
 
     if (outputString === inputString) {
         throw new Error("Sound effect generation failed, no matches found!");
@@ -208,51 +179,69 @@ function normalizeTheConquerorsUsWebsite(entry: Buffer, siteOptions: ConquerorsU
     const newEntry = entry;
     const contentStr = newEntry.toString('latin1');
     let normalizedContent = contentStr;
-    normalizedContent = normalizeMenu(normalizedContent);
-    normalizedContent = normalizeLayoutToggleLinks(normalizedContent);
+    normalizedContent = normalizeMenu(normalizedContent, siteOptions.variant, siteOptions.specialPage);
+    normalizedContent = normalizeLayoutToggleLinks(normalizedContent, siteOptions.variant);
     normalizedContent = normalizeQueryParameterLinks(normalizedContent);
-    normalizedContent = normalizeSoundEffectLinks(normalizedContent, siteOptions.specialPage);
+    normalizedContent = normalizeSoundEffectLinks(normalizedContent, siteOptions.specialPage, siteOptions.variant);
 
     const buffer = Buffer.from(normalizedContent, 'latin1');
     return buffer;
 }
 
-function createSiteLayoutVersion(content: Buffer, layout: LayoutType, siteOptions: ConquerorsUsNormalizationOptions): Buffer {
+function createSiteLayoutVersion(content: Buffer, layout: LayoutType, siteOptions: ConquerorsUsNormalizationOptions, variant: ConquerorsUsLayoutNormalizationVariant = "asp"): Buffer {
     let contentStr = content.toString('latin1');
-    contentStr = generateMenu(contentStr, layout);
-    contentStr = generateLayoutSwitchLinks(contentStr, layout, siteOptions.url, { f2: siteOptions.f2, f3: siteOptions.f3, f4: siteOptions.f4 });
+    contentStr = generateMenu(contentStr, layout, variant, siteOptions.specialPage);
+    contentStr = generateLayoutSwitchLinks(contentStr, layout, siteOptions.url, { f2: siteOptions.f2, f3: siteOptions.f3, f4: siteOptions.f4 }, variant);
     contentStr = generateQueryParameterLinks(contentStr, layout);
-    contentStr = generateSoundEffectLinks(contentStr, layout, siteOptions.specialPage);
+    contentStr = generateSoundEffectLinks(contentStr, layout, variant, siteOptions.specialPage);
     return Buffer.from(contentStr, 'latin1');
 }
 
 function generateTheConquerorsUsWebsiteVariants(
   entry: Buffer,
-  siteOptions: ConquerorsUsNormalizationOptions
+  siteOptions: ConquerorsUsNormalizationOptions,
 ): {
   content: Buffer,
   queryParams: Record<string, string | null>
 }[] {
-  const flashEnabledEntry = createSiteLayoutVersion(entry, "flash", siteOptions);
-  const noFlashEntry = createSiteLayoutVersion(entry, "html", siteOptions);
+    const flashEnabledEntry = createSiteLayoutVersion(entry, "flash", siteOptions, siteOptions.variant);
+    const noFlashEntry = createSiteLayoutVersion(entry, "html", siteOptions, siteOptions.variant);
+
+    const otherParams = {
+        f2: siteOptions.f2 ?? undefined,
+        f3: siteOptions.f3 ?? undefined,
+        f4: siteOptions.f4 ?? undefined,
+    }
+    Object.keys(otherParams).forEach(key => {
+        if (otherParams[key as keyof typeof otherParams] === undefined) {
+            delete otherParams[key as keyof typeof otherParams];
+        }
+    });
 
     return [{
         content: noFlashEntry,
-        queryParams: { f1: null} as Record<string, string | null>
+        queryParams: {
+            f1: null,
+            ...otherParams
+        } as Record<string, string | null>
     },
     {
         content: flashEnabledEntry,
-        queryParams: { f1: "yes" } as Record<string, string | null>
+        queryParams: {
+            f1: "yes",
+            ...otherParams
+        } as Record<string, string | null>
     }];
 }
 
 function transformTheConquerorsUsWebsite(
   entry: TransformationInput,
-  params: Record<string, any>): TransformationOutput[] {
-
-  const normalizedContent = normalizeTheConquerorsUsWebsite(entry.content, params as ConquerorsUsNormalizationOptions);
-  const allGeneratedEntries = generateTheConquerorsUsWebsiteVariants(normalizedContent, params as ConquerorsUsNormalizationOptions);
-  return allGeneratedEntries;
+  params: Record<string, any>
+): TransformationOutput[] {
+    const options = params as ConquerorsUsNormalizationOptions; 
+    const normalizedContent = normalizeTheConquerorsUsWebsite(entry.content, options);
+    const allGeneratedEntries = generateTheConquerorsUsWebsiteVariants(normalizedContent, options);
+    return allGeneratedEntries;
 }
 
 function validateOptions(options: Record<string, any>): boolean {

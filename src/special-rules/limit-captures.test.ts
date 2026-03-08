@@ -38,7 +38,6 @@ function makeDenseCaptures(datePrefix: string): CdxEntry[] {
 }
 
 const range: LimitedCaptureRange = {
-    url: 'http://example.com/',
     startTimestamp: '20001001000000',
     endTimestamp: '20001001235959',
     capturesPerDay: 12,
@@ -139,20 +138,21 @@ describe('filterLimitedCapturesForUrl', () => {
         expect(result).toHaveLength(2);
     });
 
-    it('uses index-based spacing when captures are moderate (> N but <= N*10)', () => {
-        // 15 captures on one day, capturesPerDay=3 → 15 > 3 but 15 <= 30 → index-based
-        const snaps: CdxEntry[] = [];
-        for (let i = 0; i < 15; i++) {
-            const h = String(i + 1).padStart(2, '0');
-            snaps.push(makeCdx(`20001001${h}0000`));
-        }
-        const result = filterLimitedCapturesForUrl(snaps, [{ ...range, capturesPerDay: 3 }]);
-        expect(result).toHaveLength(3);
-        // Index spacing: indices 0, 7, 14 → hours 01, 08, 15
-        expect(result[0].timestamp).toBe('20001001010000');
-        expect(result[1].timestamp).toBe('20001001080000');
-        expect(result[2].timestamp).toBe('20001001150000');
-    });
+    // This rule is disabled for now
+    // it('uses index-based spacing when captures are moderate (> N but <= N*10)', () => {
+    //     // 15 captures on one day, capturesPerDay=3 → 15 > 3 but 15 <= 30 → index-based
+    //     const snaps: CdxEntry[] = [];
+    //     for (let i = 0; i < 15; i++) {
+    //         const h = String(i + 1).padStart(2, '0');
+    //         snaps.push(makeCdx(`20001001${h}0000`));
+    //     }
+    //     const result = filterLimitedCapturesForUrl(snaps, [{ ...range, capturesPerDay: 3 }]);
+    //     expect(result).toHaveLength(3);
+    //     // Index spacing: indices 0, 7, 14 → hours 01, 08, 15
+    //     expect(result[0].timestamp).toBe('20001001010000');
+    //     expect(result[1].timestamp).toBe('20001001080000');
+    //     expect(result[2].timestamp).toBe('20001001150000');
+    // });
 
     it('uses clock-time matching when captures are dense (> N*10)', () => {
         // 144 captures (every 10 min), capturesPerDay=12 → 144 > 120 → clock-time
@@ -198,7 +198,6 @@ describe('filterLimitedCapturesForUrl', () => {
         const snaps = [...day1, ...day2];
 
         const multiDayRange: LimitedCaptureRange = {
-            url: 'http://example.com/',
             startTimestamp: '20001001000000',
             endTimestamp: '20001002235959',
             capturesPerDay: 3,

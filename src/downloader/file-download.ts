@@ -138,22 +138,18 @@ function getResponseHeaders(waybackUrl: string, statusCodes?: string[]) {
   );
 }
 
-function getRevisitFileHeaders(waybackUrl: string) {
-  return axios.head(waybackUrl, { headers: REQUEST_HEADERS,  maxRedirects: 0, validateStatus: status => [200, 301, 302, 404].includes(status), timeout: REQUEST_TIMEOUT });
-}
-
 export async function fetchWaybackFile(
     timestamp: string,
     url: string,
     statusCode: string
 ): Promise<DownloadedFile> {
-  const waybackUrl = createWaybackDownloadUrl(timestamp, url);
   let attempt = 1;
   let headersErrorCount = 0;
   let abortedCount = 0;
   let backoff = INITIAL_BACKOFF;
   while (true) {
     try {
+      const waybackUrl = createWaybackDownloadUrl(timestamp, url, attempt - 1);
       console.log(`Fetching file content for ${timestamp}-${url} (attempt ${attempt})...`);
       const response = await getResponse(waybackUrl, statusCode);
       if (ERROR_STATUS_CODES.includes(response.status)) {
@@ -208,30 +204,6 @@ export async function fetchWaybackFileHeaders(
       // TODO: Need some robust way to detect if the response is an error page (e.g. 404 page from web archive) instead of the actual capture
       // Perhaps the presence of some specific header, e.g. x-archive-src or memento-datetime could be used?
       const response = await getResponseHeaders(waybackUrl, statusCodes);
-      if (ERROR_STATUS_CODES.includes(response.status)) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      return { url, timestamp, headers: response.headers, statusCode: response.status.toString() };
-    } catch (e: unknown) {
-      console.log(`Error fetching headers for ${timestamp}-${url}: ${e}, retrying in ${backoff / 1000}s...`);
-      await new Promise(res => setTimeout(res, backoff));
-      backoff = Math.min(backoff * 2, MAX_BACKOFF);
-      attempt++;
-    }
-  }
-}
-
-export async function fetchWaybackRevisitFileHeaders(
-  timestamp: string,
-  url: string
-): Promise<Omit<DownloadedFile, 'content' | 'corrupt'>> {
-  const waybackUrl = createWaybackDownloadUrl(timestamp, url);
-  let attempt = 1;
-  let backoff = INITIAL_BACKOFF;
-  while (true) {
-    try {
-      console.log(`Fetching file headers for ${timestamp}-${url} (attempt ${attempt})...`);
-      const response = await getRevisitFileHeaders(waybackUrl);
       if (ERROR_STATUS_CODES.includes(response.status)) {
         throw new Error(`HTTP ${response.status}`);
       }
