@@ -12,6 +12,7 @@ function makeCdx(timestamp: string): CdxEntry {
         digest: 'ABC123',
         mimetype: 'text/html',
         length: 100,
+        source: 'superarchive'
     };
 }
 

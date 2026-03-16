@@ -1,5 +1,5 @@
 import axios, { AxiosResponse } from "axios";
-import { CdxEntry } from "../types/wayback-types";
+import { CdxEntry } from "../../types/wayback-types";
 
 const COLLECTIONS_API_URL = 'web.archive.org/__wb/calendarcaptures/2';
 

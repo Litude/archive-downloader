@@ -1,10 +1,10 @@
 import axios, { all, AxiosResponse } from "axios";
-import { DownloadFileInput, LimitedCaptureRange, UrlEntry } from "../types/download-input-types";
-import { CdxEntry } from "../types/wayback-types";
-import { filenameToString } from "../file-name/file-name";
+import { DownloadFileInput, LimitedCaptureRange, UrlEntry } from "../../types/download-input-types";
+import { CdxEntry } from "../../types/wayback-types";
+import { filenameToString } from "../../file-name/file-name";
 import { fetchWaybackFileHeaders } from "./file-download";
-import { DownloadedFile } from "../types/download-types";
-import { checkForLimitedCapture, filterLimitedCapturesForUrl } from "../special-rules/limit-captures";
+import { DownloadedFile } from "../../types/download-types";
+import { checkForLimitedCapture, filterLimitedCapturesForUrl } from "../../special-rules/limit-captures";
 import { get } from "http";
 
 const WAYBACK_CDX_API_URL = 'http://web.archive.org/cdx/search/cdx';
@@ -317,13 +317,42 @@ async function filterDuplicateSnapshots(requestUrl: string, keepInvalid: boolean
   return { uniqueSnapshots: filteredSnapshots, filteredValidSnapshots, filteredInvalidSnapshots, filteredUnwantedSnapshots };
 }
 
+function validateCdxEntryFieldMatch(first: CdxEntry, second: CdxEntry, field: keyof CdxEntry) {
+  if (first[field] !== second[field]) {
+    throw new Error(`CDX entries with same timestamp have different ${field} values, which should not happen. Timestamp: ${first.timestamp}, URL: ${first.url}, value1: ${first[field]}, value2: ${second[field]}`);
+  }
+}
+
 async function getSnapshotsForUrl(url: UrlEntry) {
-  const allSnapshots = await fetchWaybackCdxIndex(url.url);
+  const allSnapshots = await fetchWaybackCdxIndex(url.url, false);
   console.log(`Found ${allSnapshots.length} total snapshots for ${url.url}.`);
   const filteredSnapshots = filterSnapshotsByTimestamp(allSnapshots, url.maxTimestamp, url.minTimestamp);
   if (filteredSnapshots.length !== allSnapshots.length) {
     console.log(`Filtered ${allSnapshots.length - filteredSnapshots.length} snapshots for ${url.url} based on timestamp constraints`);
   }
+  const revisitCount = filteredSnapshots.filter(s => s.mimetype === 'warc/revisit').length;
+  if (revisitCount > 0) {
+    console.log(`Found ${revisitCount} warc/revisit snapshots for ${url.url} after timestamp filtering. Will resolve revisits`);
+    const resolvedSnapshots = await fetchWaybackCdxIndex(url.url, true);
+    const filteredResolvedSnapshots = filterSnapshotsByTimestamp(resolvedSnapshots, url.maxTimestamp, url.minTimestamp);
+    if (filteredResolvedSnapshots.length !== filteredSnapshots.length) {
+      throw new Error(`Unexpectedly found a different number of snapshots when fetching with resolve revisits (got ${filteredResolvedSnapshots.length}, expected ${filteredSnapshots.length}) for ${url.url}.`);
+    }
+    filteredSnapshots.forEach((snapshot, index) => {
+      if (snapshot.mimetype === 'warc/revisit') {
+        const resolvedSnapshot = filteredResolvedSnapshots[index];
+        validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, 'timestamp');
+        validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, 'url');
+        validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, 'digest');
+        validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, 'length');
+        filteredSnapshots[index] = {
+          ...resolvedSnapshot,
+          isWarcRevisit: true
+        };
+      }
+    });
+  }
+
   //return filteredSnapshots.filter(snapshot => snapshot.mimetype !== 'warc/revisit');
   //validateNoRevisitSnapshots(filteredSnapshots);
   return filteredSnapshots;
@@ -343,29 +372,32 @@ function filterSnapshotsByTimestamp(snapshots: CdxEntry[], maxTimestamp?: string
 
 // This will attempt to fetch the CDX index for a given URL, with retries and exponential backoff
 // It will attempt to fetch the index until successful
-async function fetchWaybackCdxIndex(url: string): Promise<CdxEntry[]> {
+async function fetchWaybackCdxIndex(url: string, resolveRevisits: boolean): Promise<CdxEntry[]> {
   let attempt = 1;
   let backoff = 30_000;
   while (true) {
     try {
       console.log(`Fetching CDX index for ${url} (attempt ${attempt})...`);
-      const params: any = {
+      const params = {
         url,
         output: 'json',
-        fl: 'timestamp,original,statuscode,digest,mimetype,length,urlkey',
-        resolveRevisits: 'true',
+        fl: 'timestamp,original,statuscode,digest,mimetype,length,urlkey,filename,offset',
+        resolveRevisits: resolveRevisits ? 'true' : 'false',
       };
       const response: AxiosResponse<string[][]> = await axios.get(WAYBACK_CDX_API_URL, { params, timeout: REQUEST_TIMEOUT });
       const data = response.data;
       const snapshots: CdxEntry[] = data.slice(1)
         .map(row => ({
-          urlkey: `${row[0]}:${row[6]}`,
+          urlkey: row[6],
           timestamp: row[0],
           url: row[1],
           status: row[2],
           digest: row[3],
           mimetype: row[4],
-          length: parseInt(row[5], 10),
+          length: row[5] ? parseInt(row[5], 10) : undefined,
+          filename: row[7] ?? undefined,
+          offset: row[8] ? parseInt(row[8], 10) : undefined,
+          source: "wayback"
         }))
       return snapshots;
     } catch (e) {

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { preventAxiosRedirects } from '../utils/axios-utils';
+import { preventAxiosRedirects } from '../../utils/axios-utils';
 
 async function downloadToBufferWithRetry(url: string, requestHeaders: Record<string, string> = {}, statusCode: string) {
   while (true) {

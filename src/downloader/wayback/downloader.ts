@@ -1,5 +1,5 @@
-import { DownloadedFile } from "../types/download-types";
-import { CdxEntry } from "../types/wayback-types";
+import { DownloadedFile } from "../../types/download-types";
+import { CdxEntry } from "../../types/wayback-types";
 import { fetchWaybackFile } from "./file-download";
 
 export async function downloadUniqueDigestsForSnapshots(input: CdxEntry[]) {

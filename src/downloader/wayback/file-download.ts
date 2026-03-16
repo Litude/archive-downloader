@@ -3,9 +3,9 @@ import fs from "fs";
 import path from "path";
 import JSON5 from "json5";
 import { fetchPartiallyArchivedFileData } from "./partial-file";
-import { DownloadedFile } from "../types/download-types";
-import { preventAxiosRedirects } from "../utils/axios-utils";
-import { getWaybackCaptureBaseUrl } from "../utils/address";
+import { DownloadedFile } from "../../types/download-types";
+import { preventAxiosRedirects } from "../../utils/axios-utils";
+import { getWaybackCaptureBaseUrl } from "../../utils/address";
 
 const WEB_ARCHIVE = 'web.archive.org/web';
 const REQUEST_TIMEOUT = 60_000; // 60 seconds
@@ -201,8 +201,6 @@ export async function fetchWaybackFileHeaders(
     try {
       const waybackUrl = createWaybackDownloadUrl(timestamp, url, attempt - 1);
       console.log(`Fetching file headers for ${timestamp}-${url} (attempt ${attempt})...`);
-      // TODO: Need some robust way to detect if the response is an error page (e.g. 404 page from web archive) instead of the actual capture
-      // Perhaps the presence of some specific header, e.g. x-archive-src or memento-datetime could be used?
       const response = await getResponseHeaders(waybackUrl, statusCodes);
       if (ERROR_STATUS_CODES.includes(response.status)) {
         throw new Error(`HTTP ${response.status}`);

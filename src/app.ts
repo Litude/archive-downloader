@@ -2,27 +2,19 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { readWebsiteJsonConfig } from "./website-config/website-config";
 import { DownloadFileInput } from "./types/download-input-types";
-import { getSnapshotsForWebsiteFile } from "./downloader/snapshots";
-import { downloadUniqueDigestsForSnapshots } from "./downloader/downloader";
-import { computeSha256, computeWaybackDigest } from "./utils/hash";
-import { classifyEntry } from "./classification/classifier";
-import { DownloadedFile } from "./types/download-types";
-import { parseHeaderTimestamps } from "./utils/timestamp";
-import { fetchWaybackFileHeaders } from "./downloader/file-download";
-import { CaptureClassification, CaptureEntry } from "./types/capture-types";
+import { computeSha256 } from "./utils/hash";
+import { CaptureEntry } from "./types/capture-types";
 import { writeCsvSummary } from "./output/summary";
 import { writeUniqueFileEntries } from "./output/write-files";
-import { getWaybackFilename } from "./utils/wayback-filename";
 import { applyTransformationPipeline } from "./transformation/transformation";
 import { filenameToString } from "./file-name/file-name";
 import { writeUnavailablePlaceholder } from "./output/unavailable";
 import { writeFileHeaders } from "./output/header-output";
-import { DateTime } from "luxon";
 import { writeUrlMetadata } from "./output/url-metadata";
 import { resetLog } from "./utils/log-context";
-import { CdxEntry } from "./types/wayback-types";
 import { Context } from "./types/context";
 import { WithRequired } from './utils/ts-utils';
+import { downloadWaybackEntries } from "./downloader/downloader-wayback";
 
 // High level logic of app:
 // 1. Read input JSON file to get list of DownloadFileInput
@@ -31,44 +23,6 @@ import { WithRequired } from './utils/ts-utils';
 // 4. Find all unique digests across all URLs for the file
 // 5. Download each unique snapshot once and save to output directory
 
-function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
-  const digestHashes = new Map<string, { sha256: string; actualDigest: string }>();
-  
-  [...uniqueDigestFiles.entries()].forEach(([digest, file]) => {
-    const sha256 = computeSha256(file.content);
-    const actualDigest = computeWaybackDigest(file.content);
-    digestHashes.set(digest, { sha256, actualDigest });
-  });
-  
-  return digestHashes;
-}
-
-function classifyDigestFiles(uniqueDigestFiles: Map<string, DownloadedFile>, digestHashes: Map<string, { sha256: string; actualDigest: string }>, classificationOverrides?: Record<string, CaptureClassification>) {
-  const classifications = new Map<string, CaptureClassification>();
-  
-  [...uniqueDigestFiles.entries()].forEach(([digest, file]) => {
-    const hashes = digestHashes.get(digest)!;
-    const classification = classifyEntry(
-      file.url, 
-      hashes.sha256, 
-      file.headers['content-type'], 
-      file.content, 
-      file.classification,
-      file.statusCode,
-      classificationOverrides,
-    );
-    classifications.set(digest, classification);
-  });
-  
-  return classifications;
-}
-
-function isEntrySkipped(entry: CdxEntry, skippedCaptures?: { url: string; timestamp: string }[]) {
-  if (!skippedCaptures) {
-    return false;
-  }
-  return skippedCaptures.some(skipped => skipped.url === entry.url && skipped.timestamp === entry.timestamp);
-}
 
 async function processWebsiteDownloads(
   downloadInputs: DownloadFileInput[],
@@ -95,129 +49,7 @@ async function processWebsiteDownloads(
     context.fileContext = {};
     resetLog();
 
-    const { validCdxEntries, invalidCdxEntries, metadata } = await getSnapshotsForWebsiteFile(
-      input, includeInvalid
-    );
-    const allEntries = [...validCdxEntries, ...invalidCdxEntries];
-    const uniqueDigestFiles = await downloadUniqueDigestsForSnapshots(allEntries.filter(entry => !isEntrySkipped(entry, input.skippedCaptures)));
-    const digestFileHashes = computeDigestHashes(uniqueDigestFiles);
-    const classifiedEntries = classifyDigestFiles(uniqueDigestFiles, digestFileHashes, input.classifications);
-
-    const enrichedDigestFiles = new Map<string, { file: DownloadedFile; classification: CaptureClassification; sha256: string; actualDigest: string }>();
-    [...uniqueDigestFiles.entries()].forEach(([digest, file]) => {
-      const hashes = digestFileHashes.get(digest)!;
-      const classification = classifiedEntries.get(digest)!;
-      enrichedDigestFiles.set(digest, { file, classification, sha256: hashes.sha256, actualDigest: hashes.actualDigest });
-    });
-
-    let baseEntries: CaptureEntry[] = allEntries.map(entry => {
-      const isSkipped = isEntrySkipped(entry, input.skippedCaptures);
-      if (isSkipped) {
-        return {
-          timestamp: entry.timestamp,
-          captureTimestamp: DateTime.fromFormat(entry.timestamp, 'yyyyLLddHHmmss', { zone: 'utc' }) as DateTime<true>,
-          lastModified: null,
-          url: entry.url,
-          statusCode: entry.status,
-          classification: 'skipped' as const,
-          mimetype: entry.mimetype,
-          waybackDigest: entry.digest,
-          waybackFilename: undefined,
-          waybackLength: peekAllFiles ? entry.length : undefined,
-          actualDigest: undefined,
-          sha256: undefined,
-          originalSha256: undefined,
-          content: undefined,
-          downloadStatus: 'skipped',
-          headers: undefined,
-          metadata: undefined,
-        }
-      }
-      else {
-        const downloadedFile = entry.digest ? uniqueDigestFiles.get(entry.digest) : undefined;
-
-        const downloadIsExactMatch = downloadedFile && entry.url === downloadedFile.url && entry.timestamp === downloadedFile.timestamp;
-        const timestamps = downloadedFile ? parseHeaderTimestamps(downloadedFile.url, downloadedFile.headers, entry.timestamp, downloadIsExactMatch ?? false) : { captureDate: DateTime.fromFormat(entry.timestamp, 'yyyyLLddHHmmss', { zone: 'utc' }) as DateTime<true>, lastModified: null };
-        const waybackFilename = peekAllFiles && downloadIsExactMatch ? getWaybackFilename(downloadedFile.headers) : undefined;
-        const lastModified = (downloadIsExactMatch || !peekAllFiles) ? timestamps.lastModified : null;
-        const headers = downloadIsExactMatch ? downloadedFile.headers : undefined;
-
-        return {
-          timestamp: entry.timestamp,
-          captureTimestamp: timestamps.captureDate,
-          lastModified,
-          url: entry.url,
-          statusCode: entry.status,
-          classification: entry.digest ? classifiedEntries.get(entry.digest)! : "unavailable",
-          mimetype: entry.mimetype,
-          waybackDigest: entry.digest,
-          waybackFilename,
-          waybackLength: peekAllFiles ? entry.length : undefined,
-          actualDigest: entry.digest ? digestFileHashes.get(entry.digest)!.actualDigest : undefined,
-          sha256: entry.digest ? digestFileHashes.get(entry.digest)!.sha256 : undefined,
-          originalSha256: entry.digest ? digestFileHashes.get(entry.digest)!.sha256 : undefined,
-          content: downloadedFile?.content,
-          downloadStatus: downloadIsExactMatch ? 'downloaded' : 'digest-match',
-          headers,
-          metadata: downloadIsExactMatch ? downloadedFile.metadata : undefined,
-        }
-      }
-
-    }).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-
-    const unavailableEntries = baseEntries.filter(entry => entry.classification === 'unavailable').map((entry) => {
-      const captureTimestamp = DateTime.fromFormat(entry.timestamp, 'yyyyLLddHHmmss', { zone: 'utc' });
-      if (!captureTimestamp.isValid) {
-        throw new Error(`Invalid capture timestamp format: ${entry.timestamp}`);
-      }
-      return {
-        timestamp: entry.timestamp,
-        captureTimestamp,
-        lastModified: null,
-        url: entry.url,
-        statusCode: entry.statusCode,
-        classification: entry.classification,
-        mimetype: entry.mimetype,
-        waybackDigest: entry.waybackDigest,
-        waybackFilename: undefined,
-        waybackLength: entry.waybackLength,
-        actualDigest: '',
-        sha256: '',
-        originalSha256: undefined,
-        content: Buffer.alloc(0),
-        downloadStatus: 'unavailable',
-        headers: undefined,
-        metadata: undefined,
-       };
-    });
-    if (unavailableEntries.length > 0) {
-      console.log(`Total unavailable entries for ${filenameToString(input.filename, 'simple')}: ${unavailableEntries.length}`);
-    }
-    const skippedEntries = baseEntries.filter(entry => entry.classification === 'skipped');
-    if (skippedEntries.length > 0) {
-      console.log(`Total skipped entries for ${filenameToString(input.filename, 'simple')}: ${skippedEntries.length}`);
-    }
-    baseEntries = baseEntries.filter(entry => entry.classification !== 'unavailable' && entry.classification !== 'skipped');
-
-    // If peekAllFiles is enabled, we need to query wayback for the headers of all files that were not downloaded exactly
-    if (peekAllFiles) {
-      const entriesToPeek = baseEntries.filter(entry => entry.downloadStatus !== 'downloaded');
-      console.log(`Headers to fetch for entries that were not downloaded: ${entriesToPeek.length}`);
-      let currentIndex = 0;
-      for (const entry of entriesToPeek) {
-        console.log(`Fetching headers for ${entry.url} at ${entry.timestamp} (${++currentIndex}/${entriesToPeek.length}): `);
-        const response = await fetchWaybackFileHeaders(entry.timestamp, entry.url, [entry.statusCode]);
-        const timestamps = parseHeaderTimestamps(entry.url, response.headers, entry.timestamp, true);
-        const waybackFilename = getWaybackFilename(response.headers);
-        const existingEntry = baseEntries.find(e => e.url === entry.url && e.timestamp === entry.timestamp);
-        if (!existingEntry) {
-          throw new Error(`Existing entry for ${entry.url} at ${entry.timestamp} not found?!`);
-        }
-        existingEntry.lastModified = timestamps.lastModified;
-        existingEntry.waybackFilename = waybackFilename;
-        existingEntry.headers = response.headers;
-      }
-    }
+    let { baseEntries, unavailableEntries, skippedEntries, metadata } = await downloadWaybackEntries(input, includeInvalid, peekAllFiles);
     const anyValidEntries = baseEntries.some(entry => entry.classification === 'ok');
 
     input.filename.queryHashParameters = input.queryHashParameters;
@@ -300,16 +132,6 @@ async function processWebsiteDownloads(
           writeFileHeaders(updatedEntries, filename, input.outputDirectory);
         }
       }
-
-      // Finally write out any raw files that were not part of the transformations
-      // const rawFiles = baseEntries.filter(entry => entry.classification !== 'ok' || !outputSha256Set.has(entry.sha256));
-      // const rawFilename = structuredClone(input.filename);
-      // rawFilename.flags = "raw";
-      // writeUniqueFileEntries(rawFiles, rawFilename, input.outputDirectory);
-      // if (writeHeaders) {
-      //   writeFileHeaders(invalidEntries, input.filename, input.outputDirectory);
-      // }
-
     }
     else {
       if (!anyValidEntries) {

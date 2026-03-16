@@ -7,6 +7,7 @@ export interface CdxEntry {
   mimetype: string;
   filename?: string;
   length?: number;
-  collections?: string[];
-  metadata?: Record<string, string>;
+  offset?: number;
+  source: string;
+  isWarcRevisit?: boolean;
 }
