@@ -3,6 +3,7 @@ import { CaptureClassification } from "./capture-types";
 export interface QueryHashParameter {
   paramName: string;
   outputName?: string;
+  outputValue?: string;
   pattern: string;
   captureGroups: number[];
   required?: boolean;
@@ -20,6 +21,10 @@ export interface WebsiteFileEntryJson {
   minTimestamp?: string;
   additionalUrls?: (string | MirrorUrlData)[];
   classifications?: Record<string, CaptureClassification>;
+  skippedCaptures?: {
+    url: string; // must match CDX index url exactly
+    timestamp: string;
+  }[];
   /** @deprecated should be handled by classifier or by getting all headers */
   excludedCaptures?: string[];
   /** @deprecated should be handled by getting all headers */

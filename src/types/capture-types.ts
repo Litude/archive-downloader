@@ -20,4 +20,4 @@ export interface CaptureEntry {
   metadata?: Record<string, any>;
 }
 
-export type CaptureClassification = "ok" | "corrupt" | "not_found" | "transient_retry" | "redirect" | "unavailable" | "forbidden";
+export type CaptureClassification = "ok" | "corrupt" | "not_found" | "transient_retry" | "redirect" | "unavailable" | "skipped" | "forbidden";

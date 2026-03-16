@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { DateTime } from "luxon";
-import { getMostLikelyEtagDate, parseIisEtagDate } from "./etag-parser";
+import { getMostLikelyEtagDate, parseIisEtagDate } from "./iis-etag-parser";
 
 function captureAt(iso: string): DateTime<true> {
   const dt = DateTime.fromISO(iso, { zone: "utc" });
@@ -40,7 +40,9 @@ describe("parseIisEtagDate", () => {
       captureAt("1999-01-03T10:34:20Z")
     );
     expect(result).not.toBeNull();
-    expect(result.startsWith("1999-01-03T10:34:")).toBe(true);
+    if (result) {
+      expect(result.startsWith("1999-01-03T10:34:")).toBe(true);
+    }
   });
 
   it("parses trans.gif etag (Last-Modified: 1999-01-07T03:55:00Z)", () => {
@@ -73,17 +75,17 @@ describe("parseIisEtagDate", () => {
     expect(result!.some(result => result.startsWith("1999-12-21T15:24:"))).toBe(true);
   });
 
-  // Microsecond precision
+  // Nanosecond precision
 
-  it("preserves microsecond precision", () => {
+  it("preserves nanosecond precision", () => {
     const result = parseIisEtagDate(
       '"065876af836be1:7f6"',
       captureAt("2000-05-19T20:22:13Z")
     );
     expect(result).not.toBeNull();
-    // Format: YYYY-MM-DDTHH:mm:ss.uuuuuuZ
+    // Format: YYYY-MM-DDTHH:mm:ss.uuuuuuuuuZ
     result?.forEach(result => {
-      expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/);
+      expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}Z$/);
     });
   });
 

@@ -5,6 +5,7 @@ import { ConquerorsUsTransformation } from "./conquerors-us-layout/conquerors-us
 import { QueryParamTransformation } from "./query-param-transformation";
 import { QueryParamFilter } from "./query-param-filter";
 import { TrackingImageNormalizer } from "./tracking-img-transformation";
+import { RegexNormalizer } from "./regex-transformation";
 
 export function applyTransformationPipeline(
   initialBuffers: { sha256: string; content: Buffer }[],
@@ -45,8 +46,10 @@ export function applyTransformationPipeline(
     
     for (const output of allOutputs) {
       const contentSha256 = computeSha256(output.content);
+      const contentQueryKey = Object.entries(output.queryParams).sort(([keyA], [keyB]) => keyA.localeCompare(keyB)).map(([k, v]) => `${k}=${v}`).join('&');
+      const combinedKey = `${contentSha256}|${contentQueryKey}`;
       
-      const existing = uniqueOutputs.get(contentSha256);
+      const existing = uniqueOutputs.get(combinedKey);
       if (existing) {
         // Merge source sha256 values
         const mergedSources = new Set([
@@ -55,7 +58,7 @@ export function applyTransformationPipeline(
         ]);
         existing.sourceSha256Values = Array.from(mergedSources);
       } else {
-        uniqueOutputs.set(contentSha256, {
+        uniqueOutputs.set(combinedKey, {
           content: output.content,
           sourceSha256Values: output.sourceSha256Values,
           queryParams: output.queryParams,
@@ -94,4 +97,5 @@ export const Transformations: Record<string, TransformationProvider> = {
   queryParamTransformation: QueryParamTransformation,
   queryParamFilter: QueryParamFilter,
   trackingImageUrlNormalizer: TrackingImageNormalizer,
+  regexTransformation: RegexNormalizer
 }

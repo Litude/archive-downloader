@@ -5,6 +5,8 @@ export interface CdxEntry {
   status: string;
   digest: string;
   mimetype: string;
-  length: number;
+  filename?: string;
+  length?: number;
+  collections?: string[];
   metadata?: Record<string, string>;
 }

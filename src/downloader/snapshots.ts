@@ -1,10 +1,11 @@
-import axios, { AxiosResponse } from "axios";
+import axios, { all, AxiosResponse } from "axios";
 import { DownloadFileInput, LimitedCaptureRange, UrlEntry } from "../types/download-input-types";
 import { CdxEntry } from "../types/wayback-types";
 import { filenameToString } from "../file-name/file-name";
 import { fetchWaybackFileHeaders } from "./file-download";
 import { DownloadedFile } from "../types/download-types";
 import { checkForLimitedCapture, filterLimitedCapturesForUrl } from "../special-rules/limit-captures";
+import { get } from "http";
 
 const WAYBACK_CDX_API_URL = 'http://web.archive.org/cdx/search/cdx';
 const REQUEST_TIMEOUT = 60000; // 60 seconds
@@ -25,14 +26,23 @@ export async function getSnapshotsForWebsiteFile(
     snapshots: CdxEntry[],
     url: UrlEntry,
   }[] = []
-  const allSnapshots: CdxEntry[] = [];
+  const unresolveableRevisits: {
+    timestamps: string[],
+    url: string,
+  }[] = [];
+  let allSnapshots: CdxEntry[] = [];
   for (const url of input.urls) {
       const snapshots = await getSnapshotsForUrl(url);
-      preliminaryResults.push({ snapshots, url });
-      allSnapshots.push(...snapshots);
+      const filteredSnapshots = snapshots.filter(snapshot => snapshot.mimetype !== 'warc/revisit');
+      if (filteredSnapshots.length !== snapshots.length) {
+        console.log(`Filtered out ${snapshots.length - filteredSnapshots.length} warc/revisit snapshots for ${url.url}`);
+        unresolveableRevisits.push({ timestamps: snapshots.filter(s => s.mimetype === 'warc/revisit').map(s => s.timestamp), url: url.url });
+      }
+      preliminaryResults.push({ snapshots: filteredSnapshots, url });
+      allSnapshots = [...allSnapshots, ...filteredSnapshots];
   }
-  const validCdxEntries: CdxEntry[] = [];
-  const invalidCdxEntries: CdxEntry[] = [];
+  let validCdxEntries: CdxEntry[] = [];
+  let invalidCdxEntries: CdxEntry[] = [];
 
   console.log(`Total snapshots found: ${allSnapshots.length}`)
   const limitedCaptureConfigs = checkForLimitedCapture(allSnapshots);
@@ -73,8 +83,8 @@ export async function getSnapshotsForWebsiteFile(
       console.log(`Filtered ${originalInvalidCount - invalidSnapshots.length} invalid snapshots for ${url.url} based on limited captures.`);
       limitedCaptureFiltered += originalInvalidCount - invalidSnapshots.length;
     }
-    validCdxEntries.push(...validSnapShots);
-    invalidCdxEntries.push(...invalidSnapshots);
+    validCdxEntries = [...validCdxEntries, ...validSnapShots];
+    invalidCdxEntries = [...invalidCdxEntries, ...invalidSnapshots];
     //const filteredSnapshots = filterLimitedCaptures(snapshots, limitedCaptureConfigs, isMirror);
   }
   console.log(`Total valid snapshots for ${filenameToString(input.filename, 'simple')}: ${validCdxEntries.length}`);
@@ -84,12 +94,15 @@ export async function getSnapshotsForWebsiteFile(
   return {
     validCdxEntries: validCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
     invalidCdxEntries: invalidCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
-    metadata: limitedCaptureFiltered ? {
-      limitedCapture: {
+    metadata: {
+      limitedCapture: limitedCaptureFiltered ?  {
         limitedCaptureConfigs,
         filteredEntries: limitedCaptureFiltered,
-      }
-    } : undefined,
+      } : undefined,
+      unresolveableRevisits: unresolveableRevisits.length > 0 ? {
+        entries: unresolveableRevisits
+      } : undefined
+    }
   };
 }
 
@@ -104,24 +117,31 @@ async function fetchHeadersUntilSuccess(timestamp: string, url: string, statusCo
   let attempt = 1;
   // Redirects might not resolve to the actual capture, so we might not actually get x-archive-src.
   // Hopefully such timestamps that also have 200 captures would always resolve to the 200 capture or other code
-  const potentialRedirect = statusCodes.every(code => ['301', '302'].includes(code));
+  const potentialRedirect = statusCodes.some(code => ['301', '302'].includes(code));
+  const allRedirect = statusCodes.every(code => ['301', '302'].includes(code));
+  const maxRedirectAttempts = allRedirect ? 5 : potentialRedirect ? 15 : 0; // Only attempt retries for missing x-archive-src if there is a potential redirect, otherwise it is likely an actual issue
   let redirectAttempts = 1;
   let redirectBackoff = INITIAL_BACKOFF;
   while (true) {
     try {
       const result = await fetchWaybackFileHeaders(timestamp, url);
       if (result.headers['x-archive-src'] === undefined) {
-        if (!potentialRedirect) {
+        if (!allRedirect && !potentialRedirect) {
           throw new Error(`Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}`);
         }
-        else if (redirectAttempts < 5 && result.statusCode === '302') {
-          console.log(`Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}, this redirect only capture might be unavailable. Retrying in ${redirectBackoff / 1000}s... (attempt ${redirectAttempts})`);
+        else if (redirectAttempts < maxRedirectAttempts && result.statusCode === '302') {
+          console.log(`Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}, this ${allRedirect ? 'redirect only' : 'potential redirect'} capture might be unavailable. Retrying in ${redirectBackoff / 1000}s... (attempt ${redirectAttempts})`);
           await new Promise(res => setTimeout(res, redirectBackoff));
           redirectBackoff = Math.min(redirectBackoff * 2, MAX_BACKOFF);
           redirectAttempts++;
         }
+        else {
+          return result;
+        }
       }
-      return result;
+      else {
+        return result;
+      }
     } catch (error) {
       console.log(`Error fetching headers for ${timestamp}-${url}: ${error}, (attempt ${attempt}) retrying in 30s...`);
       await new Promise(res => setTimeout(res, 30000)); 
@@ -138,6 +158,20 @@ function filterDuplicateTimestampSnapshots(snapshotsAtTimestamp: CdxEntry[]): Cd
     const currentStatus = current.status ? parseInt(current.status, 10) : 9999;
     return currentStatus < bestStatus ? current : best;
   });
+}
+
+function getMergedSnapshot(snapshotsAtTimestamp: CdxEntry[]): CdxEntry {
+  const mergedSnapshot = { ...snapshotsAtTimestamp.at(-1)! };
+  const uniqueDigests = new Set(snapshotsAtTimestamp.map(s => s.digest));
+  const uniqueSize = new Set(snapshotsAtTimestamp.map(s => s.length));
+  // If the digest or size is different between the snapshots, we can't be sure which one is the correct one, so we will clear the digest and size to indicate that the values are unknown.
+  if (uniqueDigests.size > 1) {
+    mergedSnapshot.digest = '';
+  }
+  if (uniqueSize.size > 1) {
+    mergedSnapshot.length = undefined;
+  }
+  return mergedSnapshot;
 }
 
 async function resolveDuplicateSnapshots(snapshots: CdxEntry[], limitedCaptures: LimitedCaptureRange[]): Promise<CdxEntry[]> {
@@ -171,44 +205,53 @@ async function resolveDuplicateSnapshots(snapshots: CdxEntry[], limitedCaptures:
         }
       }
 
-      // From testing, it seems the web archive always returns the last snapshot for a given timestamp when there are duplicates
-      // 
-      console.log(`Found ${snapshotsAtTimestamp.length} snapshots with same timestamp ${timestamp} for ${snapshotsAtTimestamp[0].url} (status codes ${snapshotsAtTimestamp.map(s => s.status).join(', ')}). Attempting to resolve by fetching headers...`);
-      while (true) {
-        try {
-          const actualSnapShot = snapshotsAtTimestamp.at(-1)!;
-          //const actualSnapShot = filterDuplicateTimestampSnapshots(snapshotsAtTimestamp);
-          const result = await fetchHeadersUntilSuccess(timestamp, actualSnapShot.url, snapshotsAtTimestamp.map(s => s.status));
+      const potentialSnapshot = snapshotsAtTimestamp.at(-1)!;
+      const allSameStatus = snapshotsAtTimestamp.every(s => s.status === potentialSnapshot.status);
+      if (allSameStatus) {
+        console.log(`Found ${snapshotsAtTimestamp.length} snapshots with same timestamp ${timestamp} for ${snapshotsAtTimestamp[0].url}. All snapshots have the same status code ${potentialSnapshot.status} for ${potentialSnapshot.url} at ${timestamp}, no need to fetch headers to resolve.`);
+        const snapshot = getMergedSnapshot(snapshotsAtTimestamp);
+        uniqueSnapshots.push(snapshot);
+        filteredSnapshots += snapshotsAtTimestamp.length - 1;
+      }
+      else {
+        console.log(`Found ${snapshotsAtTimestamp.length} snapshots with same timestamp ${timestamp} for ${snapshotsAtTimestamp[0].url} (status codes ${snapshotsAtTimestamp.map(s => s.status).join(', ')}). Attempting to resolve by fetching headers...`);
+        while (true) {
+          try {
 
-          const snapshot = snapshotsAtTimestamp.findLast(s => s.status === result.statusCode);
-          if (snapshot) {
-            console.log(`Resolved duplicate snapshots for ${actualSnapShot.url} at ${timestamp}: status ${actualSnapShot.status}`);
-            uniqueSnapshots.push(actualSnapShot);
-            filteredSnapshots += snapshotsAtTimestamp.length - 1;
-            break;
+            const actualSnapShot = snapshotsAtTimestamp.at(-1)!;
+            const result = await fetchHeadersUntilSuccess(timestamp, actualSnapShot.url, snapshotsAtTimestamp.map(s => s.status));
+
+            const matchingSnapshots = snapshotsAtTimestamp.filter(s => s.status === result.statusCode);
+            if (matchingSnapshots.length > 0) {
+              console.log(`Resolved duplicate snapshots for ${actualSnapShot.url} at ${timestamp}: status ${actualSnapShot.status}`);
+              const snapshot = getMergedSnapshot(matchingSnapshots);
+              uniqueSnapshots.push(snapshot);
+              filteredSnapshots += snapshotsAtTimestamp.length - 1;
+              break;
+            }
+            else if (result.statusCode === '302' && snapshotsAtTimestamp.some(s => s.status === '301')) {
+              // Special case for 301/302 captures where they are self redirects and there are no actual captures, the web archive will return 302 without x-archive-src
+              const redirectSnapshot = snapshotsAtTimestamp.findLast(s => s.status === '301')!;
+              console.log(`Resolved duplicate snapshots for ${actualSnapShot.url} at ${timestamp}: status ${actualSnapShot.status} (NOTE: no matching status code found, but there is a 301 and fetched status is 302)`);
+              uniqueSnapshots.push(redirectSnapshot);
+              filteredSnapshots += snapshotsAtTimestamp.length - 1;
+              break;
+            }
+            else if (result.statusCode === '404' && snapshotsAtTimestamp.every(s => ['301', '302'].includes(s.status))) {
+              // Special case for 301/302 captures where they are self redirects and there are no actual captures, the web archive will return 404
+              const redirectSnapshot = snapshotsAtTimestamp.findLast(s => ['301', '302'].includes(s.status))!;
+              console.log(`Resolved duplicate snapshots for ${actualSnapShot.url} at ${timestamp}: status ${actualSnapShot.status} (NOTE: no matching status code found, but all entries are 301/302 and fetched status is 404)`);
+              uniqueSnapshots.push(redirectSnapshot);
+              filteredSnapshots += snapshotsAtTimestamp.length - 1;
+              break;
+            }
+            else {
+              throw new Error(`Found ${snapshotsAtTimestamp.length} snapshots with same timestamp ${timestamp} for ${snapshotsAtTimestamp[0].url} but couldn't find a matching status code when fetching headers (got ${result.statusCode}, expected ${actualSnapShot.status}).`);
+            }
+          } catch (error: unknown) {
+            console.log((error as Error).message + ` Retrying in 30s...`);
+            await new Promise(res => setTimeout(res, 30000));
           }
-          else if (result.statusCode === '302' && snapshotsAtTimestamp.some(s => s.status === '301')) {
-            // Special case for 301/302 captures where they are self redirects and there are no actual captures, the web archive will return 302 without x-archive-src
-            const redirectSnapshot = snapshotsAtTimestamp.findLast(s => s.status === '301')!;
-            console.log(`Resolved duplicate snapshots for ${actualSnapShot.url} at ${timestamp}: status ${actualSnapShot.status} (NOTE: no matching status code found, but there is a 301 and fetched status is 302)`);
-            uniqueSnapshots.push(redirectSnapshot);
-            filteredSnapshots += snapshotsAtTimestamp.length - 1;
-            break;
-          }
-          else if (result.statusCode === '404' && snapshotsAtTimestamp.every(s => ['301', '302'].includes(s.status))) {
-            // Special case for 301/302 captures where they are self redirects and there are no actual captures, the web archive will return 404
-            const redirectSnapshot = snapshotsAtTimestamp.findLast(s => ['301', '302'].includes(s.status))!;
-            console.log(`Resolved duplicate snapshots for ${actualSnapShot.url} at ${timestamp}: status ${actualSnapShot.status} (NOTE: no matching status code found, but all entries are 301/302 and fetched status is 404)`);
-            uniqueSnapshots.push(redirectSnapshot);
-            filteredSnapshots += snapshotsAtTimestamp.length - 1;
-            break;
-          }
-          else {
-            throw new Error(`Found ${snapshotsAtTimestamp.length} snapshots with same timestamp ${timestamp} for ${snapshotsAtTimestamp[0].url} but couldn't find a matching status code when fetching headers (got ${result.statusCode}, expected ${actualSnapShot.status}).`);
-          }
-        } catch (error: unknown) {
-          console.log((error as Error).message + ` Retrying in 30s...`);
-          await new Promise(res => setTimeout(res, 30000));
         }
       }
     }
@@ -281,7 +324,8 @@ async function getSnapshotsForUrl(url: UrlEntry) {
   if (filteredSnapshots.length !== allSnapshots.length) {
     console.log(`Filtered ${allSnapshots.length - filteredSnapshots.length} snapshots for ${url.url} based on timestamp constraints`);
   }
-  validateNoRevisitSnapshots(filteredSnapshots);
+  //return filteredSnapshots.filter(snapshot => snapshot.mimetype !== 'warc/revisit');
+  //validateNoRevisitSnapshots(filteredSnapshots);
   return filteredSnapshots;
 }
 

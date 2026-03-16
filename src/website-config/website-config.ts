@@ -146,7 +146,8 @@ export function readWebsiteJsonConfig(jsonPath: string, baseDirectory: string, {
       outputDirectory: outputDir,
       transformations,
       queryHashParameters: file.queryHashParameters,
-      classifications: Object.keys(allClassifications).length > 0 ? allClassifications : undefined
+      classifications: Object.keys(allClassifications).length > 0 ? allClassifications : undefined,
+      skippedCaptures: file.skippedCaptures && file.skippedCaptures.length > 0 ? file.skippedCaptures : undefined
     };
   });
 

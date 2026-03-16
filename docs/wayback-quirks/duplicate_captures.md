@@ -19,6 +19,11 @@ multiple 301 captures resolve to 404...
 Fetching CDX index for http://www.microsoft.com/uk/games/images/left/bar_icon_on.gif (attempt 1)...
 Found 2 snapshots with same timestamp 20130314132001 for http://www.microsoft.com/uk/games/images/left/bar_icon_on.gif (status codes 301, 301). Attempting to resolve by fetching headers...
 
+
+
+capture has 301 and 200 status code, but 302 is returned??? is the capture temporarily offline?
+https://web.archive.org/web/20110816232417id_/http://www.microsoft.com:80/games/product_registration/age2/
+
 Code for reference:
 * https://github.com/internetarchive/wayback/blob/master/wayback-core/src/main/java/org/archive/wayback/resourceindex/filters/DuplicateTimestampFilter.java
 

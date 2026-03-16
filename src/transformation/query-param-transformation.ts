@@ -8,6 +8,7 @@ interface QueryParamTransformerOptions {
   replacements: {
     pattern: string;
     captureGroups?: number[];
+    valueModifier?: string; // regex pattern to extract value from original capture for replacement, should contain a capture group for the value
     replacement?: string;
   }[];
 }
@@ -62,6 +63,7 @@ function queryParamTransformer(
           
           // Sort capture groups by position to replace in order
           const sortedGroups = [...captureGroups].sort((a, b) => indices[a][0] - indices[b][0]);
+          const finalReplacementValue = rule.valueModifier ? new RegExp(rule.valueModifier).exec(replacementValue)?.[1] ?? replacementValue : replacementValue;
           
           for (const captureGroup of sortedGroups) {
             const [captureStart, captureEnd] = indices[captureGroup];
@@ -69,8 +71,8 @@ function queryParamTransformer(
             const relativeEnd = captureEnd - fullStart + offset;
             const originalLength = captureEnd - captureStart;
             
-            result = result.substring(0, relativeStart) + replacementValue + result.substring(relativeEnd);
-            offset += replacementValue.length - originalLength;
+            result = result.substring(0, relativeStart) + finalReplacementValue + result.substring(relativeEnd);
+            offset += finalReplacementValue.length - originalLength;
           }
           
           replacement = result;

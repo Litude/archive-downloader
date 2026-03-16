@@ -34,30 +34,37 @@ function transformQueryParams(
       continue;
     }
 
-    try {
-      const regex = new RegExp(hashParam.pattern);
-      const match = regex.exec(originalValue);
-      
-      if (match) {
-        // Extract the capture groups specified in the configuration
-        const extractedParts = hashParam.captureGroups
-          .map(groupIndex => match[groupIndex])
-          .filter(part => part !== undefined);
+    if (hashParam.outputValue !== undefined) {
+      // If outputValue is provided, we will use it directly without applying the regex pattern
+      transformedParams[hashParam.outputName ?? hashParam.paramName] = hashParam.outputValue;
+      continue;
+    }
+    else {
+      try {
+        const regex = new RegExp(hashParam.pattern);
+        const match = regex.exec(originalValue);
         
-        if (extractedParts.length > 0) {
-          transformedParams[hashParam.outputName ?? hashParam.paramName] = extractedParts.join('-');
+        if (match) {
+          // Extract the capture groups specified in the configuration
+          const extractedParts = hashParam.captureGroups
+            .map(groupIndex => match[groupIndex])
+            .filter(part => part !== undefined);
+          
+          if (extractedParts.length > 0) {
+            transformedParams[hashParam.outputName ?? hashParam.paramName] = extractedParts.join('-');
+          } else if (hashParam.required) {
+            // If required param doesn't match pattern, return original params
+            return { queryParams, originalQueryParams: undefined };
+          }
         } else if (hashParam.required) {
           // If required param doesn't match pattern, return original params
           return { queryParams, originalQueryParams: undefined };
         }
-      } else if (hashParam.required) {
-        // If required param doesn't match pattern, return original params
-        return { queryParams, originalQueryParams: undefined };
-      }
-    } catch (error) {
-      console.warn(`Invalid regex pattern in queryHashParameters: ${hashParam.pattern}`, error);
-      if (hashParam.required) {
-        return { queryParams, originalQueryParams: undefined };
+      } catch (error) {
+        console.warn(`Invalid regex pattern in queryHashParameters: ${hashParam.pattern}`, error);
+        if (hashParam.required) {
+          return { queryParams, originalQueryParams: undefined };
+        }
       }
     }
   }

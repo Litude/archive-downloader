@@ -1,4 +1,5 @@
 import { DateTime } from "luxon";
+import { logWarning } from "./log-context";
 
 const FILETIME_EPOCH_OFFSET = 116444736000000000n;
 const TICKS_PER_SECOND = 10000000n;
@@ -6,15 +7,18 @@ const TICKS_PER_MICROSECOND = 10n;
 
 /**
  * Parses an IIS 5.0 ETag to extract the file modification timestamp
- * with full microsecond precision.
+ * with full nanosecond precision.
  *
  * IIS 5.0 FormatETag encodes a Windows FILETIME byte-by-byte in hex
  * (little-endian memory order), stripping each byte's leading zero nibble.
  * Format: "encodedFiletime:metabaseChangeNumber"
  *
- * Returns an ISO-like UTC string "YYYY-MM-DDTHH:mm:ss.uuuuuuZ" with
- * microsecond precision, or null if the ETag doesn't match IIS format
+ * Returns an ISO-like UTC string "YYYY-MM-DDTHH:mm:ss.nnnnnnnnnZ" with
+ * nanosecond precision, or null if the ETag doesn't match IIS format
  * or no valid date is found.
+ * 
+ * Since FILETIMEs have a precision of 100 nanoseconds, the last 2 digits of
+ * the nanosecond portion will always be zero.
  */
 export function parseIisEtagDate(
   etag: string,
@@ -45,23 +49,32 @@ export function getMostLikelyEtagDate(
     etag: string,
     captureDate: DateTime<true>,
     modifyDate?: DateTime<true>
-): string {
+): string | null {
   const candidates = parseIisEtagDate(etag, captureDate);
   if (!candidates) throw new Error("No valid ETag candidates found");
-  if (candidates.length === 1) return candidates[0];
 
   // If we have modify date, prefer candidates close to it (±1 day)
   if (modifyDate) {
-    candidates.sort((a, b) => {
-      return Math.abs(modifyDate.toMillis() - DateTime.fromISO(a).toMillis())
-           - Math.abs(modifyDate.toMillis() - DateTime.fromISO(b).toMillis());
-    });
-    const bestCandidate = candidates[0];
-    const bestDiff = Math.abs(modifyDate.toMillis() - DateTime.fromISO(bestCandidate).toMillis());
-    if (bestDiff <= 24 * 3600 * 1000) {
+    const modifyDateSec = modifyDate.toISO({ suppressMilliseconds: true }).slice(0, -1); // Remove trailing 'Z' for easier comparison
+    // Since IIS truncates any sub-second precision units when creating the modify date header, the original second must match
+    const validCandidates = candidates.filter(c => c.startsWith(modifyDateSec));
+    if (validCandidates.length === 0) {
+      console.log(`No ETag candidates match modify date ${modifyDate.toISO()}`);
+      return null;
+    }
+    else if (validCandidates.length === 1) {
+      return validCandidates[0];
+    }
+    else {
+      logWarning(`Multiple ETag candidates match modify date ${modifyDate.toISO({ suppressMilliseconds: true })} (candidates: ${validCandidates.join(", ")}).`, "iis-etag-parser");
+      console.warn(`Multiple ETag candidates match modify date ${modifyDate.toISO({ suppressMilliseconds: true })}, candidates:\n${validCandidates.join(", ")}\nChoosing closest candidate.`);
+      // Since we already checked that the seconds match, we can just sort lexicographically to find the closest candidate (i.e. the one with the smallest difference in sub-second units)
+      validCandidates.sort();
+      const bestCandidate = validCandidates[0];
       return bestCandidate;
     }
   }
+  if (candidates.length === 1) return candidates[0];
   // Otherwise prefer candidates close to capture date
 
   // Multiple plausible dates — pick closest to capture
@@ -124,6 +137,7 @@ function filetimeToTimestamp(
   const unixTicks = filetime - FILETIME_EPOCH_OFFSET;
   const totalSeconds = unixTicks / TICKS_PER_SECOND;
   const remainderTicks = unixTicks % TICKS_PER_SECOND;
+  const nanoseconds = remainderTicks * 100n;
   const microseconds = remainderTicks / TICKS_PER_MICROSECOND;
 
   const unixMs = Number(totalSeconds) * 1000;
@@ -137,7 +151,7 @@ function filetimeToTimestamp(
   const hh = date.getUTCHours().toString().padStart(2, '0');
   const min = date.getUTCMinutes().toString().padStart(2, '0');
   const ss = date.getUTCSeconds().toString().padStart(2, '0');
-  const us = microseconds.toString().padStart(6, '0');
+  const us = nanoseconds.toString().padStart(9, '0');
 
   return {
     formatted: `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}.${us}Z`,

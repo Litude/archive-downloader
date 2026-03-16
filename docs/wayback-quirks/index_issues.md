@@ -39,3 +39,10 @@ Captures might be missing from one index build and will only become available on
 ## Solution
 
 Need an --incremental parameter that scans the existing captures and only downloads such captures that did not exist in the previous index.
+
+
+## Captures only in CDX but not in wayback???
+Downloading snapshot 20000010081716 for URL http://www.microsoft.com:80/games/age2/img/press_evilavatar.gif (1/2)
+Fetching file content for 20000010081716-http://www.microsoft.com:80/games/age2/img/press_evilavatar.gif (attempt 1)...
+Error fetching file for http://www.microsoft.com:80/games/age2/img/press_evilavatar.gif: Error [ERR_FR_REDIRECTION_FAILURE]: Redirected request failed: Unexpected redirect..., retrying in 30s...
+

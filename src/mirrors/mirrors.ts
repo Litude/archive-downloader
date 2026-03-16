@@ -99,14 +99,19 @@ export function createMirrorUrlsWithConfig(
     const pathAndParams = urlObj.pathname + urlObj.search + urlObj.hash;
 
     const allMirrors = collectMirrors(cleanedUrl, mirrorData, additionalMirrors);
+    const encounteredMirrorUrls = new Set<string>();
     for (const mirror of allMirrors) {
-      parsed.push({
-        url: `${mirror.url}${pathAndParams}`,
-        mirrorUrl: true,
-        excludeInvalid: mirror.excludeInvalid ?? urlIsIpv4Address(mirror.url),
-        maxTimestamp: timestampMin(mirror.maxTimestamp, urlEntry.maxTimestamp),
-        minTimestamp: timestampMax(mirror.minTimestamp, urlEntry.minTimestamp),
-      });
+      const url = `${mirror.url}${pathAndParams}`;
+      if (!encounteredMirrorUrls.has(url)) {
+        encounteredMirrorUrls.add(url);
+        parsed.push({
+          url,
+          mirrorUrl: true,
+          excludeInvalid: mirror.excludeInvalid ?? urlIsIpv4Address(mirror.url),
+          maxTimestamp: timestampMin(mirror.maxTimestamp, urlEntry.maxTimestamp),
+          minTimestamp: timestampMax(mirror.minTimestamp, urlEntry.minTimestamp),
+        });
+      }
     }
   }
 

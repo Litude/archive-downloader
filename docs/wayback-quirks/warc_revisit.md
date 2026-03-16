@@ -9,3 +9,12 @@ warc/revisit captures indicate that the wayback crawler deduplicated the actual 
 
 ## Solution
 These can be resolved by the wayback CDX api itself by adding the parameter ```resolveRevisits: 'true'```. When added, they will appear as any other capture.
+
+
+...OR NOT
+Error: Snapshot for http://www.microsoft.com/library/images/gifs/homepage/1ptrans.gif at 20090418225140 is a warc/revisit snapshot. These should be resolved by the API parameter, something is wrong!.
+
+Possible reasons:
+- Actual capture is temporarily offline?
+- So many captures that wayback is unable to resolve them all?
+- Corrupt warc records...?
