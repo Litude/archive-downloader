@@ -8,14 +8,14 @@ import { filenameToString } from "../file-name/file-name";
 interface SummaryRow {
     capture_ts: string;
     modification_ts: string;
-    capture_sha256: string;
+    capture_sha256?: string;
     output_sha256?: string;
     url: string;
     statuscode: string;
     classification: string;
     mimetype: string;
-    wayback_digest: string;
-    actual_digest: string;
+    wayback_digest?: string;
+    actual_digest?: string;
     wayback_filename?: string;
     wayback_length?: number;
 }

@@ -12,14 +12,14 @@ export function writeUniqueFileEntries(captureEntries: CaptureEntry[], filename:
 
     // First pass: identify which sha256 have modified timestamps
     captureEntries.forEach(entry => {
-        if (entry.lastModified) {
+        if (entry.lastModified && entry.sha256) {
             shaHasModified.add(entry.sha256);
         }
     });
 
     // Second pass: collect unique entries, skipping no-modify ones if a modified exists
     captureEntries.forEach(entry => {
-        if (!entry.lastModified && shaHasModified.has(entry.sha256)) {
+        if (!entry.lastModified && entry.sha256 && shaHasModified.has(entry.sha256)) {
             return; // skip this entry
         }
         const key = `${entry.sha256}-${entry.lastModified ? entry.lastModified.toISO() : 'no-modified'}`;
@@ -73,7 +73,7 @@ export function writeUniqueFileEntries(captureEntries: CaptureEntry[], filename:
         const outputDir = entryFilename.flags ? archivalDir : mainDir;
         const outputPath = path.join(outputDir, outputFilename);
 
-        fs.writeFileSync(outputPath, entry.content);
+        fs.writeFileSync(outputPath, entry.content ?? Buffer.alloc(0));
         const modificationDate = entry.lastModified ?? entry.captureTimestamp;
         const mtime = modificationDate.toJSDate();
         fs.utimesSync(outputPath, mtime, mtime);

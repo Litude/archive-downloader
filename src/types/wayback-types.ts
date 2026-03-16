@@ -3,7 +3,7 @@ export interface CdxEntry {
   timestamp: string;
   url: string;
   status: string;
-  digest: string;
+  digest?: string;
   mimetype: string;
   filename?: string;
   length?: number;

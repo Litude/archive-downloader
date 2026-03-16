@@ -4,7 +4,8 @@
   "main": "src/app.js",
   "scripts": {
     "test": "vitest",
-    "etag": "tsx src/utils/iis-etag-tool.ts"
+    "etag": "tsx src/utils/iis-etag-tool.ts",
+    "tsc": "tsc --noEmit --skipLibCheck"
   },
   "author": "",
   "license": "ISC",
@@ -22,6 +23,7 @@
     "@types/luxon": "^3.7.1",
     "@types/node": "^24.3.3",
     "@types/yargs": "^17.0.33",
-    "tsx": "^4.20.5"
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.3"
   }
 }

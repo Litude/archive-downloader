@@ -22,6 +22,7 @@ import { writeUrlMetadata } from "./output/url-metadata";
 import { resetLog } from "./utils/log-context";
 import { CdxEntry } from "./types/wayback-types";
 import { Context } from "./types/context";
+import { WithRequired } from './utils/ts-utils';
 
 // High level logic of app:
 // 1. Read input JSON file to get list of DownloadFileInput
@@ -123,23 +124,20 @@ async function processWebsiteDownloads(
           waybackDigest: entry.digest,
           waybackFilename: undefined,
           waybackLength: peekAllFiles ? entry.length : undefined,
-          actualDigest: '',
-          sha256: '',
+          actualDigest: undefined,
+          sha256: undefined,
           originalSha256: undefined,
-          content: Buffer.alloc(0),
+          content: undefined,
           downloadStatus: 'skipped',
           headers: undefined,
           metadata: undefined,
         }
       }
       else {
-        const downloadedFile = uniqueDigestFiles.get(entry.digest);
-        if (!downloadedFile) {
-          throw new Error(`Downloaded file for digest ${entry.digest} not found?!`);
-        }
+        const downloadedFile = entry.digest ? uniqueDigestFiles.get(entry.digest) : undefined;
 
-        const downloadIsExactMatch = entry.url === downloadedFile.url && entry.timestamp === downloadedFile.timestamp;
-        const timestamps = parseHeaderTimestamps(downloadedFile.url, downloadedFile.headers, entry.timestamp, downloadIsExactMatch);
+        const downloadIsExactMatch = downloadedFile && entry.url === downloadedFile.url && entry.timestamp === downloadedFile.timestamp;
+        const timestamps = downloadedFile ? parseHeaderTimestamps(downloadedFile.url, downloadedFile.headers, entry.timestamp, downloadIsExactMatch ?? false) : { captureDate: DateTime.fromFormat(entry.timestamp, 'yyyyLLddHHmmss', { zone: 'utc' }) as DateTime<true>, lastModified: null };
         const waybackFilename = peekAllFiles && downloadIsExactMatch ? getWaybackFilename(downloadedFile.headers) : undefined;
         const lastModified = (downloadIsExactMatch || !peekAllFiles) ? timestamps.lastModified : null;
         const headers = downloadIsExactMatch ? downloadedFile.headers : undefined;
@@ -150,15 +148,15 @@ async function processWebsiteDownloads(
           lastModified,
           url: entry.url,
           statusCode: entry.status,
-          classification: classifiedEntries.get(entry.digest)!,
+          classification: entry.digest ? classifiedEntries.get(entry.digest)! : "unavailable",
           mimetype: entry.mimetype,
           waybackDigest: entry.digest,
           waybackFilename,
           waybackLength: peekAllFiles ? entry.length : undefined,
-          actualDigest: digestFileHashes.get(entry.digest)!.actualDigest,
-          sha256: digestFileHashes.get(entry.digest)!.sha256,
-          originalSha256: digestFileHashes.get(entry.digest)!.sha256,
-          content: downloadedFile.content,
+          actualDigest: entry.digest ? digestFileHashes.get(entry.digest)!.actualDigest : undefined,
+          sha256: entry.digest ? digestFileHashes.get(entry.digest)!.sha256 : undefined,
+          originalSha256: entry.digest ? digestFileHashes.get(entry.digest)!.sha256 : undefined,
+          content: downloadedFile?.content,
           downloadStatus: downloadIsExactMatch ? 'downloaded' : 'digest-match',
           headers,
           metadata: downloadIsExactMatch ? downloadedFile.metadata : undefined,
@@ -228,7 +226,7 @@ async function processWebsiteDownloads(
       // First find all unique sha256 buffers
       const seenSha256Values = new Set<string>();
       const uniqueBuffers: { sha256: string; content: Buffer }[] = [];
-      const validBaseEntries = baseEntries.filter(entry => entry.classification === 'ok');
+      const validBaseEntries = baseEntries.filter((entry): entry is WithRequired<CaptureEntry, 'sha256' | 'content'> => entry.classification === 'ok');
       const invalidEntries = baseEntries.filter(entry => entry.classification !== 'ok');
       for (const entry of validBaseEntries) {
         if (!seenSha256Values.has(entry.sha256)) {
@@ -293,7 +291,7 @@ async function processWebsiteDownloads(
         writeUniqueFileEntries(updatedEntries, filename, input.outputDirectory);
         const summaryEntries = [...updatedEntries, ...invalidEntries].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
         await writeCsvSummary(summaryEntries, filename, input.outputDirectory);
-        const rawFiles = baseEntries.filter(entry => entry.classification !== 'ok' || !outputSha256Set.has(entry.sha256));
+        const rawFiles = baseEntries.filter(entry => entry.sha256 && (entry.classification !== 'ok' || !outputSha256Set.has(entry.sha256)));
         const rawFilename = structuredClone(filename);
         rawFilename.flags = "raw";
         writeUniqueFileEntries(rawFiles, rawFilename, input.outputDirectory);

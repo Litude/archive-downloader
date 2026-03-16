@@ -1,4 +1,3 @@
-import { defaultBrowserPort } from "vitest/config";
 import { TransformationInput, TransformationOutput } from "../types/transformation-types";
 
 export interface TrackingImageTransformationOptions {

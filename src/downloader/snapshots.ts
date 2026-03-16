@@ -166,7 +166,7 @@ function getMergedSnapshot(snapshotsAtTimestamp: CdxEntry[]): CdxEntry {
   const uniqueSize = new Set(snapshotsAtTimestamp.map(s => s.length));
   // If the digest or size is different between the snapshots, we can't be sure which one is the correct one, so we will clear the digest and size to indicate that the values are unknown.
   if (uniqueDigests.size > 1) {
-    mergedSnapshot.digest = '';
+    mergedSnapshot.digest = undefined;
   }
   if (uniqueSize.size > 1) {
     mergedSnapshot.length = undefined;

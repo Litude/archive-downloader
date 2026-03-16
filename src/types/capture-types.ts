@@ -8,13 +8,13 @@ export interface CaptureEntry {
   statusCode: string;
   classification: CaptureClassification;
   mimetype: string;
-  waybackDigest: string;
-  actualDigest: string;
+  waybackDigest?: string;
+  actualDigest?: string;
   waybackFilename?: string;
   waybackLength?: number;
-  sha256: string; // always the sha256 of the file as saved
+  sha256?: string; // always the sha256 of the file as saved
   originalSha256?: string; // if file is somehow post-processed, this is the sha256 of the original downloaded file
-  content: Buffer<ArrayBufferLike>;
+  content?: Buffer<ArrayBufferLike>;
   downloadStatus: string;
   headers?: Record<string, string>;
   metadata?: Record<string, any>;

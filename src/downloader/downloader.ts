@@ -8,7 +8,7 @@ export async function downloadUniqueDigestsForSnapshots(input: CdxEntry[]) {
     let currentDigest = 0;
     const encounteredDigests = new Map<string, DownloadedFile>();
     for (const entry of input) {
-        if (!encounteredDigests.has(entry.digest)) {
+        if (entry.digest && !encounteredDigests.has(entry.digest)) {
             console.log(`Downloading snapshot ${entry.timestamp} for URL ${entry.url} (${++currentDigest}/${uniqueDigestCount})`);
             const result = await fetchWaybackFile(entry.timestamp, entry.url, entry.status);
             encounteredDigests.set(entry.digest, result);
