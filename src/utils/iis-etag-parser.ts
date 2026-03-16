@@ -66,10 +66,10 @@ export function getMostLikelyEtagDate(
       return validCandidates[0];
     }
     else {
+      validCandidates.sort();
       logWarning(`Multiple ETag candidates match modify date ${modifyDate.toISO({ suppressMilliseconds: true })} (candidates: ${validCandidates.join(", ")}).`, "iis-etag-parser");
       console.warn(`Multiple ETag candidates match modify date ${modifyDate.toISO({ suppressMilliseconds: true })}, candidates:\n${validCandidates.join(", ")}\nChoosing closest candidate.`);
       // Since we already checked that the seconds match, we can just sort lexicographically to find the closest candidate (i.e. the one with the smallest difference in sub-second units)
-      validCandidates.sort();
       const bestCandidate = validCandidates[0];
       return bestCandidate;
     }

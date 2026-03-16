@@ -6,11 +6,13 @@ import { fetchPartiallyArchivedFileData } from "./partial-file";
 import { DownloadedFile } from "../../types/download-types";
 import { preventAxiosRedirects } from "../../utils/axios-utils";
 import { getWaybackCaptureBaseUrl } from "../../utils/address";
+import { CdxEntry } from "../../types/wayback-types";
+import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common";
 
 const WEB_ARCHIVE = 'web.archive.org/web';
 const REQUEST_TIMEOUT = 60_000; // 60 seconds
-const INITIAL_BACKOFF = 30_000; // 30 seconds
-const MAX_BACKOFF = 600_000; // 10 minutes
+const INITIAL_BACKOFF = WAYBACK_INITIAL_BACKOFF; // 30 seconds
+const MAX_BACKOFF = WAYBACK_MAX_BACKOFF; // 10 minutes
 
 const ERROR_STATUS_CODES = [429, 502, 503, 504];
 const REQUEST_HEADERS = {
@@ -19,7 +21,7 @@ const REQUEST_HEADERS = {
 
 const selfRedirectUrls: { url: string, minTimestamp?: string }[] = JSON5.parse(
     fs.readFileSync(
-        path.join(__dirname, '../../data/settings/self_redirect_urls.json'), 'utf-8'
+        path.join(__dirname, '../../../data/settings/self_redirect_urls.json'), 'utf-8'
     )
 );
 
@@ -276,4 +278,19 @@ async function fetchPartialFile(
       attempt++;
     }
   }
+}
+
+export async function downloadUniqueDigestsForSnapshots(input: CdxEntry[]) {
+    const uniqueDigestCount = new Set(input.map(entry => entry.digest)).size;
+    console.log(`Unique digests to download: ${uniqueDigestCount}`);
+    let currentDigest = 0;
+    const encounteredDigests = new Map<string, DownloadedFile>();
+    for (const entry of input) {
+        if (entry.digest && !encounteredDigests.has(entry.digest)) {
+            console.log(`Downloading snapshot ${entry.timestamp} for URL ${entry.url} (${++currentDigest}/${uniqueDigestCount})`);
+            const result = await fetchWaybackFile(entry.timestamp, entry.url, entry.status);
+            encounteredDigests.set(entry.digest, result);
+        }
+    }
+    return encounteredDigests;
 }

@@ -26,7 +26,7 @@
         "internalConsoleOptions": "neverOpen",
         "args": [
             "--json",
-            ".\\data\\inputs\\aoe1-ms-usa-regwiz.json",
+            ".\\data\\inputs\\aoe1-ms-deu.json",
             // "--no-mirrors",
             // "--no-include-invalid",
             // "--no-headers",

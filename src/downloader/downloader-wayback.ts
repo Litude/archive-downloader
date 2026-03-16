@@ -1,16 +1,18 @@
 import { getSnapshotsForWebsiteFile } from "./wayback/snapshots";
-import { downloadUniqueDigestsForSnapshots } from "./wayback/downloader";
 import { computeSha256, computeWaybackDigest } from "../utils/hash";
 import { classifyEntry } from "../classification/classifier";
 import { DownloadedFile } from "../types/download-types";
 import { parseHeaderTimestamps } from "../utils/timestamp";
-import { fetchWaybackFileHeaders } from "./wayback/file-download";
-import { CaptureClassification, CaptureEntry } from "../types/capture-types";
+import { downloadUniqueDigestsForSnapshots, fetchWaybackFileHeaders } from "./wayback/file-download";
+import { CaptureClassification, CaptureEntry, CaptureWaybackMetadata } from "../types/capture-types";
 import { getWaybackFilename } from "../utils/wayback-filename";
 import { filenameToString } from "../file-name/file-name";
 import { DateTime } from "luxon";
 import { CdxEntry } from "../types/wayback-types";
 import { DownloadFileInput } from "../types/download-input-types";
+import { Context } from "../types/context";
+import { getWaybackItemMetadata } from "./wayback/item-metadata";
+import { isDefined } from "../utils/ts-utils";
 
 function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
   const digestHashes = new Map<string, { sha256: string; actualDigest: string }>();
@@ -53,12 +55,13 @@ function isEntrySkipped(entry: CdxEntry, skippedCaptures?: { url: string; timest
 
 export async function downloadWaybackEntries(
   input: DownloadFileInput,
-  includeInvalid: boolean,
-  peekAllFiles: boolean,
+  context: Context,
 ) {
   const { validCdxEntries, invalidCdxEntries, metadata } = await getSnapshotsForWebsiteFile(
-    input, includeInvalid
+    input, context
   );
+  const peekAllFiles = context.settings.peekAllFiles;
+  const fetchMetadata = context.settings.fetchMetadata;
   const allEntries = [...validCdxEntries, ...invalidCdxEntries];
   const uniqueDigestFiles = await downloadUniqueDigestsForSnapshots(allEntries.filter(entry => !isEntrySkipped(entry, input.skippedCaptures)));
   const digestFileHashes = computeDigestHashes(uniqueDigestFiles);
@@ -176,6 +179,53 @@ export async function downloadWaybackEntries(
       existingEntry.lastModified = timestamps.lastModified;
       existingEntry.waybackFilename = waybackFilename;
       existingEntry.headers = response.headers;
+    }
+  }
+
+  if (fetchMetadata) {
+    console.log(`Fetching metadata for all entries...`);
+    for (const entry of baseEntries) {
+      if (entry.waybackFilename) {
+        const itemId = entry.waybackFilename.split('/')[0];
+        if (itemId) {
+          const metadata = await getWaybackItemMetadata(itemId)
+          const collections = [];
+          for (const collectionId of metadata.collection) {
+            try {
+              const collectionMetadata = await getWaybackItemMetadata(collectionId);
+              if (collectionMetadata) {
+                collections.push(collectionMetadata);
+              }
+            } catch (e) {
+              console.log(`Error fetching metadata for collection ${collectionId}: ${e}`);
+              collections.push({
+                identifier: collectionId,
+                title: '',
+                description: '',
+              })
+            }
+          }
+
+          const parsedData: CaptureWaybackMetadata = {
+            item: {
+              id: metadata.identifier,
+              title: metadata.title,
+              description: metadata.description,
+              firstFileDate: metadata.firstfiledate,
+              lastFileDate: metadata.lastfiledate,
+              collections: collections.map(col => ({
+                id: col.identifier,
+                title: col.title,
+                description: col.description,
+              })),
+            }
+          }
+          if (!entry.metadata) {
+            entry.metadata = {};
+          }
+          entry.metadata.wayback = parsedData;
+        }
+      }
     }
   }
 

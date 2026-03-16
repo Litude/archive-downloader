@@ -7,6 +7,7 @@ export interface Context {
     peekAllFiles?: boolean
     writeHeaders?: boolean
     skipOn302?: boolean;
+    fetchMetadata?: boolean;
   }
 }
 

@@ -35,3 +35,7 @@ Code for reference:
 ## Solution
 We always assume that the capture that can be retrieved is the last capture for the timestamp.
 TODO: Not strictly so?
+
+// microsoft.com/italy/games/empires has a duplicate captures at 20071024014608 and 20090329081915 (301 and 200 status codes, 200 is the returned one)
+// microsoft.com/games/aoeexpansion/features_buildings_rendered.htm has duplicate snapshot at 20091212001836 (2x 200 status codes)
+// microsoft.com/msdownload/games/empires/download.htm has duplicate snapshot at 20080405205900 (301 and 404 status codes, 404 is the returned one)

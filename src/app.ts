@@ -41,6 +41,7 @@ async function processWebsiteDownloads(
       includeInvalid,
       peekAllFiles,
       writeHeaders,
+      fetchMetadata: true,
     },
     fileContext: {},
   };
@@ -49,7 +50,7 @@ async function processWebsiteDownloads(
     context.fileContext = {};
     resetLog();
 
-    let { baseEntries, unavailableEntries, skippedEntries, metadata } = await downloadWaybackEntries(input, includeInvalid, peekAllFiles);
+    let { baseEntries, unavailableEntries, skippedEntries, metadata } = await downloadWaybackEntries(input, context);
     const anyValidEntries = baseEntries.some(entry => entry.classification === 'ok');
 
     input.filename.queryHashParameters = input.queryHashParameters;

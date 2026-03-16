@@ -1,5 +1,20 @@
 import { DateTime } from "luxon";
 
+export interface CaptureWaybackMetadata {
+  item: {
+    id: string;
+    title: string;
+    description: string;
+    collections: {
+      id: string;
+      title: string;
+      description: string;
+    }[];
+    firstFileDate: string;
+    lastFileDate: string;
+  }
+}
+
 export interface CaptureEntry {
   timestamp: string; // same as captureTimestamp but as string YYYYMMDDHHmmss
   captureTimestamp: DateTime<true>;
@@ -17,7 +32,10 @@ export interface CaptureEntry {
   content?: Buffer<ArrayBufferLike>;
   downloadStatus: string;
   headers?: Record<string, string>;
-  metadata?: Record<string, any>;
+  metadata?: {
+    wayback?: CaptureWaybackMetadata;
+    //[key: string]: any;
+  }
 }
 
 export type CaptureClassification = "ok" | "corrupt" | "not_found" | "transient_retry" | "redirect" | "unavailable" | "skipped" | "forbidden";

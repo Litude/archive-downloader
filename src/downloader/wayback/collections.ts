@@ -1,10 +1,9 @@
 import axios, { AxiosResponse } from "axios";
 import { CdxEntry } from "../../types/wayback-types";
+import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common";
 
 const COLLECTIONS_API_URL = 'web.archive.org/__wb/calendarcaptures/2';
 
-const INITIAL_BACKOFF = 30_000; // 30 seconds
-const MAX_BACKOFF = 600_000; // 10 minutes
 
 interface WaybackCollectionResponse {
     colls: string[][];
@@ -19,7 +18,7 @@ export interface CollectionInfo {
 
 async function fetchCollectionsForYear(url: string, year: string): Promise<WaybackCollectionResponse> {
     let attempt = 1;
-    let backoff = INITIAL_BACKOFF;
+    let backoff = WAYBACK_INITIAL_BACKOFF;
     while (true) {
         const protocol = (attempt || 0) % 2 === 0 ? 'http' : 'https';
         try {
@@ -34,7 +33,7 @@ async function fetchCollectionsForYear(url: string, year: string): Promise<Wayba
             console.error(`Error fetching collections for year ${year}:`, error);
             console.log(`Retrying in ${backoff / 1000} seconds...`);
             await new Promise(resolve => setTimeout(resolve, backoff));
-            backoff = Math.min(backoff * 2, MAX_BACKOFF);
+            backoff = Math.min(backoff * 2, WAYBACK_MAX_BACKOFF);
             attempt++;
         }
     }

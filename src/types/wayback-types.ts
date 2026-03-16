@@ -10,4 +10,5 @@ export interface CdxEntry {
   offset?: number;
   source: string;
   isWarcRevisit?: boolean;
+  headers?: Record<string, any>;
 }

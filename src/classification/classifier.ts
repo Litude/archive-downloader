@@ -56,7 +56,7 @@ export function classifyEntryWithConfig(
   else if (statusCode === "404") {
     return "not_found";
   }
-  else if (["301", "302"].includes(statusCode)) {
+  else if (["301", "302", "307", "308"].includes(statusCode)) {
     return "redirect";
   }
   else if (config.transientRedirectSha256.includes(sha256)) {

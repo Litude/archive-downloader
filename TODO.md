@@ -34,13 +34,25 @@ captureData: {
     "downloadedSize": "1234",
     "actualSize": "5678"
    }
-   wayback: {
+   hostIp?: string;
+   // warc/arc available?
+   cdxEntry: {
       urlkey: string // from cdx index
       mimetype: string // from cdx index
+      status: string //
       digest: string // cdx index digest, which seems to be slighlty off for some files...?
-      length: number, // size from cdx index?
-      collections: string[],
-      filename: wayback filename,
+      length: number | null, // size from cdx index?
+      offset: number | null, //
+      filename: string | null,
+   }
+
+   wayback: {
+      item: {
+        id: string;
+        name: string;
+        description: string;
+        collections: string[],
+      }
       mementoDatetime: string?
    },
    commonCrawl: {
