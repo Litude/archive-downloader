@@ -4,17 +4,17 @@ import { readWebsiteJsonConfig } from "./website-config/website-config";
 import { DownloadFileInput } from "./types/download-input-types";
 import { computeSha256 } from "./utils/hash";
 import { CaptureEntry } from "./types/capture-types";
-import { writeCsvSummary } from "./output/summary";
-import { writeUniqueFileEntries } from "./output/write-files";
+import { writeCsvSummary } from "./file-output/summary";
+import { writeUniqueFileEntries } from "./file-output/write-files";
 import { applyTransformationPipeline } from "./transformation/transformation";
 import { filenameToString } from "./file-name/file-name";
-import { writeUnavailablePlaceholder } from "./output/unavailable";
-import { writeFileHeaders } from "./output/header-output";
-import { writeUrlMetadata } from "./output/url-metadata";
+import { writeUnavailablePlaceholder } from "./file-output/unavailable";
+import { writeUrlMetadata } from "./file-output/url-metadata";
 import { resetLog } from "./utils/log-context";
 import { Context } from "./types/context";
 import { WithRequired } from './utils/ts-utils';
 import { downloadWaybackEntries } from "./downloader/downloader-wayback";
+import { writeCaptureData } from "./file-output/capture-data";
 
 // High level logic of app:
 // 1. Read input JSON file to get list of DownloadFileInput
@@ -130,7 +130,7 @@ async function processWebsiteDownloads(
         writeUniqueFileEntries(rawFiles, rawFilename, input.outputDirectory);
         // Invalid entries are only written once for the "base" file later
         if (writeHeaders) {
-          writeFileHeaders(updatedEntries, filename, input.outputDirectory);
+          writeCaptureData(updatedEntries, filename, input.outputDirectory);
         }
       }
     }
@@ -144,13 +144,13 @@ async function processWebsiteDownloads(
       const summaryEntries = [...baseEntries, ...unavailableEntries, ...skippedEntries].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
       await writeCsvSummary(summaryEntries, input.filename, input.outputDirectory);
       if (writeHeaders) {
-        writeFileHeaders(baseEntries, input.filename, input.outputDirectory);
+        writeCaptureData(baseEntries, input.filename, input.outputDirectory);
       }
     }
 
-    if (metadata) {
-      writeUrlMetadata(metadata, input.filename, input.outputDirectory);
-    }
+    // if (metadata) {
+    //   writeUrlMetadata(metadata, input.filename, input.outputDirectory);
+    // }
 
 
     console.log('\n----------------------------------------\n');

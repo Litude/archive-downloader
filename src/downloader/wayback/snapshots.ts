@@ -338,7 +338,7 @@ async function getSnapshotsForUrl(url: UrlEntry) {
         validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, 'length');
         filteredSnapshots[index] = {
           ...resolvedSnapshot,
-          isWarcRevisit: true
+          revisitEntry: snapshot,
         };
       }
     });

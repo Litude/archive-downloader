@@ -41,7 +41,7 @@ describe("parseIisEtagDate", () => {
     );
     expect(result).not.toBeNull();
     if (result) {
-      expect(result.startsWith("1999-01-03T10:34:")).toBe(true);
+      expect(result[0].startsWith("1999-01-03T10:34:")).toBe(true);
     }
   });
 

@@ -14,27 +14,34 @@ export interface WaybackItemFile {
 
 export interface WaybackMetadata {
     identifier: string;
-    contributor: string;
+    contributor?: string;
     creator?: string;
     date: string;
     description: string;
+    coverage?: string;
+    notes?: string;
     firstfiledate: string; // YYYYMMDDHHMMSS
     lastfiledate: string; // YYYYMMDDHHMMSS
     mediatype: string;
     scanner: string;
     scanningcenter: string;
-    sponsor: string;
+    sponsor?: string;
     subject: string;
     title: string;
-    collection: string[];
+    crawler?: string;
+    crawljob?: string;
+    collection: string[] | string; // if just single item in collection, this is a string instead of array
     publicdate: string; // YYYY-MM-DD HH:MM:SS
     uploader: string; // email
     addeddate: string; // YYYY-MM-DD HH:MM:SS
-    imagecount: string; // number as string
+    imagecount?: string; // number as string
+    numwarcs?: string; // number as string
+    numarcs?: string; // number as string
     scandate: string; // YYYYMMDDHHMMSS
     boxid: string;
     backup_location: string;
     'fail-reasons': string;
+    [key: string]: any; // for any additional fields that may be present, such as those added by metadata enrichment (e.g. numwarcs/numarcs) or custom metadata fields
 }
 
 export interface WaybackItemDetails {

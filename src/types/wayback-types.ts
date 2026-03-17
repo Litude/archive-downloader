@@ -6,9 +6,11 @@ export interface CdxEntry {
   digest?: string;
   mimetype: string;
   filename?: string;
-  length?: number;
   offset?: number;
+  length?: number;
   source: string;
+  /** For entries that were originally warc/revisit and are resolved, this contains the original entry with warc/revisit content type */
+  revisitEntry?: CdxEntry;
   isWarcRevisit?: boolean;
   headers?: Record<string, any>;
 }

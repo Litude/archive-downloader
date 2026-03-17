@@ -48,42 +48,28 @@ export function parseIisEtagDate(
 export function getMostLikelyEtagDate(
     etag: string,
     captureDate: DateTime<true>,
-    modifyDate?: DateTime<true>
-): string | null {
+    modifyDate: DateTime<true>
+): string[] | null {
   const candidates = parseIisEtagDate(etag, captureDate);
   if (!candidates) throw new Error("No valid ETag candidates found");
 
-  // If we have modify date, prefer candidates close to it (±1 day)
-  if (modifyDate) {
-    const modifyDateSec = modifyDate.toISO({ suppressMilliseconds: true }).slice(0, -1); // Remove trailing 'Z' for easier comparison
-    // Since IIS truncates any sub-second precision units when creating the modify date header, the original second must match
-    const validCandidates = candidates.filter(c => c.startsWith(modifyDateSec));
-    if (validCandidates.length === 0) {
-      console.log(`No ETag candidates match modify date ${modifyDate.toISO()}`);
-      return null;
-    }
-    else if (validCandidates.length === 1) {
-      return validCandidates[0];
-    }
-    else {
-      validCandidates.sort();
-      logWarning(`Multiple ETag candidates match modify date ${modifyDate.toISO({ suppressMilliseconds: true })} (candidates: ${validCandidates.join(", ")}).`, "iis-etag-parser");
-      console.warn(`Multiple ETag candidates match modify date ${modifyDate.toISO({ suppressMilliseconds: true })}, candidates:\n${validCandidates.join(", ")}\nChoosing closest candidate.`);
-      // Since we already checked that the seconds match, we can just sort lexicographically to find the closest candidate (i.e. the one with the smallest difference in sub-second units)
-      const bestCandidate = validCandidates[0];
-      return bestCandidate;
-    }
+  const modifyDateSec = modifyDate.toISO({ suppressMilliseconds: true }).slice(0, -1); // Remove trailing 'Z' for easier comparison
+  // Since IIS truncates any sub-second precision units when creating the modify date header, the original second must match
+  const validCandidates = candidates.filter(c => c.startsWith(modifyDateSec));
+  if (validCandidates.length === 0) {
+    console.log(`No ETag candidates match modify date ${modifyDate.toISO()}`);
+    return null;
   }
-  if (candidates.length === 1) return candidates[0];
-  // Otherwise prefer candidates close to capture date
-
-  // Multiple plausible dates — pick closest to capture
-  const captureSec = captureDate.toMillis() / 1000;
-  candidates.sort((a, b) => {
-    return Math.abs(captureSec - isoToUnixSeconds(a))
-         - Math.abs(captureSec - isoToUnixSeconds(b));
-  });
-  return candidates[0];
+  else if (validCandidates.length === 1) {
+    return validCandidates;
+  }
+  else {
+    // Since we already checked that the seconds match, we can just sort lexicographically to find the closest candidate (i.e. the one with the smallest difference in sub-second units)
+    validCandidates.sort();
+    // logWarning(`Multiple ETag candidates match modify date ${modifyDate.toISO({ suppressMilliseconds: true })} (candidates: ${validCandidates.join(", ")}).`, "iis-etag-parser");
+    // console.warn(`Multiple ETag candidates match modify date ${modifyDate.toISO({ suppressMilliseconds: true })}, candidates:\n${validCandidates.join(", ")}\nChoosing closest candidate.`);
+    return validCandidates;
+  }
 }
 
 /**

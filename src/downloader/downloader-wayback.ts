@@ -12,7 +12,6 @@ import { CdxEntry } from "../types/wayback-types";
 import { DownloadFileInput } from "../types/download-input-types";
 import { Context } from "../types/context";
 import { getWaybackItemMetadata } from "./wayback/item-metadata";
-import { isDefined } from "../utils/ts-utils";
 
 function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
   const digestHashes = new Map<string, { sha256: string; actualDigest: string }>();
@@ -67,13 +66,6 @@ export async function downloadWaybackEntries(
   const digestFileHashes = computeDigestHashes(uniqueDigestFiles);
   const classifiedEntries = classifyDigestFiles(uniqueDigestFiles, digestFileHashes, input.classifications);
 
-  const enrichedDigestFiles = new Map<string, { file: DownloadedFile; classification: CaptureClassification; sha256: string; actualDigest: string }>();
-  [...uniqueDigestFiles.entries()].forEach(([digest, file]) => {
-    const hashes = digestFileHashes.get(digest)!;
-    const classification = classifiedEntries.get(digest)!;
-    enrichedDigestFiles.set(digest, { file, classification, sha256: hashes.sha256, actualDigest: hashes.actualDigest });
-  });
-
   let baseEntries: CaptureEntry[] = allEntries.map(entry => {
     const isSkipped = isEntrySkipped(entry, input.skippedCaptures);
     if (isSkipped) {
@@ -81,13 +73,16 @@ export async function downloadWaybackEntries(
         timestamp: entry.timestamp,
         captureTimestamp: DateTime.fromFormat(entry.timestamp, 'yyyyLLddHHmmss', { zone: 'utc' }) as DateTime<true>,
         lastModified: null,
+        cdxEntry: entry,
         url: entry.url,
         statusCode: entry.status,
         classification: 'skipped' as const,
         mimetype: entry.mimetype,
-        waybackDigest: entry.digest,
-        waybackFilename: undefined,
-        waybackLength: peekAllFiles ? entry.length : undefined,
+        archiveDigest: entry.digest,
+        archiveFilename: undefined,
+        archiveLength: peekAllFiles ? entry.length : undefined,
+        archiveOffset: entry.offset,
+        archiveSource: entry.source,
         actualDigest: undefined,
         sha256: undefined,
         originalSha256: undefined,
@@ -109,14 +104,17 @@ export async function downloadWaybackEntries(
       return {
         timestamp: entry.timestamp,
         captureTimestamp: timestamps.captureDate,
+        cdxEntry: entry,
         lastModified,
         url: entry.url,
         statusCode: entry.status,
         classification: entry.digest ? classifiedEntries.get(entry.digest)! : "unavailable",
         mimetype: entry.mimetype,
-        waybackDigest: entry.digest,
-        waybackFilename,
-        waybackLength: peekAllFiles ? entry.length : undefined,
+        archiveDigest: entry.digest,
+        archiveFilename: waybackFilename,
+        archiveLength: peekAllFiles ? entry.length : undefined,
+        archiveOffset: entry.offset,
+        archiveSource: entry.source,
         actualDigest: entry.digest ? digestFileHashes.get(entry.digest)!.actualDigest : undefined,
         sha256: entry.digest ? digestFileHashes.get(entry.digest)!.sha256 : undefined,
         originalSha256: entry.digest ? digestFileHashes.get(entry.digest)!.sha256 : undefined,
@@ -128,7 +126,7 @@ export async function downloadWaybackEntries(
     }
   }).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
-  const unavailableEntries = baseEntries.filter(entry => entry.classification === 'unavailable').map((entry) => {
+  const unavailableEntries: CaptureEntry[] = baseEntries.filter(entry => entry.classification === 'unavailable').map((entry) => {
     const captureTimestamp = DateTime.fromFormat(entry.timestamp, 'yyyyLLddHHmmss', { zone: 'utc' });
     if (!captureTimestamp.isValid) {
       throw new Error(`Invalid capture timestamp format: ${entry.timestamp}`);
@@ -137,13 +135,16 @@ export async function downloadWaybackEntries(
       timestamp: entry.timestamp,
       captureTimestamp,
       lastModified: null,
+      cdxEntry: entry.cdxEntry,
       url: entry.url,
       statusCode: entry.statusCode,
       classification: entry.classification,
       mimetype: entry.mimetype,
-      waybackDigest: entry.waybackDigest,
-      waybackFilename: undefined,
-      waybackLength: entry.waybackLength,
+      archiveDigest: entry.archiveDigest,
+      archiveFilename: undefined,
+      archiveLength: entry.archiveLength,
+      archiveOffset: entry.archiveOffset,
+      archiveSource: entry.archiveSource,
       actualDigest: '',
       sha256: '',
       originalSha256: undefined,
@@ -177,7 +178,7 @@ export async function downloadWaybackEntries(
         throw new Error(`Existing entry for ${entry.url} at ${entry.timestamp} not found?!`);
       }
       existingEntry.lastModified = timestamps.lastModified;
-      existingEntry.waybackFilename = waybackFilename;
+      existingEntry.archiveFilename = waybackFilename;
       existingEntry.headers = response.headers;
     }
   }
@@ -185,12 +186,16 @@ export async function downloadWaybackEntries(
   if (fetchMetadata) {
     console.log(`Fetching metadata for all entries...`);
     for (const entry of baseEntries) {
-      if (entry.waybackFilename) {
-        const itemId = entry.waybackFilename.split('/')[0];
+      if (entry.archiveFilename) {
+        const itemId = entry.archiveFilename.split('/')[0];
         if (itemId) {
           const metadata = await getWaybackItemMetadata(itemId)
           const collections = [];
-          for (const collectionId of metadata.collection) {
+          const collectionIds = Array.isArray(metadata.collection) ? metadata.collection : [metadata.collection];
+          for (const collectionId of collectionIds) {
+            if (collectionId === 'web') {
+              continue; // skip the generic "web" collection which is not very informative and is present on all items
+            }
             try {
               const collectionMetadata = await getWaybackItemMetadata(collectionId);
               if (collectionMetadata) {
@@ -210,9 +215,17 @@ export async function downloadWaybackEntries(
             item: {
               id: metadata.identifier,
               title: metadata.title,
+              contributor: metadata.contributor,
+              sponsor: metadata.sponsor && metadata.sponsor !== metadata.contributor ? metadata.sponsor : undefined,
               description: metadata.description,
-              firstFileDate: metadata.firstfiledate,
-              lastFileDate: metadata.lastfiledate,
+              coverage: metadata.coverage,
+              crawler: metadata.crawler,
+              crawljob: metadata.crawljob ?? metadata['pwacrawlid'],
+              numPages: metadata.imagecount ? parseInt(metadata.imagecount) : undefined,
+              numWarcs: metadata.numwarcs ? parseInt(metadata.numwarcs) : undefined,
+              numArcs: metadata.numarcs ? parseInt(metadata.numarcs) : undefined,
+              firstFileDate: DateTime.fromFormat(metadata.firstfiledate, 'yyyyMMddHHmmss').setZone('UTC').toISO({ suppressMilliseconds: true }) ?? undefined,
+              lastFileDate: DateTime.fromFormat(metadata.lastfiledate, 'yyyyMMddHHmmss').setZone('UTC').toISO({ suppressMilliseconds: true }) ?? undefined,
               collections: collections.map(col => ({
                 id: col.identifier,
                 title: col.title,

@@ -25,13 +25,21 @@ async function fetchWaybackItemMetadata(itemId: string): Promise<WaybackMetadata
   let backoff = WAYBACK_INITIAL_BACKOFF;
   while (true) {
     try {
-      console.log(`Fetching metadata index for ${itemId} (attempt ${attempt})...`);
+      console.log(`Fetching metadata for item ${itemId} (attempt ${attempt})...`);
       const url = createMetadataUrl(itemId, attempt - 1);
       const response: AxiosResponse<WaybackItemDetails> = await axios.get(url, { timeout: WAYBACK_REQUEST_TIMEOUT });
       const data = response.data;
+      const numWarcs = data.files ? data.files.filter(file => file.name.endsWith('.warc.gz')).length : 0;
+      const numArcs = data.files ? data.files.filter(file => file.name.endsWith('.arc.gz')).length : 0;
+      if (numWarcs && !data.metadata.numwarcs) {
+        data.metadata.numwarcs = numWarcs.toString();
+      }
+      if (numArcs && !data.metadata.numarcs) {
+        data.metadata.numarcs = numArcs.toString();
+      }
       return data.metadata;
     } catch (e) {
-      console.log(`Error fetching metadata index for ${itemId}: ${e}, retrying in ${backoff / 1000}s...`);
+      console.log(`Error fetching metadata for item ${itemId}: ${e}, retrying in ${backoff / 1000}s...`);
       await new Promise(res => setTimeout(res, backoff));
       backoff = Math.min(backoff * 2, WAYBACK_MAX_BACKOFF);
       attempt++;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cleanupHeaders } from './header-output';
+import { cleanupWaybackHeaders } from './header-output';
 
 describe('cleanupHeaders', () => {
 
@@ -12,7 +12,7 @@ describe('cleanupHeaders', () => {
     };
     const url = 'http://example.com/page';
 
-    const result = cleanupHeaders(url, headers);
+    const result = cleanupWaybackHeaders(url, headers);
 
     expect(result).toEqual({
       'content-type': 'text/html',
@@ -30,7 +30,7 @@ describe('cleanupHeaders', () => {
     };
     const url = 'http://example.com/page';
 
-    const result = cleanupHeaders(url, headers);
+    const result = cleanupWaybackHeaders(url, headers);
 
     expect(result).toEqual({
       'x-archive-orig-content-type': 'image/gif',
@@ -46,7 +46,7 @@ describe('cleanupHeaders', () => {
     };
     const url = 'http://www.microsoft.com:80/japan/games/empires/default.asp';
 
-    const result = cleanupHeaders(url, headers);
+    const result = cleanupWaybackHeaders(url, headers);
 
     expect(result).toEqual({
       'content-type': 'text/html',
@@ -62,7 +62,7 @@ describe('cleanupHeaders', () => {
     };
     const url = 'http://www.microsoft.com:80/japan/games/empires/download/up10a.htm';
 
-    const result = cleanupHeaders(url, headers);
+    const result = cleanupWaybackHeaders(url, headers);
 
     expect(result).toEqual({
       'content-type': 'text/html',

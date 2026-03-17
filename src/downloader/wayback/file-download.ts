@@ -266,8 +266,11 @@ async function fetchPartialFile(
         headers,
         classification: !valid ? "corrupt" : undefined,
         metadata: !valid ? {
+          classificationDetails: {
+            reason: "partial_content",
             downloadedSize: fetchedLength.toString(),
             actualSize: headers['content-length'] ? headers['content-length'].toString() : undefined
+          },
         } : {},
         statusCode
       };
