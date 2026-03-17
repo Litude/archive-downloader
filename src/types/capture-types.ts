@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import { CdxEntry } from "./wayback-types";
+import { RawHeader } from "../utils/raw-header-parser";
 
 export interface CaptureWaybackMetadata {
   item: {
@@ -45,6 +46,7 @@ export interface CaptureEntry {
   content?: Buffer<ArrayBufferLike>;
   downloadStatus: string;
   headers?: Record<string, string>;
+  rawHeaders?: RawHeader[];
   metadata?: {
     wayback?: CaptureWaybackMetadata;
     classificationDetails?: Record<string, any>;

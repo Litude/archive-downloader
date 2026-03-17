@@ -153,6 +153,36 @@ function cleanupStatusString(status: string): number | null {
     return isNaN(parsed) ? null : parsed;
 }
 
+/** Use for custom formatting of e.g. header tuples */
+function stringifyWithInlineTuples(data: unknown, inlineElementsOf: Set<unknown[]>): string {
+    const placeholders = new Map<string, string>();
+    let counter = 0;
+
+    function process(val: unknown): unknown {
+        if (Array.isArray(val)) {
+            if (inlineElementsOf.has(val)) {
+                return val.map(item => {
+                    const key = `__HDR_TUPLE_${counter++}__`;
+                    const string = `[${item.map((value: any) => JSON.stringify(value)).join(", ")}]`;
+                    placeholders.set(key, string);
+                    return key;
+                });
+            }
+            return val.map(process);
+        }
+        if (val !== null && typeof val === 'object') {
+            return Object.fromEntries(Object.entries(val).map(([k, v]) => [k, process(v)]));
+        }
+        return val;
+    }
+
+    let json = JSON.stringify(process(data), null, 2);
+    for (const [key, compact] of placeholders) {
+        json = json.replace(`"${key}"`, compact);
+    }
+    return json;
+}
+
 export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filename, outputDirectory: string) {
     const headerFilename = structuredClone(filename);
     const archivalDir = path.join(outputDirectory, '.archivaldata');
@@ -160,78 +190,86 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
 
     const encounteredFilenames = new Set<string>();
     captureEntries.forEach(entry => {
-        const headers = entry.headers;
-        if (headers) {
-            const entryFilename = structuredClone(headerFilename);
-            if (entry.classification !== "ok") {
-                entryFilename.flags = "invalid";
-            }
-            entryFilename.timestamp = entry.captureTimestamp.toFormat('yyyyLLddHHmmss');
-            let outputFilename = filenameToString(entryFilename, 'full');
-            let counter = 1;
-            while (encounteredFilenames.has(outputFilename)) {
-                outputFilename = filenameToString(entryFilename, 'full', counter);
-                counter++;
-            }
-            encounteredFilenames.add(outputFilename);
-
-            const exactModificationDate = getExactModificationDate(entry);
-            if (!exactModificationDate && entry.headers?.['x-archive-orig-etag']) {
-                console.log(`Could not determine exact modification date for ${entry.url} captured at ${entry.captureTimestamp.toISO({ suppressMilliseconds: true })}`);
-            }
-            const exactCaptureDate = getExactCaptureDate(entry);
-            
-            const captureDataPath = path.join(archivalDir, `${outputFilename}.capture.json`);        
-            const captureData = {
-                url: entry.url,
-                captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
-                captureTimePrecise: exactCaptureDate ?? undefined,
-                status: cleanupStatusString(entry.statusCode),
-                modificationTime: entry.lastModified ? entry.lastModified.toISO({ suppressMilliseconds: true }) : undefined,
-                modificationTimePrecise: exactModificationDate?.modificationTimePrecise ?? undefined,
-                modificationTimePreciseCandidates: exactModificationDate?.plausiblePreciseModificationDates ?? undefined,
-                headers: cleanupWaybackHeaders(entry.url, headers),
-                captureData: {
-                    source: entry.archiveSource,
-                    sha256: entry.originalSha256 ?? entry.sha256,
-                    actualDigest: entry.actualDigest,
-                    classification: entry.classification,
-                    classificationDetails: entry.metadata?.classificationDetails,
-                    cdxEntry: {
-                        urlkey: entry.cdxEntry.urlkey,
-                        timestamp: entry.cdxEntry.timestamp,
-                        url: entry.cdxEntry.url,
-                        status: cleanupStatusString(entry.cdxEntry.status),
-                        digest: entry.cdxEntry.digest ?? null,
-                        mimetype: entry.cdxEntry.mimetype,
-                        filename: entry.archiveFilename ?? entry.cdxEntry.filename ?? null,
-                        offset: entry.cdxEntry.offset ?? null,
-                        length: entry.cdxEntry.length ?? null,
-                        revisitEntry: entry.cdxEntry.revisitEntry ? {
-                            urlkey: entry.cdxEntry.revisitEntry.urlkey,
-                            timestamp: entry.cdxEntry.revisitEntry.timestamp,
-                            url: entry.cdxEntry.revisitEntry.url,
-                            status: cleanupStatusString(entry.cdxEntry.revisitEntry.status),
-                            digest: entry.cdxEntry.revisitEntry.digest ?? null,
-                            mimetype: entry.cdxEntry.revisitEntry.mimetype,
-                            filename: entry.archiveFilename ?? entry.cdxEntry.revisitEntry.filename ?? null,
-                            offset: entry.cdxEntry.revisitEntry.offset ?? null,
-                            length: entry.cdxEntry.revisitEntry.length ?? null,
-                        } : undefined
-                    },
-                    wayback: {
-                        mementoDatetime: entry.headers?.['memento-datetime'] ?
-                            DateTime.fromHTTP(entry.headers?.['memento-datetime']).setZone('UTC').toISO({ suppressMilliseconds: true })
-                            :
-                            undefined,
-                        ...entry.metadata?.wayback
-                    }
-                }
-                // TODO: Validation errors etc?
-            };
-            fs.writeFileSync(captureDataPath, JSON.stringify(captureData, null, 2));
-            const mtime = new Date(entry.captureTimestamp.toJSDate());
-            fs.utimesSync(captureDataPath, mtime, mtime);
+        const entryFilename = structuredClone(headerFilename);
+        if (entry.classification !== "ok") {
+            entryFilename.flags = "invalid";
         }
+        entryFilename.timestamp = entry.captureTimestamp.toFormat('yyyyLLddHHmmss');
+        let outputFilename = filenameToString(entryFilename, 'full');
+        let counter = 1;
+        while (encounteredFilenames.has(outputFilename)) {
+            outputFilename = filenameToString(entryFilename, 'full', counter);
+            counter++;
+        }
+        encounteredFilenames.add(outputFilename);
+
+        const exactModificationDate = getExactModificationDate(entry);
+        if (!exactModificationDate && entry.headers?.['x-archive-orig-etag']) {
+            console.log(`Could not determine exact modification date for ${entry.url} captured at ${entry.captureTimestamp.toISO({ suppressMilliseconds: true })}`);
+        }
+        const exactCaptureDate = getExactCaptureDate(entry);
+
+        const mainCdxEntry = entry.cdxEntry.revisitEntry ?? entry.cdxEntry;
+        const resolvedRevisitCdxEntry = entry.cdxEntry.revisitEntry ? entry.cdxEntry : undefined;
+
+        const headersResult = entry.headers && entry.rawHeaders
+            ? cleanupWaybackHeaders(entry.url, entry.headers, entry.rawHeaders)
+            : undefined;
+
+        const inlineElementsOf = new Set<unknown[]>();
+        if (headersResult?.original) inlineElementsOf.add(headersResult.original);
+        if (headersResult?.reconstructed) inlineElementsOf.add(headersResult.reconstructed);
+        
+        const captureDataPath = path.join(archivalDir, `${outputFilename}.capture.json`);        
+        const captureData = {
+            url: entry.url,
+            captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
+            captureTimePrecise: exactCaptureDate ?? undefined,
+            status: cleanupStatusString(entry.statusCode),
+            modificationTime: entry.lastModified ? entry.lastModified.toISO({ suppressMilliseconds: true }) : undefined,
+            modificationTimePrecise: exactModificationDate?.modificationTimePrecise ?? undefined,
+            modificationTimePreciseCandidates: exactModificationDate?.plausiblePreciseModificationDates ?? undefined,
+            headers: headersResult,
+            captureData: {
+                source: entry.archiveSource,
+                sha256: entry.originalSha256 ?? entry.sha256,
+                actualDigest: entry.actualDigest,
+                classification: entry.classification,
+                classificationDetails: entry.metadata?.classificationDetails,
+                cdxEntry: {
+                    urlkey: mainCdxEntry.urlkey,
+                    timestamp: mainCdxEntry.timestamp,
+                    url: mainCdxEntry.url,
+                    status: cleanupStatusString(mainCdxEntry.status),
+                    digest: mainCdxEntry.digest ?? null,
+                    mimetype: mainCdxEntry.mimetype,
+                    filename: entry.archiveFilename ?? mainCdxEntry.filename ?? null,
+                    offset: mainCdxEntry.offset ?? null,
+                    length: mainCdxEntry.length ?? null,
+                },
+                cdxEntryRevisitResolved: resolvedRevisitCdxEntry ? {
+                    urlkey: resolvedRevisitCdxEntry.urlkey,
+                    timestamp: resolvedRevisitCdxEntry.timestamp,
+                    url: resolvedRevisitCdxEntry.url,
+                    status: cleanupStatusString(resolvedRevisitCdxEntry.status),
+                    digest: resolvedRevisitCdxEntry.digest ?? null,
+                    mimetype: resolvedRevisitCdxEntry.mimetype,
+                    filename: entry.archiveFilename ?? resolvedRevisitCdxEntry.filename ?? null,
+                    offset: resolvedRevisitCdxEntry.offset ?? null,
+                    length: resolvedRevisitCdxEntry.length ?? null,
+                } : undefined,
+                wayback: {
+                    mementoDateTime: entry.headers?.['memento-datetime'] ?
+                        DateTime.fromHTTP(entry.headers?.['memento-datetime']).setZone('UTC').toISO({ suppressMilliseconds: true })
+                        :
+                        undefined,
+                    ...entry.metadata?.wayback
+                }
+            }
+            // TODO: Validation errors etc?
+        };
+        fs.writeFileSync(captureDataPath, stringifyWithInlineTuples(captureData, inlineElementsOf));
+        const mtime = new Date(entry.captureTimestamp.toJSDate());
+        fs.utimesSync(captureDataPath, mtime, mtime);
     });
 }

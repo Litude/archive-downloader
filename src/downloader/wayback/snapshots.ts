@@ -211,7 +211,7 @@ async function resolveDuplicateSnapshots(snapshots: CdxEntry[], limitedCaptures:
             if (matchingSnapshots.length > 0) {
               console.log(`Resolved duplicate snapshots for ${actualSnapShot.url} at ${timestamp}: status ${actualSnapShot.status}`);
               const snapshot = getMergedSnapshot(matchingSnapshots);
-              snapshot.headers = result.headers;
+              snapshot.metadata = { headers: result.headers, rawHeaders: result.rawHeaders };
               uniqueSnapshots.push(snapshot);
               filteredSnapshots += snapshotsAtTimestamp.length - 1;
               break;

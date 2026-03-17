@@ -8,6 +8,7 @@ import { preventAxiosRedirects } from "../../utils/axios-utils";
 import { getWaybackCaptureBaseUrl } from "../../utils/address";
 import { CdxEntry } from "../../types/wayback-types";
 import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common";
+import { parseRawHeadersToPairs } from "../../utils/raw-header-parser";
 
 const WEB_ARCHIVE = 'web.archive.org/web';
 const REQUEST_TIMEOUT = 60_000; // 60 seconds
@@ -159,7 +160,15 @@ export async function fetchWaybackFile(
       };
       const classification = ["301", "302"].includes(statusCode) && !response.headers['x-archive-src'] ? "unavailable" : undefined;
       const content = Buffer.from(response.data);
-      return { content, url, timestamp, headers: response.headers, classification, statusCode: response.status.toString() };
+      return {
+        content,
+        url,
+        timestamp,
+        headers: response.headers,
+        rawHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders),
+        classification,
+        statusCode: response.status.toString()
+      };
     } catch (e: unknown) {
       if (e instanceof Error && e.message === "incorrect header check") {
         // This seems to happen sometimes with corrupted gzip data
@@ -207,7 +216,7 @@ export async function fetchWaybackFileHeaders(
       if (ERROR_STATUS_CODES.includes(response.status)) {
         throw new Error(`HTTP ${response.status}`);
       }
-      return { url, timestamp, headers: response.headers, statusCode: response.status.toString() };
+      return { url, timestamp, headers: response.headers, rawHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders), statusCode: response.status.toString() };
     } catch (e: unknown) {
       console.log(`Error fetching headers for ${timestamp}-${url}: ${e}, retrying in ${backoff / 1000}s...`);
       await new Promise(res => setTimeout(res, backoff));
@@ -237,7 +246,15 @@ async function fetchCorruptFileWithoutDecompression(
         throw new Error(`HTTP ${response.status}`);
       }
       const content = Buffer.from(response.data);
-      return { content, url, timestamp, headers: response.headers, classification: "corrupt", statusCode: response.status.toString() };
+      return {
+        content,
+        url,
+        timestamp,
+        headers: response.headers,
+        rawHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders),
+        classification: "corrupt",
+        statusCode: response.status.toString()
+      };
     } catch (e: unknown) {
       console.log(`Error fetching raw file for ${url}: ${e}, retrying in ${backoff / 1000}s...`);
       await new Promise(res => setTimeout(res, backoff));
@@ -258,12 +275,13 @@ async function fetchPartialFile(
   while (true) {
     try {
       console.log(`Fetching partial file content for ${timestamp}-${url} (attempt ${attempt})...`);
-      const { buffer, headers, valid, fetchedLength } = await fetchPartiallyArchivedFileData(waybackUrl, statusCode);
+      const { buffer, headers, rawHeaders, valid, fetchedLength } = await fetchPartiallyArchivedFileData(waybackUrl, statusCode);
       return {
         content: buffer,
         url,
         timestamp,
         headers,
+        rawHeaders,
         classification: !valid ? "corrupt" : undefined,
         metadata: !valid ? {
           classificationDetails: {

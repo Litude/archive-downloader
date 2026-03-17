@@ -1,3 +1,5 @@
+import { RawHeader } from "../utils/raw-header-parser";
+
 export interface CdxEntry {
   urlkey: string;
   timestamp: string;
@@ -9,8 +11,11 @@ export interface CdxEntry {
   offset?: number;
   length?: number;
   source: string;
-  /** For entries that were originally warc/revisit and are resolved, this contains the original entry with warc/revisit content type */
+  /** For entries that were originally warc/revisit and are resolved, this contains the original entry with the warc/revisit content type */
   revisitEntry?: CdxEntry;
-  isWarcRevisit?: boolean;
-  headers?: Record<string, any>;
+  /** Things stored by the processing pipeline not part of the actual cdx entry */
+  metadata?: {
+    headers: Record<string, string>;
+    rawHeaders: RawHeader[];
+  }
 }

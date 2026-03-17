@@ -102,7 +102,6 @@ async function processWebsiteDownloads(
 
         const filename = structuredClone(input.filename);
         filename.queryParams = Object.assign(filename.queryParams ?? {}, queryParams);
-        //filename.queryHashParameters = input.queryHashParameters;
 
         const updatedEntries = validBaseEntries.map(entry => ({ ...entry }));
 
@@ -148,9 +147,9 @@ async function processWebsiteDownloads(
       }
     }
 
-    // if (metadata) {
-    //   writeUrlMetadata(metadata, input.filename, input.outputDirectory);
-    // }
+    if (metadata) {
+      writeUrlMetadata(metadata, input.filename, input.outputDirectory);
+    }
 
 
     console.log('\n----------------------------------------\n');

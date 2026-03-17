@@ -96,10 +96,11 @@ export async function downloadWaybackEntries(
       const downloadedFile = entry.digest ? uniqueDigestFiles.get(entry.digest) : undefined;
 
       const downloadIsExactMatch = downloadedFile && entry.url === downloadedFile.url && entry.timestamp === downloadedFile.timestamp;
-      const timestamps = downloadedFile ? parseHeaderTimestamps(downloadedFile.url, downloadedFile.headers, entry.timestamp, downloadIsExactMatch ?? false) : { captureDate: DateTime.fromFormat(entry.timestamp, 'yyyyLLddHHmmss', { zone: 'utc' }) as DateTime<true>, lastModified: null };
-      const waybackFilename = peekAllFiles && downloadIsExactMatch ? getWaybackFilename(downloadedFile.headers) : undefined;
-      const lastModified = (downloadIsExactMatch || !peekAllFiles) ? timestamps.lastModified : null;
-      const headers = downloadIsExactMatch ? downloadedFile.headers : undefined;
+      const headers = downloadIsExactMatch ? downloadedFile.headers : entry.metadata?.headers;
+      const rawHeaders = downloadIsExactMatch ? downloadedFile.rawHeaders : entry.metadata?.rawHeaders;
+      const timestamps = headers ? parseHeaderTimestamps(entry.url, headers, entry.timestamp, true) : { captureDate: DateTime.fromFormat(entry.timestamp, 'yyyyLLddHHmmss', { zone: 'utc' }) as DateTime<true>, lastModified: null };
+      const waybackFilename = peekAllFiles && headers ? getWaybackFilename(headers) : undefined;
+      const lastModified = timestamps.lastModified;
 
       return {
         timestamp: entry.timestamp,
@@ -121,6 +122,7 @@ export async function downloadWaybackEntries(
         content: downloadedFile?.content,
         downloadStatus: downloadIsExactMatch ? 'downloaded' : 'digest-match',
         headers,
+        rawHeaders,
         metadata: downloadIsExactMatch ? downloadedFile.metadata : undefined,
       }
     }
@@ -151,6 +153,7 @@ export async function downloadWaybackEntries(
       content: Buffer.alloc(0),
       downloadStatus: 'unavailable',
       headers: undefined,
+      rawHeaders: undefined,
       metadata: undefined,
     };
   });
@@ -165,7 +168,11 @@ export async function downloadWaybackEntries(
 
   // If peekAllFiles is enabled, we need to query wayback for the headers of all files that were not downloaded exactly
   if (peekAllFiles) {
-    const entriesToPeek = baseEntries.filter(entry => entry.downloadStatus !== 'downloaded');
+    const entriesToPeek = baseEntries.filter(entry => !entry.headers);
+    const prefetchedHeaders = baseEntries.filter(entry => entry.headers && entry.downloadStatus !== "downloaded").length;
+    if (prefetchedHeaders > 0) {
+      console.log(`Note: ${prefetchedHeaders} entries have had their headers already fetched.`);
+    }
     console.log(`Headers to fetch for entries that were not downloaded: ${entriesToPeek.length}`);
     let currentIndex = 0;
     for (const entry of entriesToPeek) {
@@ -180,6 +187,7 @@ export async function downloadWaybackEntries(
       existingEntry.lastModified = timestamps.lastModified;
       existingEntry.archiveFilename = waybackFilename;
       existingEntry.headers = response.headers;
+      existingEntry.rawHeaders = response.rawHeaders;
     }
   }
 
@@ -219,13 +227,15 @@ export async function downloadWaybackEntries(
               sponsor: metadata.sponsor && metadata.sponsor !== metadata.contributor ? metadata.sponsor : undefined,
               description: metadata.description,
               coverage: metadata.coverage,
+              notes: metadata.notes,
               crawler: metadata.crawler,
               crawljob: metadata.crawljob ?? metadata['pwacrawlid'],
               numPages: metadata.imagecount ? parseInt(metadata.imagecount) : undefined,
               numWarcs: metadata.numwarcs ? parseInt(metadata.numwarcs) : undefined,
               numArcs: metadata.numarcs ? parseInt(metadata.numarcs) : undefined,
-              firstFileDate: DateTime.fromFormat(metadata.firstfiledate, 'yyyyMMddHHmmss').setZone('UTC').toISO({ suppressMilliseconds: true }) ?? undefined,
-              lastFileDate: DateTime.fromFormat(metadata.lastfiledate, 'yyyyMMddHHmmss').setZone('UTC').toISO({ suppressMilliseconds: true }) ?? undefined,
+              // sometimes these are not valid dates (have they been written manually?), so we fallback to the original string if parsing fails
+              firstFileDate: DateTime.fromFormat(metadata.firstfiledate, 'yyyyMMddHHmmss').setZone('UTC').toISO({ suppressMilliseconds: true }) ?? metadata.firstfiledate,
+              lastFileDate: DateTime.fromFormat(metadata.lastfiledate, 'yyyyMMddHHmmss').setZone('UTC').toISO({ suppressMilliseconds: true }) ?? metadata.lastfiledate,
               collections: collections.map(col => ({
                 id: col.identifier,
                 title: col.title,

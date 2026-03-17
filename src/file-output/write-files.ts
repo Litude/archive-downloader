@@ -86,12 +86,6 @@ export function writeUniqueFileEntries(captureEntries: CaptureEntry[], filename:
             fs.writeFileSync(untransformedPath, untransformedName);
             console.log(`Saved original query string to ${untransformedPath}`);
         }
-
-        // if  (entry.metadata) {
-        //     const metadataPath = path.join(archivalDir, `${outputFilename}.metadata.json`);
-        //     fs.writeFileSync(metadataPath, JSON.stringify(entry.metadata, null, 2));
-        //     console.log(`Saved metadata to ${metadataPath}`);
-        // }
     });
 
     console.log(`${filenameToString(filename, 'simple')} - Total capture entries processed: ${captureEntries.length}`);

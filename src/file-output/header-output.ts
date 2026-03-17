@@ -1,3 +1,5 @@
+import { RawHeader } from "../utils/raw-header-parser";
+
 const ARCHIVED_COMMON_HEADERS = ['content-type', 'content-length', 'location', 'content-location', 'content-base', 'content-disposition'];
 const WAYBACK_ORIGINAL_HEADER_PREFIX = 'x-archive-orig-';
 const COMMONCRAWL_ADDED_HEADER = 'x-archive-orig-x_commoncrawl_';
@@ -5,6 +7,7 @@ const ADDRESS_HEADERS = ['location', 'content-location', 'content-base'];
 
 const IisServerHeaderNames: Record<string, string> = {
     'etag': 'ETag',
+    'vtag': 'VTag',
     'p3p': 'P3P',
     'microsoftofficewebserver': 'MicrosoftOfficeWebServer',
     'x-aspnet-version': 'X-AspNet-Version',
@@ -68,31 +71,38 @@ function cleanupUrlHeader(url: string, location: string): string {
 
 }
 
-export function cleanupWaybackHeaders(url: string, headers: Record<string, string>): { original?: Record<string, string>; reconstructed?: Record<string, string> } {
-    const originalHeaders: Record<string, string> = {};
-    const reconstructedHeaders: Record<string, string> = {};
+export function cleanupWaybackHeaders(
+    url: string,
+    headers: Record<string, string>,
+    rawHeaders: RawHeader[]
+): {
+    original?: RawHeader[];
+    reconstructed?: RawHeader[];
+} {
+    const originalHeaders: RawHeader[] = [];
+    const reconstructedHeaders: RawHeader[] = [];
     const encounteredOriginalKeys = new Set<string>();
-    const server = headers['x-archive-orig-server'] || headers['server'];
+    const server = headers['x-archive-orig-server'];
 
-    for (const [key, value] of Object.entries(headers)) {
+    for (const [key, value] of rawHeaders) {
         if (isOriginalCaptureHeader(key)) {
             const originalKey = key.substring(WAYBACK_ORIGINAL_HEADER_PREFIX.length);
             encounteredOriginalKeys.add(originalKey.toLowerCase());
             const fixedOriginalKey = getFixedHeaderName(originalKey, server);
-            originalHeaders[fixedOriginalKey] = value;
+            originalHeaders.push([fixedOriginalKey, value]);
         }
     }
 
-    for (const [key, value] of Object.entries(headers)) {
+    for (const [key, value] of rawHeaders) {
         const lowerKey = key.toLowerCase();
         const fixedKey = getFixedHeaderName(lowerKey, server);
         if (ARCHIVED_COMMON_HEADERS.includes(lowerKey) && !encounteredOriginalKeys.has(lowerKey)) {
-            reconstructedHeaders[fixedKey] = ADDRESS_HEADERS.includes(lowerKey) ? cleanupUrlHeader(url, value) : value;
+            reconstructedHeaders.push([fixedKey, ADDRESS_HEADERS.includes(lowerKey) ? cleanupUrlHeader(url, value) : value]);
         }
     }
 
     return {
-        original: Object.keys(originalHeaders).length ? originalHeaders : undefined,
-        reconstructed: Object.keys(reconstructedHeaders).length ? reconstructedHeaders : undefined,
+        original: originalHeaders.length ? originalHeaders : undefined,
+        reconstructed: reconstructedHeaders.length ? reconstructedHeaders : undefined,
     }
 }
