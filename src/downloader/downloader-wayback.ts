@@ -12,6 +12,7 @@ import { CdxEntry } from "../types/wayback-types";
 import { DownloadFileInput } from "../types/download-input-types";
 import { Context } from "../types/context";
 import { getWaybackItemMetadata } from "./wayback/item-metadata";
+import { checkArchiveRecordPublicAvailability, fetchArchiveCdx, fetchArchiveRecord } from "./wayback/archive-record";
 
 function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
   const digestHashes = new Map<string, { sha256: string; actualDigest: string }>();
@@ -61,6 +62,7 @@ export async function downloadWaybackEntries(
   );
   const peekAllFiles = context.settings.peekAllFiles;
   const fetchMetadata = context.settings.fetchMetadata;
+  const fetchOriginalRecord = context.settings.fetchOriginalRecord;
   const allEntries = [...validCdxEntries, ...invalidCdxEntries];
   const uniqueDigestFiles = await downloadUniqueDigestsForSnapshots(allEntries.filter(entry => !isEntrySkipped(entry, input.skippedCaptures)));
   const digestFileHashes = computeDigestHashes(uniqueDigestFiles);
@@ -78,11 +80,6 @@ export async function downloadWaybackEntries(
         statusCode: entry.status,
         classification: 'skipped' as const,
         mimetype: entry.mimetype,
-        archiveDigest: entry.digest,
-        archiveFilename: undefined,
-        archiveLength: peekAllFiles ? entry.length : undefined,
-        archiveOffset: entry.offset,
-        archiveSource: entry.source,
         actualDigest: undefined,
         sha256: undefined,
         originalSha256: undefined,
@@ -105,17 +102,21 @@ export async function downloadWaybackEntries(
       return {
         timestamp: entry.timestamp,
         captureTimestamp: timestamps.captureDate,
-        cdxEntry: entry,
+        cdxEntry: {
+          ...entry,
+          filename: waybackFilename ?? entry.filename,
+          revisitEntry: entry.revisitEntry ?
+            {
+              ...entry.revisitEntry,
+              filename: waybackFilename ?? entry.revisitEntry.filename
+            }
+            : undefined
+        },
         lastModified,
         url: entry.url,
         statusCode: entry.status,
         classification: entry.digest ? classifiedEntries.get(entry.digest)! : "unavailable",
         mimetype: entry.mimetype,
-        archiveDigest: entry.digest,
-        archiveFilename: waybackFilename,
-        archiveLength: peekAllFiles ? entry.length : undefined,
-        archiveOffset: entry.offset,
-        archiveSource: entry.source,
         actualDigest: entry.digest ? digestFileHashes.get(entry.digest)!.actualDigest : undefined,
         sha256: entry.digest ? digestFileHashes.get(entry.digest)!.sha256 : undefined,
         originalSha256: entry.digest ? digestFileHashes.get(entry.digest)!.sha256 : undefined,
@@ -142,11 +143,6 @@ export async function downloadWaybackEntries(
       statusCode: entry.statusCode,
       classification: entry.classification,
       mimetype: entry.mimetype,
-      archiveDigest: entry.archiveDigest,
-      archiveFilename: undefined,
-      archiveLength: entry.archiveLength,
-      archiveOffset: entry.archiveOffset,
-      archiveSource: entry.archiveSource,
       actualDigest: '',
       sha256: '',
       originalSha256: undefined,
@@ -177,7 +173,7 @@ export async function downloadWaybackEntries(
     let currentIndex = 0;
     for (const entry of entriesToPeek) {
       console.log(`Fetching headers for ${entry.url} at ${entry.timestamp} (${++currentIndex}/${entriesToPeek.length}): `);
-      const response = await fetchWaybackFileHeaders(entry.timestamp, entry.url, [entry.statusCode]);
+      const response = await fetchWaybackFileHeaders(entry.timestamp, entry.url, entry.statusCode ? [entry.statusCode] : undefined);
       const timestamps = parseHeaderTimestamps(entry.url, response.headers, entry.timestamp, true);
       const waybackFilename = getWaybackFilename(response.headers);
       const existingEntry = baseEntries.find(e => e.url === entry.url && e.timestamp === entry.timestamp);
@@ -185,17 +181,17 @@ export async function downloadWaybackEntries(
         throw new Error(`Existing entry for ${entry.url} at ${entry.timestamp} not found?!`);
       }
       existingEntry.lastModified = timestamps.lastModified;
-      existingEntry.archiveFilename = waybackFilename;
       existingEntry.headers = response.headers;
       existingEntry.rawHeaders = response.rawHeaders;
+      existingEntry.cdxEntry.filename = waybackFilename;
     }
   }
 
   if (fetchMetadata) {
     console.log(`Fetching metadata for all entries...`);
     for (const entry of baseEntries) {
-      if (entry.archiveFilename) {
-        const itemId = entry.archiveFilename.split('/')[0];
+      if (entry.cdxEntry.filename) {
+        const itemId = entry.cdxEntry.filename.split('/')[0];
         if (itemId) {
           const metadata = await getWaybackItemMetadata(itemId)
           const collections = [];
@@ -233,9 +229,6 @@ export async function downloadWaybackEntries(
               numPages: metadata.imagecount ? parseInt(metadata.imagecount) : undefined,
               numWarcs: metadata.numwarcs ? parseInt(metadata.numwarcs) : undefined,
               numArcs: metadata.numarcs ? parseInt(metadata.numarcs) : undefined,
-              // sometimes these are not valid dates (have they been written manually?), so we fallback to the original string if parsing fails
-              firstFileDate: DateTime.fromFormat(metadata.firstfiledate, 'yyyyMMddHHmmss').setZone('UTC').toISO({ suppressMilliseconds: true }) ?? metadata.firstfiledate,
-              lastFileDate: DateTime.fromFormat(metadata.lastfiledate, 'yyyyMMddHHmmss').setZone('UTC').toISO({ suppressMilliseconds: true }) ?? metadata.lastfiledate,
               collections: collections.map(col => ({
                 id: col.identifier,
                 title: col.title,
@@ -247,6 +240,28 @@ export async function downloadWaybackEntries(
             entry.metadata = {};
           }
           entry.metadata.wayback = parsedData;
+        }
+      }
+    }
+  }
+
+  if (fetchOriginalRecord) {
+    console.log(`Fetching original records for all entries...`);
+    for (const entry of baseEntries) {
+      if (entry.cdxEntry.filename) {
+        const available = await checkArchiveRecordPublicAvailability(entry.cdxEntry.filename);
+        if (!available) {
+          console.log(`Original record for ${entry.cdxEntry.filename} is NOT publicly available.`);
+        }
+        else {
+          console.log(`Original record for ${entry.cdxEntry.filename} IS publicly available!`);
+          const fullCdx = await fetchArchiveCdx(entry);
+          entry.cdxEntry.offset = fullCdx.offset;
+          if (entry.cdxEntry.revisitEntry) {
+              entry.cdxEntry.revisitEntry.offset = fullCdx.offset;
+          }
+          const records = await fetchArchiveRecord(entry);
+          entry.records = records;
         }
       }
     }

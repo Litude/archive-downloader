@@ -8,6 +8,7 @@ export interface Context {
     writeHeaders?: boolean
     skipOn302?: boolean;
     fetchMetadata?: boolean;
+    fetchOriginalRecord?: boolean;
   }
 }
 

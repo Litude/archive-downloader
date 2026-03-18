@@ -42,6 +42,7 @@ async function processWebsiteDownloads(
       peekAllFiles,
       writeHeaders,
       fetchMetadata: true,
+      fetchOriginalRecord: true,
     },
     fileContext: {},
   };

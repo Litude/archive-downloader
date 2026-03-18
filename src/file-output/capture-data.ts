@@ -145,14 +145,6 @@ function getExactCaptureDate(captureEntry: CaptureEntry): string | null {
     return null;
 }
 
-function cleanupStatusString(status: string): number | null {
-    if (!status || status === '-') {
-        return null;
-    }
-    const parsed = parseInt(status);
-    return isNaN(parsed) ? null : parsed;
-}
-
 /** Use for custom formatting of e.g. header tuples */
 function stringifyWithInlineTuples(data: unknown, inlineElementsOf: Set<unknown[]>): string {
     const placeholders = new Map<string, string>();
@@ -225,13 +217,13 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
             url: entry.url,
             captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
             captureTimePrecise: exactCaptureDate ?? undefined,
-            status: cleanupStatusString(entry.statusCode),
+            status: entry.statusCode,
             modificationTime: entry.lastModified ? entry.lastModified.toISO({ suppressMilliseconds: true }) : undefined,
             modificationTimePrecise: exactModificationDate?.modificationTimePrecise ?? undefined,
             modificationTimePreciseCandidates: exactModificationDate?.plausiblePreciseModificationDates ?? undefined,
             headers: headersResult,
             captureData: {
-                source: entry.archiveSource,
+                source: entry.cdxEntry.source,
                 sha256: entry.originalSha256 ?? entry.sha256,
                 actualDigest: entry.actualDigest,
                 classification: entry.classification,
@@ -240,10 +232,10 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
                     urlkey: mainCdxEntry.urlkey,
                     timestamp: mainCdxEntry.timestamp,
                     url: mainCdxEntry.url,
-                    status: cleanupStatusString(mainCdxEntry.status),
+                    status: mainCdxEntry.status,
                     digest: mainCdxEntry.digest ?? null,
                     mimetype: mainCdxEntry.mimetype,
-                    filename: entry.archiveFilename ?? mainCdxEntry.filename ?? null,
+                    filename: mainCdxEntry.filename ?? null,
                     offset: mainCdxEntry.offset ?? null,
                     length: mainCdxEntry.length ?? null,
                 },
@@ -251,10 +243,10 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
                     urlkey: resolvedRevisitCdxEntry.urlkey,
                     timestamp: resolvedRevisitCdxEntry.timestamp,
                     url: resolvedRevisitCdxEntry.url,
-                    status: cleanupStatusString(resolvedRevisitCdxEntry.status),
+                    status: resolvedRevisitCdxEntry.status,
                     digest: resolvedRevisitCdxEntry.digest ?? null,
                     mimetype: resolvedRevisitCdxEntry.mimetype,
-                    filename: entry.archiveFilename ?? resolvedRevisitCdxEntry.filename ?? null,
+                    filename: resolvedRevisitCdxEntry.filename ?? null,
                     offset: resolvedRevisitCdxEntry.offset ?? null,
                     length: resolvedRevisitCdxEntry.length ?? null,
                 } : undefined,
@@ -271,5 +263,13 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
         fs.writeFileSync(captureDataPath, stringifyWithInlineTuples(captureData, inlineElementsOf));
         const mtime = new Date(entry.captureTimestamp.toJSDate());
         fs.utimesSync(captureDataPath, mtime, mtime);
+
+        if (entry.records) {
+            for (const record of entry.records) {
+                const recordPath = path.join(archivalDir, `${outputFilename}.record.${record.type}`);
+                fs.writeFileSync(recordPath, record.content);
+                fs.utimesSync(recordPath, mtime, mtime);
+            }
+        }
     });
 }

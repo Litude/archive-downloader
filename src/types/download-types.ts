@@ -8,5 +8,5 @@ export interface DownloadedFile {
   rawHeaders: RawHeader[];
   metadata?: Record<string, any>;
   classification?: "corrupt" | "unavailable";
-  statusCode: string;
+  statusCode: number;
 }

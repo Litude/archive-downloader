@@ -2,7 +2,7 @@ import axios from 'axios';
 import { preventAxiosRedirects } from '../../utils/axios-utils';
 import { parseRawHeadersToPairs, RawHeader } from '../../utils/raw-header-parser';
 
-async function downloadToBufferWithRetry(url: string, requestHeaders: Record<string, string> = {}, statusCode: string) {
+async function downloadToBufferWithRetry(url: string, requestHeaders: Record<string, string> = {}, statusCode: number) {
   while (true) {
     try {
       return await downloadToBuffer(url, requestHeaders, statusCode);
@@ -19,7 +19,7 @@ async function downloadToBufferWithRetry(url: string, requestHeaders: Record<str
   }
 }
 
-async function downloadToBuffer(url: string, requestHeaders: Record<string, string> = {}, statusCode: string) {
+async function downloadToBuffer(url: string, requestHeaders: Record<string, string> = {}, statusCode: number) {
   const chunks: Buffer[] = [];
   let totalBytes = 0;
   let responseHeaders = {};
@@ -35,7 +35,7 @@ async function downloadToBuffer(url: string, requestHeaders: Record<string, stri
       timeout: 60000,
       ...preventAxiosRedirects,
       // Accept both full content and partial content responses, and also allow matching the expected status code (e.g. 404 for not found captures)
-      validateStatus: (status) => status === 200 || status === 206 || status === Number(statusCode),
+      validateStatus: (status) => status === 200 || status === 206 || status === statusCode,
       headers: { 
         'Accept-Encoding': 'identity',
         ...requestHeaders
@@ -84,7 +84,7 @@ async function downloadToBuffer(url: string, requestHeaders: Record<string, stri
   };
 }
 
-async function fetchAllBytes(url: string, statusCode: string, maxAttempts = 10) {
+async function fetchAllBytes(url: string, statusCode: number, maxAttempts = 10) {
   let allChunks = [];
   let offset = 0;
   let total = 0;
@@ -132,7 +132,7 @@ async function fetchAllBytes(url: string, statusCode: string, maxAttempts = 10) 
   };
 }
 
-export async function fetchPartiallyArchivedFileData(url: string, statusCode: string) {
+export async function fetchPartiallyArchivedFileData(url: string, statusCode: number) {
   // Example usage:
   const { buffer, headers, rawHeaders, completeDownload } = await fetchAllBytes(url, statusCode);
   let finalBuffer = buffer;

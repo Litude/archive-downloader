@@ -11,7 +11,7 @@ interface SummaryRow {
     capture_sha256?: string;
     output_sha256?: string;
     url: string;
-    statuscode: string;
+    statuscode?: number;
     classification: string;
     mimetype: string;
     wayback_digest?: string;
@@ -32,12 +32,12 @@ export async function writeCsvSummary(captureEntries: CaptureEntry[], filename: 
         statuscode: entry.statusCode,
         classification: entry.classification,
         mimetype: entry.mimetype,
-        archive_source: entry.archiveSource,
-        archive_digest: entry.archiveDigest,
+        archive_source: entry.cdxEntry.source,
+        archive_digest: entry.cdxEntry.digest,
         actual_digest: entry.actualDigest,
-        archive_filename: entry.archiveFilename,
-        archive_offset: entry.archiveOffset,
-        archive_length: entry.archiveLength
+        archive_filename: entry.cdxEntry.filename,
+        archive_offset: entry.cdxEntry.offset,
+        archive_length: entry.cdxEntry.length
     }));
 
     // Output sha256 column is only written if any files were post-processed/modified

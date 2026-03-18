@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import { DateTime } from "luxon";
 import { LimitedCaptureConfig, LimitedCaptureRange } from "../types/download-input-types";
-import { CdxEntry } from "../types/wayback-types";
+import { CdxEntry, ExtendedCdxEntry } from "../types/wayback-types";
 
 let defaultLimitedCaptures: LimitedCaptureConfig[] | null = null;
 function loadDefaultLimitedCaptureConfigs(): LimitedCaptureConfig[] {
@@ -19,7 +19,7 @@ function loadDefaultLimitedCaptureConfigs(): LimitedCaptureConfig[] {
   return limitedCaptureUrls;
 }
 
-export function checkForLimitedCaptureWithConfig(captures: CdxEntry[], limitedCaptureConfigs: LimitedCaptureConfig[]): LimitedCaptureRange[] {
+export function checkForLimitedCaptureWithConfig(captures: ExtendedCdxEntry[], limitedCaptureConfigs: LimitedCaptureConfig[]): LimitedCaptureRange[] {
     const results: LimitedCaptureRange[] = [];
     for (const config of limitedCaptureConfigs) {
         const inRange = captures.filter(snap => snap.timestamp >= config.startTimestamp && snap.timestamp <= config.endTimestamp);
@@ -35,7 +35,7 @@ export function checkForLimitedCaptureWithConfig(captures: CdxEntry[], limitedCa
     return results;
 }
 
-export function checkForLimitedCapture(captures: CdxEntry[]) {
+export function checkForLimitedCapture(captures: ExtendedCdxEntry[]) {
     const defaultLimitedCaptureUrls = loadDefaultLimitedCaptureConfigs();
     return checkForLimitedCaptureWithConfig(captures, defaultLimitedCaptureUrls);
 }
@@ -49,16 +49,16 @@ const THRESHOLD_MULTIPLIER = 0;
  * closest to evenly-spaced clock times (UTC). Target times are offset by
  * half an interval so spacing stays even across day boundaries.
  */
-export function selectByClockTime(dayCapturesSorted: CdxEntry[], capturesPerDay: number): CdxEntry[] {
+export function selectByClockTime(dayCapturesSorted: ExtendedCdxEntry[], capturesPerDay: number): ExtendedCdxEntry[] {
     const intervalMinutes = (24 * 60) / capturesPerDay;
     const targetMinutes: number[] = [];
     for (let i = 0; i < capturesPerDay; i++) {
         targetMinutes.push(intervalMinutes / 2 + i * intervalMinutes);
     }
 
-    const selected = new Set<CdxEntry>();
+    const selected = new Set<ExtendedCdxEntry>();
     for (const target of targetMinutes) {
-        let best: CdxEntry | null = null;
+        let best: ExtendedCdxEntry | null = null;
         let bestDist = Infinity;
         for (const snap of dayCapturesSorted) {
             const dt = DateTime.fromFormat(snap.timestamp, 'yyyyMMddHHmmss', { zone: 'utc' });
@@ -80,13 +80,13 @@ export function selectByClockTime(dayCapturesSorted: CdxEntry[], capturesPerDay:
  * Given a day's captures (sorted) and a target capturesPerDay, pick captures
  * at evenly-spaced indices.
  */
-export function selectByIndex(dayCapturesSorted: CdxEntry[], capturesPerDay: number): CdxEntry[] {
+export function selectByIndex(dayCapturesSorted: ExtendedCdxEntry[], capturesPerDay: number): ExtendedCdxEntry[] {
     const M = dayCapturesSorted.length;
     const N = Math.min(capturesPerDay, M);
     if (N <= 0) return [];
     if (N === 1) return [dayCapturesSorted[0]];
 
-    const selected = new Map<number, CdxEntry>();
+    const selected = new Map<number, ExtendedCdxEntry>();
     for (let i = 0; i < N; i++) {
         const idx = Math.round(i * (M - 1) / (N - 1));
         if (!selected.has(idx)) {
@@ -96,7 +96,7 @@ export function selectByIndex(dayCapturesSorted: CdxEntry[], capturesPerDay: num
     return [...selected.values()];
 }
 
-export function filterLimitedCapturesForUrl(snapshots: CdxEntry[], limitedCaptures: LimitedCaptureRange[], isMirror?: boolean): CdxEntry[] {
+export function filterLimitedCapturesForUrl(snapshots: ExtendedCdxEntry[], limitedCaptures: LimitedCaptureRange[], isMirror?: boolean): ExtendedCdxEntry[] {
     if (limitedCaptures.length === 0) {
         return snapshots;
     }
@@ -116,11 +116,11 @@ export function filterLimitedCapturesForUrl(snapshots: CdxEntry[], limitedCaptur
 
         // Only keep 200s for selection
         const capturesForThisRange = allInRange
-            .filter(snap => snap.status === '200')
+            .filter(snap => snap.status === 200)
             .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
         // Group by UTC date (YYYYMMDD)
-        const byDay = new Map<string, CdxEntry[]>();
+        const byDay = new Map<string, ExtendedCdxEntry[]>();
         for (const snap of capturesForThisRange) {
             const dayKey = snap.timestamp.slice(0, 8);
             let arr = byDay.get(dayKey);
@@ -132,7 +132,7 @@ export function filterLimitedCapturesForUrl(snapshots: CdxEntry[], limitedCaptur
         }
 
         for (const [, dayCaptures] of byDay) {
-            let daySelected: CdxEntry[];
+            let daySelected: ExtendedCdxEntry[];
             if (dayCaptures.length <= capturesPerDay) {
                 // Not enough captures to need filtering — keep all
                 daySelected = dayCaptures;
@@ -150,7 +150,7 @@ export function filterLimitedCapturesForUrl(snapshots: CdxEntry[], limitedCaptur
     }
 
     // Build result: selected captures from limited ranges + all captures outside any range
-    const result: CdxEntry[] = [];
+    const result: ExtendedCdxEntry[] = [];
     const seen = new Set<string>();
     for (const snap of snapshots) {
         if (seen.has(snap.timestamp)) continue;

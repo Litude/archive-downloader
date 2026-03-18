@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { CdxEntry } from '../types/wayback-types';
+import { CdxEntry, ExtendedCdxEntry } from '../types/wayback-types';
 import { LimitedCaptureRange } from '../types/download-input-types';
 import { filterLimitedCapturesForUrl, selectByClockTime, selectByIndex } from './limit-captures';
 
-function makeCdx(timestamp: string): CdxEntry {
+function makeCdx(timestamp: string): ExtendedCdxEntry {
     return {
         urlkey: 'com,example)/',
         timestamp,
         url: 'http://example.com/',
-        status: '200',
+        status: 200,
         digest: 'ABC123',
         mimetype: 'text/html',
         length: 100,
@@ -17,8 +17,8 @@ function makeCdx(timestamp: string): CdxEntry {
 }
 
 /** Generate captures for a single day at every hour (HH:00:00). */
-function makeHourlyCaptures(datePrefix: string): CdxEntry[] {
-    const captures: CdxEntry[] = [];
+function makeHourlyCaptures(datePrefix: string): ExtendedCdxEntry[] {
+    const captures: ExtendedCdxEntry[] = [];
     for (let h = 0; h < 24; h++) {
         captures.push(makeCdx(`${datePrefix}${String(h).padStart(2, '0')}0000`));
     }
@@ -28,8 +28,8 @@ function makeHourlyCaptures(datePrefix: string): CdxEntry[] {
 /**
  * Generate many captures for a single day (every 10 minutes = 144 captures).
  */
-function makeDenseCaptures(datePrefix: string): CdxEntry[] {
-    const captures: CdxEntry[] = [];
+function makeDenseCaptures(datePrefix: string): ExtendedCdxEntry[] {
+    const captures: ExtendedCdxEntry[] = [];
     for (let h = 0; h < 24; h++) {
         for (let m = 0; m < 60; m += 10) {
             captures.push(makeCdx(`${datePrefix}${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}00`));
@@ -91,7 +91,7 @@ describe('selectByClockTime', () => {
 describe('selectByIndex', () => {
     it('picks evenly spaced captures by index', () => {
         // 10 captures, pick 3 → indices 0, 5 (4.5 rounds to 5), 9
-        const captures: CdxEntry[] = [];
+        const captures: ExtendedCdxEntry[] = [];
         for (let i = 0; i < 10; i++) {
             captures.push(makeCdx(`2000100100${String(i).padStart(2, '0')}00`));
         }
@@ -191,7 +191,7 @@ describe('filterLimitedCapturesForUrl', () => {
     it('handles multiple days, each deciding algorithm independently', () => {
         // Day 1: 5 captures, capturesPerDay=3 → 5 > 3 and 5 <= 30 → index-based (picks 3)
         // Day 2: 2 captures, capturesPerDay=3 → 2 <= 3 → keep all (2)
-        const day1: CdxEntry[] = [];
+        const day1: ExtendedCdxEntry[] = [];
         for (let i = 0; i < 5; i++) {
             day1.push(makeCdx(`20001001${String(i * 4).padStart(2, '0')}0000`));
         }
@@ -229,14 +229,14 @@ describe('filterLimitedCapturesForUrl', () => {
     it('excludes non-200 captures within the limited range', () => {
         const snaps = [
             makeCdx('20001001030000'),
-            { ...makeCdx('20001001060000'), status: '302' },
-            { ...makeCdx('20001001090000'), status: '404' },
+            { ...makeCdx('20001001060000'), status: 302 },
+            { ...makeCdx('20001001090000'), status: 404 },
             makeCdx('20001001120000'),
             makeCdx('20001001180000'),
         ];
         const result = filterLimitedCapturesForUrl(snaps, [{ ...range, capturesPerDay: 12 }]);
         // Only the 3 captures with status 200 should remain
         expect(result).toHaveLength(3);
-        expect(result.every(s => s.status === '200')).toBe(true);
+        expect(result.every(s => s.status === 200)).toBe(true);
     });
 });

@@ -31,8 +31,8 @@ const selfRedirectUrls: { url: string, minTimestamp?: string }[] = JSON5.parse(
 // 2. Expected status code without x-archive-src header (self redirect)
 // 3. 301 or 302 response without x-archive-src header (self redirect, 301 might return 302 for these cases)
 // 4. 404 response without x-archive-src header (self redirect with no actual capture available)
-function isBetterRedirectResponse(response: AxiosResponse<any>, expectedStatusCode: string, bestResponse: AxiosResponse<any> | null): boolean {
-  if (!["301", "302", "404"].includes(response.status.toString())) {
+function isBetterRedirectResponse(response: AxiosResponse<any>, expectedStatusCode: number, bestResponse: AxiosResponse<any> | null): boolean {
+  if (![301, 302, 404].includes(response.status)) {
     return false;
   }
 
@@ -40,24 +40,24 @@ function isBetterRedirectResponse(response: AxiosResponse<any>, expectedStatusCo
     return true;
   }
   // This means we got the actual capture, but this function is not actually called in such cases
-  if (response.status.toString() === expectedStatusCode && response.headers['x-archive-src']) {
+  if (response.status === expectedStatusCode && response.headers['x-archive-src']) {
     return true;
   }
-  if (bestResponse.status.toString() === expectedStatusCode) {
+  if (bestResponse.status === expectedStatusCode) {
     return false;
   }
-  if (response.status.toString() === expectedStatusCode) {
+  if (response.status === expectedStatusCode) {
     return true;
   }
 
-  if (bestResponse.status === 404 && ["301", "302"].includes(response.status.toString())) {
+  if (bestResponse.status === 404 && [301, 302].includes(response.status)) {
     return true;
   }
 
   return false;
 }
 
-async function attemptToFetchRedirectUrl(waybackUrl: string, expectedStatusCode: string): Promise<AxiosResponse<any>> {
+async function attemptToFetchRedirectUrl(waybackUrl: string, expectedStatusCode: number): Promise<AxiosResponse<any>> {
   let errorAttempt = 0;
   let responseAttempt = 0;
   // 301 or 302 captures can be redirects from non-www to www and these captures are not available, so we attempt these captures fewer times before assuming they are unavailable.
@@ -81,7 +81,7 @@ async function attemptToFetchRedirectUrl(waybackUrl: string, expectedStatusCode:
       responseAttempt++;
       if (responseAttempt >= maxAttempts && bestResponse) {
         if (isPotentialSelfRedirect) {
-          if (response.status.toString() !== expectedStatusCode) {
+          if (response.status !== expectedStatusCode) {
             console.log(`Received ${response.status} for ${waybackUrl} which was expected to be a ${expectedStatusCode} after ${responseAttempt} attempts. Assuming that the capture is unavailable.`);
           }
           else {
@@ -94,7 +94,7 @@ async function attemptToFetchRedirectUrl(waybackUrl: string, expectedStatusCode:
           return bestResponse;
         }
       }
-      if (expectedStatusCode !== response.status.toString()) {
+      if (expectedStatusCode !== response.status) {
         console.log(`Received ${response.status} for ${waybackUrl} which was expected to be a ${expectedStatusCode}. Retrying in ${responseBackoff / 1000} seconds (Attempt ${responseAttempt})`);
       }
       else {
@@ -111,15 +111,15 @@ async function attemptToFetchRedirectUrl(waybackUrl: string, expectedStatusCode:
   }
 }
 
-async function getResponse(waybackUrl: string, statusCode: string) {
-  if (statusCode && !statusCode.startsWith('2')) {
-    if (["301", "302"].includes(statusCode)) {
+async function getResponse(waybackUrl: string, statusCode: number) {
+  if (statusCode && statusCode >= 300) {
+    if ([301, 302].includes(statusCode)) {
       // 302 can also be returned by the web archive when the capture is temporarily unavailable. And incase the original 302 capture was a self redirect, the response will be identical to an unavailable capture.
       // Best we can do is attempt a few times and if we keep getting 302 responses, we can assume the capture is unavailable
       return attemptToFetchRedirectUrl(waybackUrl, statusCode);
     }
-    else if (["403", "404"].includes(statusCode)) {
-      return axios.get(waybackUrl, { headers: REQUEST_HEADERS, ...preventAxiosRedirects, responseType: 'arraybuffer', validateStatus: status => status === Number(statusCode), timeout: REQUEST_TIMEOUT });
+    else if ([403, 404].includes(statusCode)) {
+      return axios.get(waybackUrl, { headers: REQUEST_HEADERS, ...preventAxiosRedirects, responseType: 'arraybuffer', validateStatus: status => status === statusCode, timeout: REQUEST_TIMEOUT });
     }
     else {
       throw new Error(`Unsupported status code for special fetch: ${statusCode}`);
@@ -130,13 +130,13 @@ async function getResponse(waybackUrl: string, statusCode: string) {
   }
 }
 
-function getResponseHeaders(waybackUrl: string, statusCodes?: string[]) {
+function getResponseHeaders(waybackUrl: string, statusCodes?: number[]) {
   return axios.head(
     waybackUrl, {
       headers: REQUEST_HEADERS,
       maxRedirects: 0,
       timeout: REQUEST_TIMEOUT,
-      validateStatus: status => (statusCodes ? statusCodes.includes(status.toString()) : true)
+      validateStatus: status => (statusCodes ? statusCodes.includes(status) : true)
     }
   );
 }
@@ -144,7 +144,7 @@ function getResponseHeaders(waybackUrl: string, statusCodes?: string[]) {
 export async function fetchWaybackFile(
     timestamp: string,
     url: string,
-    statusCode: string
+    statusCode: number
 ): Promise<DownloadedFile> {
   let attempt = 1;
   let headersErrorCount = 0;
@@ -158,7 +158,7 @@ export async function fetchWaybackFile(
       if (ERROR_STATUS_CODES.includes(response.status)) {
         throw new Error(`HTTP ${response.status}`)
       };
-      const classification = ["301", "302"].includes(statusCode) && !response.headers['x-archive-src'] ? "unavailable" : undefined;
+      const classification = [301, 302].includes(statusCode) && !response.headers['x-archive-src'] ? "unavailable" : undefined;
       const content = Buffer.from(response.data);
       return {
         content,
@@ -167,7 +167,7 @@ export async function fetchWaybackFile(
         headers: response.headers,
         rawHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders),
         classification,
-        statusCode: response.status.toString()
+        statusCode: response.status
       };
     } catch (e: unknown) {
       if (e instanceof Error && e.message === "incorrect header check") {
@@ -204,7 +204,7 @@ export async function fetchWaybackFile(
 export async function fetchWaybackFileHeaders(
   timestamp: string,
   url: string,
-  statusCodes?: string[]
+  statusCodes?: number[]
 ): Promise<Omit<DownloadedFile, 'content' | 'corrupt'>> {
   let attempt = 1;
   let backoff = INITIAL_BACKOFF;
@@ -216,7 +216,7 @@ export async function fetchWaybackFileHeaders(
       if (ERROR_STATUS_CODES.includes(response.status)) {
         throw new Error(`HTTP ${response.status}`);
       }
-      return { url, timestamp, headers: response.headers, rawHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders), statusCode: response.status.toString() };
+      return { url, timestamp, headers: response.headers, rawHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders), statusCode: response.status };
     } catch (e: unknown) {
       console.log(`Error fetching headers for ${timestamp}-${url}: ${e}, retrying in ${backoff / 1000}s...`);
       await new Promise(res => setTimeout(res, backoff));
@@ -253,7 +253,7 @@ async function fetchCorruptFileWithoutDecompression(
         headers: response.headers,
         rawHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders),
         classification: "corrupt",
-        statusCode: response.status.toString()
+        statusCode: response.status
       };
     } catch (e: unknown) {
       console.log(`Error fetching raw file for ${url}: ${e}, retrying in ${backoff / 1000}s...`);
@@ -267,7 +267,7 @@ async function fetchCorruptFileWithoutDecompression(
 async function fetchPartialFile(
     timestamp: string,
     url: string,
-    statusCode: string
+    statusCode: number
 ): Promise<DownloadedFile> {
   const waybackUrl = createWaybackDownloadUrl(timestamp, url);
   let attempt = 1;
@@ -309,7 +309,7 @@ export async function downloadUniqueDigestsForSnapshots(input: CdxEntry[]) {
     for (const entry of input) {
         if (entry.digest && !encounteredDigests.has(entry.digest)) {
             console.log(`Downloading snapshot ${entry.timestamp} for URL ${entry.url} (${++currentDigest}/${uniqueDigestCount})`);
-            const result = await fetchWaybackFile(entry.timestamp, entry.url, entry.status);
+            const result = await fetchWaybackFile(entry.timestamp, entry.url, entry.status ?? 0);
             encounteredDigests.set(entry.digest, result);
         }
     }

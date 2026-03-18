@@ -4,18 +4,26 @@ export interface CdxEntry {
   urlkey: string;
   timestamp: string;
   url: string;
-  status: string;
+  status?: number;
   digest?: string;
   mimetype: string;
   filename?: string;
   offset?: number;
   length?: number;
+  // revisitEntry?: CdxEntry;
+  // metadata?: {
+  //   headers: Record<string, string>;
+  //   rawHeaders: RawHeader[];
+  // }
+}
+
+export interface ExtendedCdxEntry extends CdxEntry {
   source: string;
   /** For entries that were originally warc/revisit and are resolved, this contains the original entry with the warc/revisit content type */
-  revisitEntry?: CdxEntry;
-  /** Things stored by the processing pipeline not part of the actual cdx entry */
-  metadata?: {
-    headers: Record<string, string>;
-    rawHeaders: RawHeader[];
-  }
+    revisitEntry?: CdxEntry;
+  // /** Things stored by the processing pipeline not part of the actual cdx entry */
+    metadata?: {
+        headers: Record<string, string>;
+        rawHeaders: RawHeader[];
+    }
 }

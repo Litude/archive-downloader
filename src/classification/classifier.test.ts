@@ -15,7 +15,7 @@ describe('Classifier', () => {
       'text/html',
       Buffer.from('content'),
       undefined,
-      "200",
+      200,
       undefined,
       testConfig
     );
@@ -29,7 +29,7 @@ describe('Classifier', () => {
       'text/html',
       Buffer.from('<html>page not found</html>'),
       undefined,
-      "200",
+      200,
       undefined,
       testConfig
     );
@@ -43,7 +43,7 @@ describe('Classifier', () => {
       'text/html',
       Buffer.from('<html>Hello World!</html>'),
       undefined,
-      "200",
+      200,
       undefined,
       testConfig
     );
