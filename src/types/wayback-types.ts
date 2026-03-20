@@ -10,20 +10,16 @@ export interface CdxEntry {
   filename?: string;
   offset?: number;
   length?: number;
-  // revisitEntry?: CdxEntry;
-  // metadata?: {
-  //   headers: Record<string, string>;
-  //   rawHeaders: RawHeader[];
-  // }
 }
 
 export interface ExtendedCdxEntry extends CdxEntry {
+  /** e.g. wayback, commoncrawl */
   source: string;
   /** For entries that were originally warc/revisit and are resolved, this contains the original entry with the warc/revisit content type */
-    revisitEntry?: CdxEntry;
+  revisitEntry?: CdxEntry;
   // /** Things stored by the processing pipeline not part of the actual cdx entry */
-    metadata?: {
-        headers: Record<string, string>;
-        rawHeaders: RawHeader[];
-    }
+  metadata?: {
+    headers: Record<string, string>;
+    rawHeaders: RawHeader[];
+  }
 }

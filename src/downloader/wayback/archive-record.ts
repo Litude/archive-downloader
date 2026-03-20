@@ -14,10 +14,11 @@ function generateDownloadUrl(filename: string): string {
 }
 
 async function internalCheckRecordAvailability(filename: string): Promise<boolean> {
-    let attempt = 0;
+    let attempt = 1;
     let backoff = WAYBACK_INITIAL_BACKOFF;
     const url = generateDownloadUrl(filename);
     const itemId = filename.split('/')[0];
+    let error403Count = 0;
     while (true) {
         try {
             console.log(`Fetching availability for item ${itemId} (attempt ${attempt})...`);
@@ -25,11 +26,21 @@ async function internalCheckRecordAvailability(filename: string): Promise<boolea
             if (response.status === 200) {
                 return true;
             }
-            // Seems to be completely random whether an unavailable record returns 403 or 401, so we treat both as unavailable(?)
-            else if (response.status === 401 || response.status === 403) {
+            // Seems like 401 actually means that the file is not publicly available. The request can sometimes
+            // also return 403 but it seems to be some sort of intermittent error that can happen even for publicly available items
+            // but for some items 403 is all that is returned...? So we retry 403 a few times to be sure and if it keeps happening we assume it's not available.
+            else if (response.status === 401) {
+                console.log(`Original record for ${filename} is NOT publicly available (status code ${response.status})`);
                 return false;
             }
-            else {
+            else if (response.status === 403) {
+                console.warn(`Received 403 when checking availability for ${filename}, this may be an intermittent error.`);
+                error403Count++;
+                if (error403Count >= 4) {
+                    console.error(`Received 403 four times in a row for ${filename}, treating as not available.`);
+                    return false;
+                }
+            } else {
                 throw new Error(`Unexpected status code ${response.status} for ${url}`);
             }
         } catch (error: any) {
@@ -121,6 +132,72 @@ async function fetchRecordBytes(filename: string, offset: number, length: number
     }
 }
 
+async function fetchWarcGlobalHeader(filename: string): Promise<Buffer> {
+    const url = generateDownloadUrl(filename);
+    let attempt = 0;
+    let backoff = WAYBACK_INITIAL_BACKOFF;
+    while (true) {
+        try {
+            console.log(`Fetching WARC global header for ${filename} (attempt ${attempt})...`);
+            const response = await axios.get(url, {
+                headers: { Range: 'bytes=0-' },
+                responseType: 'stream',
+                timeout: WAYBACK_REQUEST_TIMEOUT,
+            });
+            return await new Promise<Buffer>((resolve, reject) => {
+                const chunks: Buffer[] = [];
+                let totalLength = 0;
+                let recordTotalSize: number | null = null;
+                const gunzip = zlib.createGunzip();
+                let settled = false;
+
+                function settle(result: Buffer | Error) {
+                    if (settled) return;
+                    settled = true;
+                    response.data.destroy();
+                    gunzip.destroy();
+                    if (result instanceof Error) reject(result);
+                    else resolve(result);
+                }
+
+                gunzip.on('data', (chunk: Buffer) => {
+                    chunks.push(chunk);
+                    totalLength += chunk.length;
+
+                    if (recordTotalSize === null) {
+                        const soFar = Buffer.concat(chunks);
+                        const headerEnd = soFar.indexOf('\r\n\r\n');
+                        if (headerEnd !== -1) {
+                            const headerText = soFar.subarray(0, headerEnd).toString('ascii');
+                            const contentLengthMatch = headerText.match(/^Content-Length:\s*(\d+)$/im);
+                            if (contentLengthMatch) {
+                                const contentLength = parseInt(contentLengthMatch[1], 10);
+                                // WARC record = headers + \r\n\r\n + payload + \r\n\r\n (trailing)
+                                recordTotalSize = headerEnd + 4 + contentLength + 4;
+                            }
+                        }
+                    }
+
+                    if (recordTotalSize !== null && totalLength >= recordTotalSize) {
+                        settle(Buffer.concat(chunks).subarray(0, recordTotalSize));
+                    }
+                });
+                gunzip.on('end', () => {
+                    // Stream ended before full record received — return what we have
+                    settle(Buffer.concat(chunks));
+                });
+                gunzip.on('error', (err) => settle(err));
+                response.data.on('error', (err: any) => settle(err));
+                response.data.pipe(gunzip);
+            });
+        } catch (error: any) {
+            console.error(`Error fetching WARC global header for ${url} (${error.message}), retrying in ${backoff / 1000}s...`);
+            await new Promise(resolve => setTimeout(resolve, backoff));
+            backoff = Math.min(backoff * 2, WAYBACK_MAX_BACKOFF);
+            attempt++;
+        }
+    }
+}
 
 function getCdxFilenameFromEntry(entry: CaptureEntry): string {
     const filename = entry.cdxEntry.filename;
@@ -153,9 +230,14 @@ export async function fetchArchiveRecord(entry: CaptureEntry): Promise<ArchiveRe
         throw new Error(`CDX entry for ${filename} is missing offset, length, or filename`);
     }
     const content = await fetchRecordBytes(filename, offset, length);
-    const outputType = filename.endsWith('.arc.gz') ? "arc" : filename.endsWith('.warc.gz') ? "warc" : null;
-    if (!outputType) {
+    if (filename.endsWith('.arc.gz')) {
+        return [{ type: "arc", content }];
+    }
+    else if (filename.endsWith('.warc.gz')) {
+        const globalHeader = await fetchWarcGlobalHeader(filename);
+        return [{ type: "warcinfo", content: globalHeader }, { type: "warc", content }];
+    }
+    else {
         throw new Error(`Unsupported archive format for fetching original record, only .arc.gz and .warc.gz are supported, but got ${filename}`);
     }
-    return [{ type: outputType, content }];
 }

@@ -7,6 +7,7 @@ import { DownloadedFile } from "../../types/download-types";
 import { checkForLimitedCapture, filterLimitedCapturesForUrl } from "../../special-rules/limit-captures";
 import { Context } from "../../types/context";
 import { isDefined } from "../../utils/ts-utils";
+import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common";
 
 const WAYBACK_CDX_API_URL = 'http://web.archive.org/cdx/search/cdx';
 const REQUEST_TIMEOUT = 60000; // 60 seconds
@@ -86,7 +87,6 @@ export async function getSnapshotsForWebsiteFile(
     }
     validCdxEntries = [...validCdxEntries, ...validSnapShots];
     invalidCdxEntries = [...invalidCdxEntries, ...invalidSnapshots];
-    //const filteredSnapshots = filterLimitedCaptures(snapshots, limitedCaptureConfigs, isMirror);
   }
   console.log(`Total valid snapshots for ${filenameToString(input.filename, 'simple')}: ${validCdxEntries.length}`);
   if (includeInvalid) {
@@ -364,10 +364,10 @@ function filterSnapshotsByTimestamp(snapshots: ExtendedCdxEntry[], maxTimestamp?
 // It will attempt to fetch the index until successful
 async function fetchWaybackCdxIndex(url: string, resolveRevisits: boolean): Promise<ExtendedCdxEntry[]> {
   let attempt = 1;
-  let backoff = 30_000;
+  let backoff = WAYBACK_INITIAL_BACKOFF;
   while (true) {
     try {
-      console.log(`Fetching CDX index for ${url} (attempt ${attempt})...`);
+      console.log(`Fetching CDX index${resolveRevisits ? ' with resolve revisits' : ''} for ${url} (attempt ${attempt})...`);
       const params = {
         url,
         output: 'json',
@@ -393,7 +393,7 @@ async function fetchWaybackCdxIndex(url: string, resolveRevisits: boolean): Prom
     } catch (e) {
       console.log(`Error fetching CDX index for ${url}: ${e}, retrying in ${backoff / 1000}s...`);
       await new Promise(res => setTimeout(res, backoff));
-      backoff = Math.min(backoff * 2, 300_000);
+      backoff = Math.min(backoff * 2, WAYBACK_MAX_BACKOFF);
       attempt++;
     }
   }

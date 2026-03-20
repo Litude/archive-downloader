@@ -4,7 +4,7 @@ import { classifyEntry } from "../classification/classifier";
 import { DownloadedFile } from "../types/download-types";
 import { parseHeaderTimestamps } from "../utils/timestamp";
 import { downloadUniqueDigestsForSnapshots, fetchWaybackFileHeaders } from "./wayback/file-download";
-import { CaptureClassification, CaptureEntry, CaptureWaybackMetadata } from "../types/capture-types";
+import { addValidationError, CaptureClassification, CaptureEntry, CaptureWaybackMetadata } from "../types/capture-types";
 import { getWaybackFilename } from "../utils/wayback-filename";
 import { filenameToString } from "../file-name/file-name";
 import { DateTime } from "luxon";
@@ -13,6 +13,11 @@ import { DownloadFileInput } from "../types/download-input-types";
 import { Context } from "../types/context";
 import { getWaybackItemMetadata } from "./wayback/item-metadata";
 import { checkArchiveRecordPublicAvailability, fetchArchiveCdx, fetchArchiveRecord } from "./wayback/archive-record";
+import { parseArcFile } from "../archive-record/arc";
+import { parseWarcFile } from "../archive-record/warc";
+import { cleanupWaybackHeaders } from "../file-output/header-output";
+import { parseWarcinfoFile } from "../archive-record/warcinfo";
+import { getHeaderValue } from "../headers/headers";
 
 function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
   const digestHashes = new Map<string, { sha256: string; actualDigest: string }>();
@@ -51,6 +56,20 @@ function isEntrySkipped(entry: CdxEntry, skippedCaptures?: { url: string; timest
     return false;
   }
   return skippedCaptures.some(skipped => skipped.url === entry.url && skipped.timestamp === entry.timestamp);
+}
+
+function getArchivedRecord(entry: CaptureEntry) {
+  if (entry.records) {
+    const arcRecord = entry.records.find(record => record.type === 'arc');
+    if (arcRecord) {
+      return parseArcFile(arcRecord.content);
+    }
+    const warcRecord = entry.records.find(record => record.type === 'warc');
+    if (warcRecord) {
+      return parseWarcFile(warcRecord.content);
+    }
+  }
+  return null;
 }
 
 export async function downloadWaybackEntries(
@@ -95,13 +114,14 @@ export async function downloadWaybackEntries(
       const downloadIsExactMatch = downloadedFile && entry.url === downloadedFile.url && entry.timestamp === downloadedFile.timestamp;
       const headers = downloadIsExactMatch ? downloadedFile.headers : entry.metadata?.headers;
       const rawHeaders = downloadIsExactMatch ? downloadedFile.rawHeaders : entry.metadata?.rawHeaders;
-      const timestamps = headers ? parseHeaderTimestamps(entry.url, headers, entry.timestamp, true) : { captureDate: DateTime.fromFormat(entry.timestamp, 'yyyyLLddHHmmss', { zone: 'utc' }) as DateTime<true>, lastModified: null };
+      const timestamps = headers ? parseHeaderTimestamps(entry.url, headers, entry.timestamp, true) : { captureDate: DateTime.fromFormat(entry.timestamp, 'yyyyLLddHHmmss', { zone: 'utc' }) as DateTime<true>, lastModified: null, mementoDate: null, serverDate: null };
       const waybackFilename = peekAllFiles && headers ? getWaybackFilename(headers) : undefined;
       const lastModified = timestamps.lastModified;
 
       return {
         timestamp: entry.timestamp,
         captureTimestamp: timestamps.captureDate,
+        mementoDateTime: timestamps.mementoDate ?? undefined,
         cdxEntry: {
           ...entry,
           filename: waybackFilename ?? entry.filename,
@@ -180,6 +200,7 @@ export async function downloadWaybackEntries(
       if (!existingEntry) {
         throw new Error(`Existing entry for ${entry.url} at ${entry.timestamp} not found?!`);
       }
+      existingEntry.mementoDateTime = timestamps.mementoDate ?? undefined;
       existingEntry.lastModified = timestamps.lastModified;
       existingEntry.headers = response.headers;
       existingEntry.rawHeaders = response.rawHeaders;
@@ -267,5 +288,65 @@ export async function downloadWaybackEntries(
     }
   }
 
+  for (const entry of baseEntries) {
+    const record = getArchivedRecord(entry);
+    if (record) {
+      entry.hostIp = record.ip;
+      entry.protocol = record.protocol;
+      entry.headerOutput = {
+        original: record.headers,
+      }
+      const recordSha256 = computeSha256(record.content);
+      if (entry.sha256 && recordSha256 !== entry.sha256) {
+        addValidationError(entry, 'record-content-mismatch', { recordSha256, entrySha256: entry.sha256 });
+      }
+      if (record.status !== entry.statusCode) {
+        addValidationError(entry, 'record-status-mismatch', { recordStatus: record.status, entryStatus: entry.statusCode });
+      }
+      if (record.timestamp !== entry.captureTimestamp.toISO({ suppressMilliseconds: true })) {
+        addValidationError(entry, 'record-timestamp-mismatch', { recordTimestamp: record.timestamp, entryTimestamp: entry.captureTimestamp.toISO({ suppressMilliseconds: true }) });
+      }
+      if (record.url !== entry.url) {
+        addValidationError(entry, 'record-url-mismatch', { recordUrl: record.url, entryUrl: entry.url });
+      }
+    }
+    else if (entry.headers && entry.rawHeaders) {
+      entry.headerOutput = cleanupWaybackHeaders(entry.url, entry.headers, entry.rawHeaders);
+    }
+
+    if (entry.mementoDateTime && entry.mementoDateTime.toMillis() !== entry.captureTimestamp.toMillis()) {
+      addValidationError(
+        entry,
+        'memento-timestamp-mismatch',
+        {
+          mementoDateTime: entry.mementoDateTime.toISO({ suppressMilliseconds: true }),
+          captureTimestamp: entry.captureTimestamp.toISO({ suppressMilliseconds: true })
+        });
+    }
+
+    const warcInfo = entry.records ? entry.records.find(record => record.type === 'warcinfo') : undefined;
+    if (warcInfo) {
+      const warcInfoMetadata = parseWarcinfoFile(warcInfo.content);
+      const software = getHeaderValue(warcInfoMetadata.lines, 'software');
+      const isPartOf = getHeaderValue(warcInfoMetadata.lines, 'isPartOf');
+      const description = getHeaderValue(warcInfoMetadata.lines, 'description');
+      const publisher = getHeaderValue(warcInfoMetadata.lines, 'publisher');
+      const operator = getHeaderValue(warcInfoMetadata.lines, 'operator');
+      if (software || isPartOf || description || publisher || operator) {
+        if (!entry.metadata) {
+          entry.metadata = {};
+        }
+        if (!entry.metadata.crawlData) {
+          entry.metadata.crawlData = {
+            crawler: software,
+            crawljob: isPartOf,
+            publisher,
+            operator,
+            description,
+          }
+        }
+      }
+    }
+  }
   return { baseEntries, unavailableEntries, skippedEntries, metadata };
 }

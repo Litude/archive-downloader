@@ -11,6 +11,7 @@ const IisServerHeaderNames: Record<string, string> = {
     'p3p': 'P3P',
     'microsoftofficewebserver': 'MicrosoftOfficeWebServer',
     'x-aspnet-version': 'X-AspNet-Version',
+    'ntcoent-length': 'ntCoent-Length'
 }
 
 function getFixedHeaderName(header: string, server?: string): string {

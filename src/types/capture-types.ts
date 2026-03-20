@@ -27,36 +27,60 @@ export interface CaptureWaybackMetadata {
 }
 
 export interface ArchiveRecord {
-  type: "arc" | "warc" | "warc-header";
+  type: "arc" | "warc" | "warcinfo";
   content: Buffer;
 }
 
 export interface CaptureEntry {
   timestamp: string; // same as captureTimestamp but as string YYYYMMDDHHmmss
   captureTimestamp: DateTime<true>;
+  mementoDateTime?: DateTime<true>;
   cdxEntry: ExtendedCdxEntry;
   lastModified: DateTime<true> | null;
   url: string;
   statusCode?: number;
   classification: CaptureClassification;
   mimetype: string;
-  // archiveSource: string;
-  // archiveDigest?: string;
   actualDigest?: string;
-  // archiveFilename?: string;
-  // archiveOffset?: number;
-  // archiveLength?: number;
   sha256?: string; // always the sha256 of the file as saved
   originalSha256?: string; // if file is somehow post-processed, this is the sha256 of the original downloaded file
   content?: Buffer<ArrayBufferLike>;
   downloadStatus: string;
   headers?: Record<string, string>;
   rawHeaders?: RawHeader[];
+  hostIp?: string;
+  protocol?: string;
+  headerOutput?: {
+    original?: RawHeader[];
+    reconstructed?: RawHeader[];
+  }
   records?: ArchiveRecord[];
   metadata?: {
     wayback?: CaptureWaybackMetadata;
+    crawlData?: {
+      crawler?: string;
+      crawljob?: string;
+      description?: string;
+      publisher?: string;
+      operator?: string;
+    }
     classificationDetails?: Record<string, any>;
+    validationErrors?: {
+      type: string;
+      details?: any;
+    }[]
   }
 }
 
 export type CaptureClassification = "ok" | "corrupt" | "not_found" | "transient_retry" | "redirect" | "unavailable" | "skipped" | "forbidden";
+
+export function addValidationError(entry: CaptureEntry, error: string, details?: any) {
+  if (!entry.metadata) {
+    entry.metadata = {};
+  }
+  if (!entry.metadata.validationErrors) {
+    entry.metadata.validationErrors = [];
+  }
+  entry.metadata.validationErrors.push({ type: error, details });
+}
+

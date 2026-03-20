@@ -6,75 +6,26 @@ import { filenameToString } from "../file-name/file-name";
 import { getMostLikelyEtagDate, parseIisEtagDate } from "../utils/iis-etag-parser";
 import { DateTime } from "luxon";
 import { logWarning } from "../utils/log-context";
-import { cleanupWaybackHeaders } from "./header-output";
 
-// const ARCHIVED_COMMON_HEADERS = ['content-type', 'content-length', 'location', 'content-location', 'content-base', 'content-disposition'];
-// const ARCHIVED_WAYBACK_HEADERS = ['memento-datetime', 'x-archive-src'];
-// const WAYBACK_ORIGINAL_HEADER_PREFIX = 'x-archive-orig-';
-// const COMMONCRAWL_ADDED_HEADER = 'x-archive-orig-x_commoncrawl_';
-
-// const ALL_HEADERS_TO_STORE = [
-//     ...ARCHIVED_COMMON_HEADERS,
-//     ...ARCHIVED_WAYBACK_HEADERS
-// ];
-
-// const ADDRESS_HEADERS = ['location', 'content-location', 'content-base'];
-
-// function isOriginalCaptureHeader(header: string): boolean {
-//     return header.toLowerCase().startsWith(WAYBACK_ORIGINAL_HEADER_PREFIX) && !header.toLowerCase().startsWith(COMMONCRAWL_ADDED_HEADER);
-// }
-
-// function urlOriginWithPort(url: URL): string {
-//     let origin = url.origin;
-//     // Origin includes port if it is non-default (i.e. not 80 for http or 443 for https)
-//     if (url.port) {
-//         return origin;
-//     }
-//     if (origin.startsWith('http://')) {
-//         return `${origin}:80`;
-//     } else if (origin.startsWith('https://')) {
-//         return `${origin}:443`;
-//     }
-//     return origin;
-// }
-
-// function cleanupUrlHeader(url: string, location: string): string {
-//     const isAbsolute = location.startsWith('http://') || location.startsWith('https://');
-//     if (isAbsolute) {
-//         const cleaned = location.replace(/^https?:\/\/web\.archive\.org\/web\/\d+[^\/]*\//, '');
-//         return cleaned;
-//     }
-//     // Relative URL
-//     else {
-//         const urlObj = new URL(url);
-//         let cleaned = location.replace(/^\/web\/\d+[^\/]*\//, '');
-//         const originWithPort = urlOriginWithPort(urlObj);
-//         if (cleaned.startsWith(originWithPort)) {
-//             cleaned = cleaned.substring(originWithPort.length);
-//         } else if (cleaned.startsWith(urlObj.origin)) {
-//             cleaned = cleaned.substring(urlObj.origin.length);
-//         }
-//         return cleaned;
-//     }
-
-// }
-
-// export function cleanupHeaders(url: string, headers: Record<string, string>): Record<string, string> {
-//     const cleanedHeaders: Record<string, string> = {};
-//     for (const [key, value] of Object.entries(headers)) {
-//         if (value && (ALL_HEADERS_TO_STORE.includes(key.toLowerCase()) || isOriginalCaptureHeader(key))) {
-//             cleanedHeaders[key] = ADDRESS_HEADERS.includes(key.toLowerCase()) ? cleanupUrlHeader(url, value) : value;
-//         }
-//     }
-//     return cleanedHeaders;
-// }
+function getCaptureHeaderValue(captureEntry: CaptureEntry, headerName: string): string | undefined {
+    const header = captureEntry.headerOutput?.original?.find(h => h[0].toLowerCase() === headerName.toLowerCase())
+    if (header) {
+        return header[1];
+    }
+    const reconstructedHeader = captureEntry.headerOutput?.reconstructed?.find(h => h[0].toLowerCase() === headerName.toLowerCase());
+    if (reconstructedHeader) {
+        return reconstructedHeader[1];
+    }
+    return undefined;
+}
 
 function getExactModificationDate(captureEntry: CaptureEntry): { modificationTimePrecise?: string, plausiblePreciseModificationDates?: string[] } | null {
-    const likelyIisServer = captureEntry.headers?.['x-archive-orig-server']?.toLowerCase().includes('microsoft-iis');
+    const likelyIisServer = getCaptureHeaderValue(captureEntry, 'server')?.toLowerCase().includes('microsoft-iis');
     try {
-        if (captureEntry.headers?.['x-archive-orig-etag'] && captureEntry.lastModified) {
+        const etagHeader = getCaptureHeaderValue(captureEntry, 'etag');
+        if (etagHeader && captureEntry.lastModified) {
             const etagDates = getMostLikelyEtagDate(
-                captureEntry.headers['x-archive-orig-etag'],
+                etagHeader,
                 captureEntry.captureTimestamp,
                 captureEntry.lastModified
             );
@@ -87,15 +38,13 @@ function getExactModificationDate(captureEntry: CaptureEntry): { modificationTim
                         return { modificationTimePrecise: etagDates[0], plausiblePreciseModificationDates: etagDates };
                     }
                     else {
-                        logWarning(`Capture ${captureEntry.captureTimestamp.toISO({ suppressMilliseconds: true })}-${captureEntry.url} has ETag header but multiple plausible matches for exact modification date: ${etagDates.join(", ")}.`, "iis-etag-parser");
-                        console.warn(`Capture ${captureEntry.captureTimestamp.toISO({ suppressMilliseconds: true })}-${captureEntry.url} has ETag header but multiple plausible matches for exact modification date: ${etagDates.join(", ")}.`);
                         return { plausiblePreciseModificationDates: etagDates };
                     }
                 }
             }    
         }
-        else if (captureEntry.headers?.['x-archive-orig-etag'] && likelyIisServer) {
-            const etagDates = parseIisEtagDate(captureEntry.headers['x-archive-orig-etag'], captureEntry.captureTimestamp);
+        else if (etagHeader && likelyIisServer) {
+            const etagDates = parseIisEtagDate(etagHeader, captureEntry.captureTimestamp);
             if (etagDates) {
                 if (etagDates.length === 1) {
                     logWarning(`Capture ${captureEntry.captureTimestamp.toISO({ suppressMilliseconds: true })}-${captureEntry.url} has ETag header but no last-modified header. Found 1 plausible match.`, "iis-etag-parser");
@@ -125,6 +74,7 @@ function getExactModificationDate(captureEntry: CaptureEntry): { modificationTim
     }
 }
 
+// TODO: Is this even needed, we don't actually even want to fetch commoncrawl captures from wayback?
 function getExactCaptureDate(captureEntry: CaptureEntry): string | null {
     const headers = captureEntry.headers;
     if (headers?.['x-archive-orig-x_commoncrawl_fetchtimestamp']) {
@@ -196,7 +146,7 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
         encounteredFilenames.add(outputFilename);
 
         const exactModificationDate = getExactModificationDate(entry);
-        if (!exactModificationDate && entry.headers?.['x-archive-orig-etag']) {
+        if (!exactModificationDate && getCaptureHeaderValue(entry, 'etag') && entry.lastModified) {
             console.log(`Could not determine exact modification date for ${entry.url} captured at ${entry.captureTimestamp.toISO({ suppressMilliseconds: true })}`);
         }
         const exactCaptureDate = getExactCaptureDate(entry);
@@ -204,13 +154,16 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
         const mainCdxEntry = entry.cdxEntry.revisitEntry ?? entry.cdxEntry;
         const resolvedRevisitCdxEntry = entry.cdxEntry.revisitEntry ? entry.cdxEntry : undefined;
 
-        const headersResult = entry.headers && entry.rawHeaders
-            ? cleanupWaybackHeaders(entry.url, entry.headers, entry.rawHeaders)
-            : undefined;
+        const headersResult = entry.headerOutput;
 
         const inlineElementsOf = new Set<unknown[]>();
         if (headersResult?.original) inlineElementsOf.add(headersResult.original);
         if (headersResult?.reconstructed) inlineElementsOf.add(headersResult.reconstructed);
+
+        const archiveRecordAvailable = Boolean(entry.records?.find(r => ["warc", "arc"].includes(r.type))?.type ?? undefined);
+        const archiveFilename = mainCdxEntry.filename;
+        const nonZippedFilename = archiveFilename?.endsWith('.gz') ? archiveFilename.slice(0, -3) : archiveFilename;
+        const archiveRecordFormat = nonZippedFilename?.endsWith('.warc') ? 'warc' : nonZippedFilename?.endsWith('.arc') ? 'arc' : undefined;
         
         const captureDataPath = path.join(archivalDir, `${outputFilename}.capture.json`);        
         const captureData = {
@@ -224,8 +177,13 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
             headers: headersResult,
             captureData: {
                 source: entry.cdxEntry.source,
-                sha256: entry.originalSha256 ?? entry.sha256,
-                actualDigest: entry.actualDigest,
+                contentSize: entry.content?.length,
+                contentSha256: entry.originalSha256 ?? entry.sha256,
+                contentDigest: entry.actualDigest,
+                hostIp: entry.hostIp,
+                protocol: entry.protocol,
+                archiveRecordFormat,
+                archiveRecordAvailable,
                 classification: entry.classification,
                 classificationDetails: entry.metadata?.classificationDetails,
                 cdxEntry: {
@@ -250,23 +208,27 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
                     offset: resolvedRevisitCdxEntry.offset ?? null,
                     length: resolvedRevisitCdxEntry.length ?? null,
                 } : undefined,
+                crawlData: entry.metadata?.crawlData,
                 wayback: {
-                    mementoDateTime: entry.headers?.['memento-datetime'] ?
-                        DateTime.fromHTTP(entry.headers?.['memento-datetime']).setZone('UTC').toISO({ suppressMilliseconds: true })
-                        :
-                        undefined,
+                    mementoDateTime: entry.mementoDateTime?.toISO({ suppressMilliseconds: true }),
                     ...entry.metadata?.wayback
-                }
+                },
+                validationErrors: entry.metadata?.validationErrors ? entry.metadata.validationErrors : undefined,
             }
-            // TODO: Validation errors etc?
         };
         fs.writeFileSync(captureDataPath, stringifyWithInlineTuples(captureData, inlineElementsOf));
         const mtime = new Date(entry.captureTimestamp.toJSDate());
-        fs.utimesSync(captureDataPath, mtime, mtime);
+        // fs.utimesSync(captureDataPath, mtime, mtime);
 
         if (entry.records) {
             for (const record of entry.records) {
-                const recordPath = path.join(archivalDir, `${outputFilename}.record.${record.type}`);
+                const recordPath = path.join(
+                    archivalDir,
+                    record.type === 'warcinfo' ?
+                        `${outputFilename}.warcinfo.warc`
+                        :
+                        `${outputFilename}.record.${record.type}`
+                    );
                 fs.writeFileSync(recordPath, record.content);
                 fs.utimesSync(recordPath, mtime, mtime);
             }
