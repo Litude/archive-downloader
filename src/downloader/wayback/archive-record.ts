@@ -34,12 +34,12 @@ async function internalCheckRecordAvailability(filename: string): Promise<boolea
                 return false;
             }
             else if (response.status === 403) {
-                console.warn(`Received 403 when checking availability for ${filename}, this may be an intermittent error.`);
                 error403Count++;
                 if (error403Count >= 4) {
                     console.error(`Received 403 four times in a row for ${filename}, treating as not available.`);
                     return false;
                 }
+                throw new Error(`Received 403 when checking availability for ${filename}, this may be an intermittent error.`);
             } else {
                 throw new Error(`Unexpected status code ${response.status} for ${url}`);
             }

@@ -18,6 +18,7 @@ import { parseWarcFile } from "../archive-record/warc";
 import { cleanupWaybackHeaders } from "../file-output/header-output";
 import { parseWarcinfoFile } from "../archive-record/warcinfo";
 import { getHeaderValue } from "../headers/headers";
+import { tryToCompleteMissingCdxFields } from "./wayback/cdx-completion/cdx-completion";
 
 function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
   const digestHashes = new Map<string, { sha256: string; actualDigest: string }>();
@@ -348,5 +349,7 @@ export async function downloadWaybackEntries(
       }
     }
   }
+  await tryToCompleteMissingCdxFields(baseEntries);
+
   return { baseEntries, unavailableEntries, skippedEntries, metadata };
 }

@@ -1,11 +1,17 @@
+
+
+* Add numeric id to csv field that matches the written name suffix if multiple files with identical timestamp
+
+* Figure out what to do about commoncrawl captures that have the same digest as other captures but they are actually corrupt when returned by Wayback (but commoncrawl has valid data?).
+  - Just exclude them by collection id
+  - Add an option to just fetch all files?
+
 * Add some error context to handlers and these will be logged to the final capture data?
 
 * Add info if file is from main url or mirror?
   - easy to do for some sites, but what if the main mirror always redirected to some random mirror such as for downloads (what does the concept of a mirror then mean?)
 
 * storing "effective" capture date in addition to capture date? Timestamp approximation for e.g. frozen mirrors that should correspond when it could have been captured from the main mirror.
-
-* Add numeric id to csv field that matches the written name suffix if multiple files with identical timestamp
 
 * Add collection info to summary files
 * Figure out how to store headers...
