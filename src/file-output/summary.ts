@@ -8,6 +8,7 @@ import { filenameToString } from "../file-name/file-name";
 interface SummaryRow {
     capture_ts: string;
     modification_ts: string;
+    capture_index?: number;
     capture_sha256?: string;
     output_sha256?: string;
     url: string;
@@ -26,6 +27,7 @@ export async function writeCsvSummary(captureEntries: CaptureEntry[], filename: 
     const summaryRows: SummaryRow[] = captureEntries.map(entry => ({
         capture_ts: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
         modification_ts: entry.lastModified ? entry.lastModified.toISO({ suppressMilliseconds: true }) : '',
+        capture_index: entry.captureIndex ?? 0,
         capture_sha256: entry.originalSha256 ?? entry.sha256,
         output_sha256: entry.sha256,
         url: entry.url,
@@ -38,7 +40,7 @@ export async function writeCsvSummary(captureEntries: CaptureEntry[], filename: 
         actual_digest: entry.actualDigest,
         archive_filename: entry.cdxEntry.filename,
         archive_offset: entry.cdxEntry.offset,
-        archive_length: entry.cdxEntry.length
+        archive_length: entry.cdxEntry.length,
     }));
 
     // Output sha256 column is only written if any files were post-processed/modified

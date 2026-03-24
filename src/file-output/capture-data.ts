@@ -120,11 +120,8 @@ function stringifyWithInlineTuples(data: unknown, inlineElementsOf: Set<unknown[
     return json;
 }
 
-export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filename, outputDirectory: string) {
+export function assignCaptureIndices(captureEntries: CaptureEntry[], filename: Filename): void {
     const headerFilename = structuredClone(filename);
-    const archivalDir = path.join(outputDirectory, '.archivaldata');
-    fs.mkdirSync(archivalDir, { recursive: true });
-
     const encounteredFilenames = new Set<string>();
     captureEntries.forEach(entry => {
         const entryFilename = structuredClone(headerFilename);
@@ -139,6 +136,22 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
             counter++;
         }
         encounteredFilenames.add(outputFilename);
+        entry.captureIndex = counter > 1 ? counter - 1 : undefined;
+    });
+}
+
+export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filename, outputDirectory: string) {
+    const headerFilename = structuredClone(filename);
+    const archivalDir = path.join(outputDirectory, '.archivaldata');
+    fs.mkdirSync(archivalDir, { recursive: true });
+
+    captureEntries.forEach(entry => {
+        const entryFilename = structuredClone(headerFilename);
+        if (entry.classification !== "ok") {
+            entryFilename.flags = "invalid";
+        }
+        entryFilename.timestamp = entry.captureTimestamp.toFormat('yyyyLLddHHmmss');
+        const outputFilename = filenameToString(entryFilename, 'full', entry.captureIndex);
 
         const exactModificationDate = getExactModificationDate(entry);
         if (!exactModificationDate && getCaptureHeaderValue(entry, 'etag') && entry.lastModified) {

@@ -55,6 +55,7 @@ export interface CaptureEntry {
     original?: RawHeader[];
     reconstructed?: RawHeader[];
   }
+  captureIndex?: number; // set when filename has _N suffix due to duplicate timestamp+flags
   records?: ArchiveRecord[];
   additionalSources?: {
     source: string;

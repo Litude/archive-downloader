@@ -3,7 +3,7 @@ import { CaptureClassification, CaptureEntry } from "../../types/capture-types";
 import { computeSha256, computeWaybackDigest } from "../../utils/hash";
 import { fetchWaybackFile } from "./file-download";
 
-/** It seems that ALL common crawl entries served by wayback are corrupt.
+/** It seems that ALL gzipped common crawl entries served by wayback are corrupt.
  *  Worse, they share the same digest that non-corrupt entries have, so if the digest
  *  matching happened to download a commoncrawl entry, all other entries with the same
  *  digest would end up being corrupt as well based on digest.
@@ -22,8 +22,8 @@ import { fetchWaybackFile } from "./file-download";
 export async function cleanUpCorruptCommonCrawlEntries(baseEntries: CaptureEntry[], classificationOverrides?: Record<string, CaptureClassification>) {
   for (const entry of baseEntries) {
     const isCommonCrawl = entry.metadata?.wayback?.item.collections.some(coll => coll.id === 'commoncrawl');
-    if (isCommonCrawl) {
-      console.log(`Entry ${entry.url} at ${entry.timestamp} is from Common Crawl, performing post-cleanup.`);
+    if (isCommonCrawl && entry.rawHeaders?.some(([key, value]) => key.toLowerCase() === 'content-encoding' && value.toLowerCase() === 'gzip')) {
+      console.log(`Entry ${entry.url} at ${entry.timestamp} is gzipped and is from Common Crawl, performing post-cleanup.`);
       if (entry.downloadStatus === 'downloaded') {
         const matchingNonCommonCrawlEntries = baseEntries.filter(e => e.cdxEntry.digest === entry.cdxEntry.digest && !e.metadata?.wayback?.item.collections.some(coll => coll.id === 'commoncrawl'));
         if (matchingNonCommonCrawlEntries.length > 0) {
@@ -51,6 +51,7 @@ export async function cleanUpCorruptCommonCrawlEntries(baseEntries: CaptureEntry
           for (const matchingEntry of matchingNonCommonCrawlEntries) {
             matchingEntry.content = fileContent.content;
             matchingEntry.sha256 = sha256;
+            matchingEntry.originalSha256 = sha256;
             matchingEntry.actualDigest = actualDigest;
             matchingEntry.classification = classification.type;
             matchingEntry.classificationDetails = classification.classificationDetails;
@@ -82,6 +83,7 @@ export async function cleanUpCorruptCommonCrawlEntries(baseEntries: CaptureEntry
         }
         entry.content = fileContent.content;
         entry.sha256 = sha256;
+        entry.originalSha256 = sha256;
         entry.actualDigest = actualDigest;
         entry.classification = classification.type;
         entry.classificationDetails = classification.classificationDetails;

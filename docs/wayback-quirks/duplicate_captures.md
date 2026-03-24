@@ -1,5 +1,13 @@
 # Duplicate captures with the same timestamp
 
+Probably always picks the FIRST entry, but if it is not available it will move on to the next one.
+Reasons why it might not be available include:
+- self redirect (301/302)
+- temporary issues?
+
+
+## Old stuff and notes below
+
 If two or more captures have the same URL key and the same timestamp, only one of them can actually be retrieved from the web archive even though the CDX index will list all captures.
 
 It would seem that the web archive almost always returns the capture that is the LAST capture listed with the timestamp in the CDX index.
@@ -36,6 +44,7 @@ Code for reference:
 We always assume that the capture that can be retrieved is the last capture for the timestamp.
 TODO: Not strictly so?
 
+// These 301 are probably omitted due to being self redirects
 // microsoft.com/italy/games/empires has a duplicate captures at 20071024014608 and 20090329081915 (301 and 200 status codes, 200 is the returned one)
 // microsoft.com/games/aoeexpansion/features_buildings_rendered.htm has duplicate snapshot at 20091212001836 (2x 200 status codes)
 // microsoft.com/msdownload/games/empires/download.htm has duplicate snapshot at 20080405205900 (301 and 404 status codes, 404 is the returned one)
