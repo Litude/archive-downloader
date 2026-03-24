@@ -246,12 +246,20 @@ async function fetchCorruptFileWithoutDecompression(
         throw new Error(`HTTP ${response.status}`);
       }
       const content = Buffer.from(response.data);
+      const contentLength = response.headers['content-length'] ? parseInt(response.headers['content-length'], 10) : undefined;
       return {
         content,
         url,
         timestamp,
         headers: response.headers,
         rawHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders),
+        metadata: {
+          downloadErrorDetails: {
+            reason: "truncated",
+            downloadedSize: content.length,
+            actualSize: contentLength !== undefined && contentLength !== content.length ? contentLength : null
+          },
+        },
         classification: "corrupt",
         statusCode: response.status
       };
@@ -276,6 +284,7 @@ async function fetchPartialFile(
     try {
       console.log(`Fetching partial file content for ${timestamp}-${url} (attempt ${attempt})...`);
       const { buffer, headers, rawHeaders, valid, fetchedLength } = await fetchPartiallyArchivedFileData(waybackUrl, statusCode);
+      const contentLength = headers['content-length'] ? parseInt(headers['content-length'], 10) : undefined;
       return {
         content: buffer,
         url,
@@ -284,10 +293,10 @@ async function fetchPartialFile(
         rawHeaders,
         classification: !valid ? "corrupt" : undefined,
         metadata: !valid ? {
-          classificationDetails: {
-            reason: "partial_content",
-            downloadedSize: fetchedLength.toString(),
-            actualSize: headers['content-length'] ? headers['content-length'].toString() : undefined
+          downloadErrorDetails: {
+            reason: "truncated",
+            downloadedSize: fetchedLength,
+            actualSize: contentLength !== undefined && contentLength !== fetchedLength ? contentLength : null
           },
         } : {},
         statusCode
@@ -301,7 +310,7 @@ async function fetchPartialFile(
   }
 }
 
-export async function downloadUniqueDigestsForSnapshots(input: CdxEntry[]) {
+export async function downloadUniqueDigestsForSnapshots(input: CdxEntry[]): Promise<Map<string, DownloadedFile>> {
     const uniqueDigestCount = new Set(input.map(entry => entry.digest)).size;
     console.log(`Unique digests to download: ${uniqueDigestCount}`);
     let currentDigest = 0;

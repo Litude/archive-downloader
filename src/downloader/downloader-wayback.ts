@@ -19,6 +19,7 @@ import { cleanupWaybackHeaders } from "../file-output/header-output";
 import { parseWarcinfoFile } from "../archive-record/warcinfo";
 import { getHeaderValue } from "../headers/headers";
 import { tryToCompleteMissingCdxFields } from "./wayback/cdx-completion/cdx-completion";
+import { cleanUpCorruptCommonCrawlEntries } from "./wayback/wayback-commoncrawl-cleanup";
 
 function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
   const digestHashes = new Map<string, { sha256: string; actualDigest: string }>();
@@ -33,7 +34,7 @@ function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
 }
 
 function classifyDigestFiles(uniqueDigestFiles: Map<string, DownloadedFile>, digestHashes: Map<string, { sha256: string; actualDigest: string }>, classificationOverrides?: Record<string, CaptureClassification>) {
-  const classifications = new Map<string, CaptureClassification>();
+  const classifications = new Map<string, { type: CaptureClassification; classificationDetails?: Record<string, any> }>();
 
   [...uniqueDigestFiles.entries()].forEach(([digest, file]) => {
     const hashes = digestHashes.get(digest)!;
@@ -43,6 +44,7 @@ function classifyDigestFiles(uniqueDigestFiles: Map<string, DownloadedFile>, dig
       file.headers['content-type'],
       file.content,
       file.classification,
+      file.metadata,
       file.statusCode,
       classificationOverrides,
     );
@@ -80,7 +82,7 @@ export async function downloadWaybackEntries(
   const { validCdxEntries, invalidCdxEntries, metadata } = await getSnapshotsForWebsiteFile(
     input, context
   );
-  const peekAllFiles = context.settings.peekAllFiles;
+  const fetchAllHeaders = context.settings.peekAllFiles;
   const fetchMetadata = context.settings.fetchMetadata;
   const fetchOriginalRecord = context.settings.fetchOriginalRecord;
   const allEntries = [...validCdxEntries, ...invalidCdxEntries];
@@ -99,12 +101,13 @@ export async function downloadWaybackEntries(
         url: entry.url,
         statusCode: entry.status,
         classification: 'skipped' as const,
+        classificationDetails: undefined,
         mimetype: entry.mimetype,
         actualDigest: undefined,
         sha256: undefined,
         originalSha256: undefined,
         content: undefined,
-        downloadStatus: 'skipped',
+        downloadStatus: 'skipped' as const,
         headers: undefined,
         metadata: undefined,
       }
@@ -116,7 +119,7 @@ export async function downloadWaybackEntries(
       const headers = downloadIsExactMatch ? downloadedFile.headers : entry.metadata?.headers;
       const rawHeaders = downloadIsExactMatch ? downloadedFile.rawHeaders : entry.metadata?.rawHeaders;
       const timestamps = headers ? parseHeaderTimestamps(entry.url, headers, entry.timestamp, true) : { captureDate: DateTime.fromFormat(entry.timestamp, 'yyyyLLddHHmmss', { zone: 'utc' }) as DateTime<true>, lastModified: null, mementoDate: null, serverDate: null };
-      const waybackFilename = peekAllFiles && headers ? getWaybackFilename(headers) : undefined;
+      const waybackFilename = fetchAllHeaders && headers ? getWaybackFilename(headers) : undefined;
       const lastModified = timestamps.lastModified;
 
       return {
@@ -136,16 +139,16 @@ export async function downloadWaybackEntries(
         lastModified,
         url: entry.url,
         statusCode: entry.status,
-        classification: entry.digest ? classifiedEntries.get(entry.digest)! : "unavailable",
+        classification: entry.digest ? classifiedEntries.get(entry.digest)!.type : "unavailable",
+        classificationDetails: entry.digest ? classifiedEntries.get(entry.digest)!.classificationDetails : undefined,
         mimetype: entry.mimetype,
         actualDigest: entry.digest ? digestFileHashes.get(entry.digest)!.actualDigest : undefined,
         sha256: entry.digest ? digestFileHashes.get(entry.digest)!.sha256 : undefined,
         originalSha256: entry.digest ? digestFileHashes.get(entry.digest)!.sha256 : undefined,
         content: downloadedFile?.content,
-        downloadStatus: downloadIsExactMatch ? 'downloaded' : 'digest-match',
+        downloadStatus: downloadIsExactMatch ? 'downloaded' as const : 'digest-match' as const,
         headers,
         rawHeaders,
-        metadata: downloadIsExactMatch ? downloadedFile.metadata : undefined,
       }
     }
   }).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
@@ -183,8 +186,8 @@ export async function downloadWaybackEntries(
   }
   baseEntries = baseEntries.filter(entry => entry.classification !== 'unavailable' && entry.classification !== 'skipped');
 
-  // If peekAllFiles is enabled, we need to query wayback for the headers of all files that were not downloaded exactly
-  if (peekAllFiles) {
+  // If fetchAllHeaders is enabled, we need to query wayback for the headers of all files that were not actually downloaded
+  if (fetchAllHeaders) {
     const entriesToPeek = baseEntries.filter(entry => !entry.headers);
     const prefetchedHeaders = baseEntries.filter(entry => entry.headers && entry.downloadStatus !== "downloaded").length;
     if (prefetchedHeaders > 0) {
@@ -312,7 +315,7 @@ export async function downloadWaybackEntries(
       }
     }
     else if (entry.headers && entry.rawHeaders) {
-      entry.headerOutput = cleanupWaybackHeaders(entry.url, entry.headers, entry.rawHeaders);
+      entry.headerOutput = cleanupWaybackHeaders(entry.url, entry.headers, entry.rawHeaders, input.filename);
     }
 
     if (entry.mementoDateTime && entry.mementoDateTime.toMillis() !== entry.captureTimestamp.toMillis()) {
@@ -350,6 +353,9 @@ export async function downloadWaybackEntries(
     }
   }
   await tryToCompleteMissingCdxFields(baseEntries);
+
+  // Post-cleanup: Need to check for possibly corrupt commoncrawl entries
+  await cleanUpCorruptCommonCrawlEntries(baseEntries, input.classifications);
 
   return { baseEntries, unavailableEntries, skippedEntries, metadata };
 }

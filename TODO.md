@@ -2,6 +2,13 @@
 
 * Add numeric id to csv field that matches the written name suffix if multiple files with identical timestamp
 
+
+* How to handle cases where the same capture exists in both wayback and commoncrawl:
+1. Assume all common crawl captures also exist in wayback (not true and could cause duplicate issues?)
+2. Store info about multiple sources for the same capture (?), might need to store 2 separate cdx index entries?
+3. Add additional sources where source name and cdx entry is kept
+
+
 * Figure out what to do about commoncrawl captures that have the same digest as other captures but they are actually corrupt when returned by Wayback (but commoncrawl has valid data?).
   - Just exclude them by collection id
   - Add an option to just fetch all files?

@@ -33,6 +33,7 @@ export async function writeCsvSummary(captureEntries: CaptureEntry[], filename: 
         classification: entry.classification,
         mimetype: entry.mimetype,
         archive_source: entry.cdxEntry.source,
+        additional_sources: entry.additionalSources ? entry.additionalSources.map(source => source.source).join(';') : undefined,
         archive_digest: entry.cdxEntry.digest,
         actual_digest: entry.actualDigest,
         archive_filename: entry.cdxEntry.filename,

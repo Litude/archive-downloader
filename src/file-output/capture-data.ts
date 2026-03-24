@@ -34,12 +34,7 @@ function getExactModificationDate(captureEntry: CaptureEntry): { modificationTim
                     return { modificationTimePrecise: etagDates[0] }
                 }
                 else if (etagDates.length > 1) {
-                    if (etagDates[0].endsWith("0000000000Z")) {
-                        return { modificationTimePrecise: etagDates[0], plausiblePreciseModificationDates: etagDates };
-                    }
-                    else {
-                        return { plausiblePreciseModificationDates: etagDates };
-                    }
+                    return { plausiblePreciseModificationDates: etagDates };
                 }
             }    
         }
@@ -185,7 +180,7 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
                 archiveRecordFormat,
                 archiveRecordAvailable,
                 classification: entry.classification,
-                classificationDetails: entry.metadata?.classificationDetails,
+                classificationDetails: entry.classificationDetails,
                 cdxEntry: {
                     urlkey: mainCdxEntry.urlkey,
                     timestamp: mainCdxEntry.timestamp,
@@ -208,6 +203,7 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
                     offset: resolvedRevisitCdxEntry.offset ?? null,
                     length: resolvedRevisitCdxEntry.length ?? null,
                 } : undefined,
+                additionalSources: entry.additionalSources,
                 crawlData: entry.metadata?.crawlData,
                 wayback: {
                     mementoDateTime: entry.mementoDateTime?.toISO({ suppressMilliseconds: true }),

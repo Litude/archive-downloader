@@ -2,6 +2,7 @@ import JSON5 from 'json5';
 import fs from 'fs';
 import path from 'path';
 import { CaptureClassification } from '../types/capture-types';
+import { DownloadedFile } from '../types/download-types';
 
 export interface ClassifierConfig {
   notFoundStrings: string[];
@@ -40,45 +41,55 @@ export function classifyEntryWithConfig(
     mimetype: string,
     content: Buffer,
     downloadClassification: "corrupt" | "unavailable" | undefined,
+    downloadMetadata: DownloadedFile['metadata'] | undefined,
     statusCode: number,
     classificationOverrides: Record<string, CaptureClassification> | undefined,
     config: ClassifierConfig
-): CaptureClassification {
+): { type: CaptureClassification, classificationDetails?: Record<string, any> } {
   if (classificationOverrides && classificationOverrides[sha256]) {
-    return classificationOverrides[sha256];
+    return { type: classificationOverrides[sha256] };
   }
-  if (downloadClassification === "corrupt" || (statusCode === 200 && content.length === 0)) {
-    return "corrupt";
+  if (downloadClassification === "corrupt") {
+    if (downloadMetadata?.downloadErrorDetails) {
+      return { type: "corrupt", classificationDetails: { reason: downloadMetadata.downloadErrorDetails.reason, downloadedSize: downloadMetadata.downloadErrorDetails.downloadedSize, actualSize: downloadMetadata.downloadErrorDetails.actualSize } };
+    }
+    else {
+      return { type: "corrupt" };
+    }
+  }
+
+  if (statusCode === 200 && content.length === 0) {
+    return { type: "corrupt", classificationDetails: { reason: "empty_content" } };
   }
   else if (downloadClassification === "unavailable") {
-    return "unavailable";
+    return { type: "unavailable" };
   }
   else if (statusCode === 404) {
-    return "not_found";
+    return { type: "not_found" };
   }
   else if ([301, 302, 307, 308].includes(statusCode)) {
-    return "redirect";
+    return { type: "redirect" };
   }
   else if (config.transientRedirectSha256.includes(sha256)) {
-    return "transient_retry";
+    return { type: "transient_retry" };
   }
   else if (mimetype.toLowerCase().includes('html')) {
     const text = decodeHtml(content).toLowerCase();
     if (config.notFoundStrings.some(s => text.includes(s)) || config.notFoundSha256.includes(sha256)) {
-      return "not_found";
+      return { type: "not_found", classificationDetails: { reason: "not_found_string_detected" } };
     }
     
     const invalidRedirectPage = generateInvalidRedirectPage(url);
     if (text.trim().replaceAll('\r', '') === invalidRedirectPage) {
-      return "transient_retry";
+      return { type: "transient_retry" };
     }
   }
   // This is last because sometimes not found pages have returned 403 error codes but they will de detected by the not found string detection
   if (statusCode === 403) {
-    return "forbidden";
+    return { type: "forbidden" };
   }
 
-  return "ok";
+  return { type: "ok" };
 }
 
 export function classifyEntry(
@@ -87,11 +98,12 @@ export function classifyEntry(
     mimetype: string,
     content: Buffer,
     downloadClassification: "corrupt" | "unavailable" | undefined,
+    downloadMetadata: DownloadedFile['metadata'] | undefined,
     statusCode: number,
     classificationOverrides?: Record<string, CaptureClassification>
-): CaptureClassification {
+): { type: CaptureClassification, classificationDetails?: Record<string, any> } {
   const config = loadDefaultConfig();
-  return classifyEntryWithConfig(url, sha256, mimetype, content, downloadClassification, statusCode, classificationOverrides, config);
+  return classifyEntryWithConfig(url, sha256, mimetype, content, downloadClassification, downloadMetadata, statusCode, classificationOverrides, config);
 }
 
 let defaultConfig : ClassifierConfig | null = null;

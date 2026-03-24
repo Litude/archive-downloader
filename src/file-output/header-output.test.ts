@@ -19,7 +19,7 @@ describe('cleanupHeaders', () => {
     ];
     const url = 'http://example.com/page';
 
-    const result = cleanupWaybackHeaders(url, headers, rawHeaders);
+    const result = cleanupWaybackHeaders(url, headers, rawHeaders, { base: 'defalt', ext: '.html' });
 
     expect(result).toEqual({
       reconstructed: [
@@ -44,7 +44,7 @@ describe('cleanupHeaders', () => {
     ];
     const url = 'http://example.com/page';
 
-    const result = cleanupWaybackHeaders(url, headers, rawHeaders);
+    const result = cleanupWaybackHeaders(url, headers, rawHeaders, { base: 'defalt', ext: '.html' });
 
     expect(result).toEqual({
       original: [
@@ -68,7 +68,7 @@ describe('cleanupHeaders', () => {
     ];
     const url = 'http://www.microsoft.com:80/japan/games/empires/default.asp';
 
-    const result = cleanupWaybackHeaders(url, headers, rawHeaders);
+    const result = cleanupWaybackHeaders(url, headers, rawHeaders, { base: 'defalt', ext: '.asp' });
 
     expect(result).toEqual({
       reconstructed: [
@@ -90,7 +90,7 @@ describe('cleanupHeaders', () => {
     ];
     const url = 'http://www.microsoft.com:80/japan/games/empires/download/up10a.htm';
 
-    const result = cleanupWaybackHeaders(url, headers, rawHeaders);
+    const result = cleanupWaybackHeaders(url, headers, rawHeaders, { base: 'defalt', ext: '.asp' });
 
     expect(result).toEqual({
       reconstructed: [

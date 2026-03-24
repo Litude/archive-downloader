@@ -6,7 +6,13 @@ export interface DownloadedFile {
   timestamp: string;
   headers: Record<string, any>;
   rawHeaders: RawHeader[];
-  metadata?: Record<string, any>;
+  metadata?: {
+    downloadErrorDetails?: {
+      reason: string;
+      downloadedSize: number;
+      actualSize: number | null;
+    }
+  };
   classification?: "corrupt" | "unavailable";
   statusCode: number;
 }

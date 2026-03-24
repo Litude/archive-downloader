@@ -39,7 +39,9 @@ async function internalCheckRecordAvailability(filename: string): Promise<boolea
                     console.error(`Received 403 four times in a row for ${filename}, treating as not available.`);
                     return false;
                 }
-                throw new Error(`Received 403 when checking availability for ${filename}, this may be an intermittent error.`);
+                console.log(`Received 403 when checking availability for ${filename}, this may be an intermittent error.`);
+                await new Promise(resolve => setTimeout(resolve, 1000 * error403Count)); // Wait a bit longer for each consecutive 403 to give the server a chance to recover
+                attempt++;
             } else {
                 throw new Error(`Unexpected status code ${response.status} for ${url}`);
             }

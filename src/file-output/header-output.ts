@@ -1,6 +1,9 @@
+import { filenameToString } from "../file-name/file-name";
+import { Filename } from "../types/download-input-types";
+import { isIisDefaultMimetype } from "../utils/iis-mimetypes";
 import { RawHeader } from "../utils/raw-header-parser";
 
-const ARCHIVED_COMMON_HEADERS = ['content-type', 'content-length', 'location', 'content-location', 'content-base', 'content-disposition'];
+const ARCHIVED_COMMON_HEADERS = ['content-type', 'location', 'content-location', 'content-base', 'content-disposition'];
 const WAYBACK_ORIGINAL_HEADER_PREFIX = 'x-archive-orig-';
 const COMMONCRAWL_ADDED_HEADER = 'x-archive-orig-x_commoncrawl_';
 const ADDRESS_HEADERS = ['location', 'content-location', 'content-base'];
@@ -11,7 +14,10 @@ const IisServerHeaderNames: Record<string, string> = {
     'p3p': 'P3P',
     'microsoftofficewebserver': 'MicrosoftOfficeWebServer',
     'x-aspnet-version': 'X-AspNet-Version',
-    'ntcoent-length': 'ntCoent-Length'
+    'ntcoent-length': 'ntCoent-Length',
+    'www-authenticate': 'WWW-Authenticate',
+    'x-ccc': 'X-CCC',
+    'x-cid': 'X-CID',
 }
 
 function getFixedHeaderName(header: string, server?: string): string {
@@ -75,7 +81,8 @@ function cleanupUrlHeader(url: string, location: string): string {
 export function cleanupWaybackHeaders(
     url: string,
     headers: Record<string, string>,
-    rawHeaders: RawHeader[]
+    rawHeaders: RawHeader[],
+    filename: Filename,
 ): {
     original?: RawHeader[];
     reconstructed?: RawHeader[];
@@ -91,6 +98,20 @@ export function cleanupWaybackHeaders(
             encounteredOriginalKeys.add(originalKey.toLowerCase());
             const fixedOriginalKey = getFixedHeaderName(originalKey, server);
             originalHeaders.push([fixedOriginalKey, value]);
+        }
+        // Wayback seems to return content-encoding unmodified as long as the request is without gzip encoding
+        else if (key.toLowerCase() === 'content-encoding' && !rawHeaders.some(([k, v]) => k.toLowerCase() === `${WAYBACK_ORIGINAL_HEADER_PREFIX}content-encoding`)) {
+            const fixedOriginalKey = getFixedHeaderName('content-encoding', server);
+            encounteredOriginalKeys.add('content-encoding');
+            originalHeaders.push([fixedOriginalKey, value]);
+        }
+        // wayback does content-type rewriting but the exact logic is not open source...
+        else if (key.toLowerCase() === 'content-type' && !rawHeaders.some(([k, v]) => k.toLowerCase() === `${WAYBACK_ORIGINAL_HEADER_PREFIX}content-type`)) {
+            const fixedOriginalKey = getFixedHeaderName('content-type', server);
+            if (value.includes(';') || isIisDefaultMimetype(filenameToString(filename), value, server)) {
+                encounteredOriginalKeys.add('content-type');
+                originalHeaders.push([fixedOriginalKey, value]);
+            }
         }
     }
 

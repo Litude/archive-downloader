@@ -40,12 +40,13 @@ export interface CaptureEntry {
   url: string;
   statusCode?: number;
   classification: CaptureClassification;
+  classificationDetails?: Record<string, any>;
   mimetype: string;
   actualDigest?: string;
   sha256?: string; // always the sha256 of the file as saved
   originalSha256?: string; // if file is somehow post-processed, this is the sha256 of the original downloaded file
   content?: Buffer<ArrayBufferLike>;
-  downloadStatus: string;
+  downloadStatus: 'downloaded' | 'digest-match' | 'skipped' | 'unavailable';
   headers?: Record<string, string>;
   rawHeaders?: RawHeader[];
   hostIp?: string;
@@ -55,6 +56,10 @@ export interface CaptureEntry {
     reconstructed?: RawHeader[];
   }
   records?: ArchiveRecord[];
+  additionalSources?: {
+    source: string;
+    cdxEntry: CdxEntry;
+  }[];
   metadata?: {
     wayback?: CaptureWaybackMetadata;
     crawlData?: {
@@ -64,7 +69,6 @@ export interface CaptureEntry {
       publisher?: string;
       operator?: string;
     }
-    classificationDetails?: Record<string, any>;
     validationErrors?: {
       type: string;
       details?: any;
