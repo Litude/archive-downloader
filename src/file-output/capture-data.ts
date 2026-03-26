@@ -217,6 +217,7 @@ export function writeCaptureData(
       captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
       captureTimePrecise: exactCaptureDate ?? undefined,
       status: entry.statusCode,
+      mimeType: entry.mimetype,
       modificationTime: entry.lastModified
         ? entry.lastModified.toISO({ suppressMilliseconds: true })
         : undefined,

@@ -33,6 +33,7 @@ import { parseWarcinfoFile } from "../archive-record/warcinfo.js";
 import { getHeaderValue } from "../headers/headers.js";
 import { tryToCompleteMissingCdxFields } from "./wayback/cdx-completion/cdx-completion.js";
 import { cleanUpCorruptCommonCrawlEntries } from "./wayback/wayback-commoncrawl-cleanup.js";
+import { extractMimeTypeFromContentType } from "../utils/mimetype.js";
 
 function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
   const digestHashes = new Map<string, { sha256: string; actualDigest: string }>();
@@ -58,7 +59,7 @@ function classifyDigestFiles(
     const classification = classifyEntry(
       file.url,
       hashes.sha256,
-      file.responseHeaders["content-type"],
+      extractMimeTypeFromContentType(file.responseHeaders["content-type"]) || file.responseHeaders["content-type"],
       file.content,
       file.classification,
       file.metadata,
@@ -153,13 +154,13 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
         const timestamps = headers
           ? parseHeaderTimestamps(entry.url, headers, entry.timestamp, true)
           : {
-              captureDate: DateTime.fromFormat(entry.timestamp, "yyyyLLddHHmmss", {
-                zone: "utc",
-              }) as DateTime<true>,
-              lastModified: null,
-              mementoDate: null,
-              serverDate: null,
-            };
+            captureDate: DateTime.fromFormat(entry.timestamp, "yyyyLLddHHmmss", {
+              zone: "utc",
+            }) as DateTime<true>,
+            lastModified: null,
+            mementoDate: null,
+            serverDate: null,
+          };
         const waybackFilename =
           fetchAllHeaders && headers ? getWaybackFilename(headers) : undefined;
         const lastModified = timestamps.lastModified;
@@ -173,9 +174,9 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
             filename: waybackFilename ?? entry.filename,
             revisitEntry: entry.revisitEntry
               ? {
-                  ...entry.revisitEntry,
-                  filename: waybackFilename ?? entry.revisitEntry.filename,
-                }
+                ...entry.revisitEntry,
+                filename: waybackFilename ?? entry.revisitEntry.filename,
+              }
               : undefined,
           },
           lastModified,
@@ -184,7 +185,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
           classification: entry.digest
             ? classifiedEntries.get(entry.digest)!
             : { type: "unavailable" as const },
-          mimetype: entry.mimetype,
+          mimetype: extractMimeTypeFromContentType(headers?.["content-type"]) || entry.mimetype,
           actualDigest: entry.digest ? digestFileHashes.get(entry.digest)!.actualDigest : undefined,
           sha256: entry.digest ? digestFileHashes.get(entry.digest)!.sha256 : undefined,
           originalSha256: entry.digest ? digestFileHashes.get(entry.digest)!.sha256 : undefined,
@@ -216,7 +217,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
         url: entry.url,
         statusCode: entry.statusCode,
         classification: entry.classification,
-        mimetype: entry.mimetype,
+        mimetype: extractMimeTypeFromContentType(entry.responseHeaders?.["content-type"]) || entry.mimetype,
         actualDigest: "",
         sha256: "",
         originalSha256: undefined,
@@ -276,14 +277,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
       if (!existingEntry) {
         throw new Error(`Existing entry for ${entry.url} at ${entry.timestamp} not found?!`);
       }
-      const contentLength = response.responseHeaders["content-length"]
-        ? parseInt(response.responseHeaders["content-length"])
-        : undefined;
-      if (contentLength !== undefined && existingEntry.content?.length !== contentLength) {
-        throw new Error(
-          `Content length mismatch for ${entry.url} at ${entry.timestamp}: expected ${contentLength}, got ${existingEntry.content?.length}`,
-        );
-      }
+      existingEntry.mimetype = extractMimeTypeFromContentType(response.responseHeaders["content-type"]) || existingEntry.mimetype;
       existingEntry.mementoDateTime = timestamps.mementoDate ?? undefined;
       existingEntry.lastModified = timestamps.lastModified;
       existingEntry.responseHeaders = response.responseHeaders;
@@ -458,6 +452,22 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
 
   // Post-cleanup: Need to check for possibly corrupt commoncrawl entries
   await cleanUpCorruptCommonCrawlEntries(baseEntries, input.classifications);
+
+  // After cleanup check that content size of all entries matches the content-length header (if available)
+  // else throw an error since this must be investigated manually and indicates a problem with the downloaded data
+  // (e.g. same digest but different content like in the common crawl case)
+  for (const entry of baseEntries) {
+    if (entry.responseHeaders && entry.content) {
+      const contentLength = entry.responseHeaders["content-length"]
+        ? parseInt(entry.responseHeaders["content-length"], 10)
+        : undefined;
+      if (contentLength !== undefined && entry.content.length !== contentLength) {
+        throw new Error(
+          `Content length mismatch for ${entry.url} at ${entry.timestamp}: expected ${contentLength}, got ${entry.content.length}`,
+        );
+      }
+    }
+  }
 
   return { baseEntries, unavailableEntries, skippedEntries, metadata };
 }

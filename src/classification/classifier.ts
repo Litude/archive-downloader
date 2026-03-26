@@ -47,7 +47,7 @@ function decodeHtml(buffer: Buffer): string {
 export function classifyEntryWithConfig(
   url: string,
   sha256: string,
-  mimetype: string,
+  mimetype: string | undefined,
   content: Buffer,
   downloadClassification: "corrupt" | "unavailable" | undefined,
   downloadMetadata: DownloadedFile["metadata"] | undefined,
@@ -83,7 +83,7 @@ export function classifyEntryWithConfig(
     return { type: "redirect" };
   } else if (config.transientRedirectSha256.includes(sha256)) {
     return { type: "transient_retry" };
-  } else if (mimetype.toLowerCase().includes("html")) {
+  } else if (mimetype && mimetype.toLowerCase().includes("html")) {
     const text = decodeHtml(content).toLowerCase();
     if (
       config.notFoundStrings.some((s) => text.includes(s)) ||
@@ -97,7 +97,7 @@ export function classifyEntryWithConfig(
       return { type: "transient_retry" };
     }
   }
-  // This is last because sometimes not found pages have returned 403 error codes but they will de detected by the not found string detection
+  // This is last because sometimes not found pages have returned 403 error codes but they will be detected by the not found string detection
   if (statusCode === 403) {
     return { type: "forbidden" };
   }
@@ -108,7 +108,7 @@ export function classifyEntryWithConfig(
 export function classifyEntry(
   url: string,
   sha256: string,
-  mimetype: string,
+  mimetype: string | undefined,
   content: Buffer,
   downloadClassification: "corrupt" | "unavailable" | undefined,
   downloadMetadata: DownloadedFile["metadata"] | undefined,
