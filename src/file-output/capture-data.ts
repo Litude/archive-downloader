@@ -120,26 +120,6 @@ function stringifyWithInlineTuples(data: unknown, inlineElementsOf: Set<unknown[
     return json;
 }
 
-export function assignCaptureIndices(captureEntries: CaptureEntry[], filename: Filename): void {
-    const headerFilename = structuredClone(filename);
-    const encounteredFilenames = new Set<string>();
-    captureEntries.forEach(entry => {
-        const entryFilename = structuredClone(headerFilename);
-        if (entry.classification !== "ok") {
-            entryFilename.flags = "invalid";
-        }
-        entryFilename.timestamp = entry.captureTimestamp.toFormat('yyyyLLddHHmmss');
-        let outputFilename = filenameToString(entryFilename, 'full');
-        let counter = 1;
-        while (encounteredFilenames.has(outputFilename)) {
-            outputFilename = filenameToString(entryFilename, 'full', counter);
-            counter++;
-        }
-        encounteredFilenames.add(outputFilename);
-        entry.captureIndex = counter > 1 ? counter - 1 : undefined;
-    });
-}
-
 export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filename, outputDirectory: string) {
     const headerFilename = structuredClone(filename);
     const archivalDir = path.join(outputDirectory, '.archivaldata');
@@ -151,7 +131,8 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
             entryFilename.flags = "invalid";
         }
         entryFilename.timestamp = entry.captureTimestamp.toFormat('yyyyLLddHHmmss');
-        const outputFilename = filenameToString(entryFilename, 'full', entry.captureIndex);
+        // 0 capture index is intentionally skipped
+        const outputFilename = filenameToString(entryFilename, 'full', entry.captureIndex ? entry.captureIndex : undefined);
 
         const exactModificationDate = getExactModificationDate(entry);
         if (!exactModificationDate && getCaptureHeaderValue(entry, 'etag') && entry.lastModified) {
@@ -165,8 +146,12 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
         const headersResult = entry.headerOutput;
 
         const inlineElementsOf = new Set<unknown[]>();
-        if (headersResult?.original) inlineElementsOf.add(headersResult.original);
-        if (headersResult?.reconstructed) inlineElementsOf.add(headersResult.reconstructed);
+        if (headersResult?.original) {
+            inlineElementsOf.add(headersResult.original);
+        }
+        if (headersResult?.reconstructed) {
+            inlineElementsOf.add(headersResult.reconstructed);
+        }
 
         const archiveRecordAvailable = Boolean(entry.records?.find(r => ["warc", "arc"].includes(r.type))?.type ?? undefined);
         const archiveFilename = mainCdxEntry.filename;

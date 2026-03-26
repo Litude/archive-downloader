@@ -28,8 +28,6 @@ export function writeUniqueFileEntries(captureEntries: CaptureEntry[], filename:
         }
     });
 
-    const encounteredFilenames = new Set<string>();
-
     let invalidFilesWritten = 0;
     let rawFilesWritten = 0;
     let validFilesWritten = 0;
@@ -52,25 +50,29 @@ export function writeUniqueFileEntries(captureEntries: CaptureEntry[], filename:
             validFilesWritten++;
         }
 
-        const filenameTimestamp = entryIsValid ? (entry.lastModified ?? entry.captureTimestamp) : entry.captureTimestamp
+        const entryHasFlags = entryFilename.flags ? true : false;
+
+        const filenameTimestamp = !entryHasFlags ? (entry.lastModified ?? entry.captureTimestamp) : entry.captureTimestamp
         entryFilename.timestamp = filenameTimestamp.toFormat('yyyyLLddHHmmss');
 
-        let outputFilename = filenameToString(entryFilename, 'full');
+        const filenameIndex = !entryHasFlags ? entry.contentIndex : entry.captureIndex;
 
-        // Ensure uniqueness (this should not really happen so the filenames will look ugly)
-        let counter = 1;
-        while (encounteredFilenames.has(outputFilename)) {
-            outputFilename = filenameToString(entryFilename, 'full', counter);
-            counter++;
+        if (filenameIndex === null) {
+            // This should not really happen?! Should only occur for entries that don't have a modify date but some other entry with the same sha256 does have a modify date,
+            // but in that case they should be skipped entirely by the filtering at the start and not get to this point
+            console.error(`Entry with sha256 ${entry.sha256} has content index null, but should have a valid index since it has flags ${entryFilename.flags}`);
+            return;
         }
-        encounteredFilenames.add(outputFilename);
+
+        // 0 is intentionally skipped so entries only show the suffix if there are multiple with the same timestamp+flags, to keep the filenames cleaner
+        let outputFilename = filenameToString(entryFilename, 'full', filenameIndex ? filenameIndex : undefined);
 
         const mainDir = outputDirectory;
         const archivalDir = path.join(outputDirectory, '.archivaldata');
         fs.mkdirSync(archivalDir, { recursive: true });
         fs.mkdirSync(mainDir, { recursive: true });
 
-        const outputDir = entryFilename.flags ? archivalDir : mainDir;
+        const outputDir = entryHasFlags ? archivalDir : mainDir;
         const outputPath = path.join(outputDir, outputFilename);
 
         fs.writeFileSync(outputPath, entry.content ?? Buffer.alloc(0));

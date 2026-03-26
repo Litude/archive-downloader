@@ -324,7 +324,7 @@ async function getSnapshotsForUrl(url: UrlEntry) {
   }
   const revisitCount = filteredSnapshots.filter(s => s.mimetype === 'warc/revisit').length;
   if (revisitCount > 0) {
-    console.log(`Found ${revisitCount} warc/revisit snapshots for ${url.url} after timestamp filtering. Will resolve revisits`);
+    console.log(`Found ${revisitCount} warc/revisit snapshots for ${url.url}. Will resolve revisits.`);
     const resolvedSnapshots = await fetchWaybackCdxIndex(url.url, true);
     const filteredResolvedSnapshots = filterSnapshotsByTimestamp(resolvedSnapshots, url.maxTimestamp, url.minTimestamp);
     if (filteredResolvedSnapshots.length !== filteredSnapshots.length) {

@@ -41,7 +41,7 @@ export interface CaptureEntry {
   statusCode?: number;
   classification: CaptureClassification;
   classificationDetails?: Record<string, any>;
-  mimetype: string;
+  mimetype: string; // TODO: Should this be populated from the actual headers when available instead, the CDX index has some pretty bad values here sometimes?
   actualDigest?: string;
   sha256?: string; // always the sha256 of the file as saved
   originalSha256?: string; // if file is somehow post-processed, this is the sha256 of the original downloaded file
@@ -56,6 +56,7 @@ export interface CaptureEntry {
     reconstructed?: RawHeader[];
   }
   captureIndex?: number; // set when filename has _N suffix due to duplicate timestamp+flags
+  contentIndex?: number | null; // set when multiple captures have same content and timestamp, so only one file is saved but all get an index to indicate they are part of the same group
   records?: ArchiveRecord[];
   additionalSources?: {
     source: string;

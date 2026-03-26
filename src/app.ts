@@ -14,7 +14,8 @@ import { resetLog } from "./utils/log-context";
 import { Context } from "./types/context";
 import { WithRequired } from './utils/ts-utils';
 import { downloadWaybackEntries } from "./downloader/downloader-wayback";
-import { assignCaptureIndices, writeCaptureData } from "./file-output/capture-data";
+import { writeCaptureData } from "./file-output/capture-data";
+import { assignOutputIndices } from "./file-output/output-indices";
 
 // High level logic of app:
 // 1. Read input JSON file to get list of DownloadFileInput
@@ -121,7 +122,7 @@ async function processWebsiteDownloads(
             }
           }
         }
-        assignCaptureIndices(updatedEntries, filename);
+        assignOutputIndices(updatedEntries, filename);
         writeUniqueFileEntries(updatedEntries, filename, input.outputDirectory);
         const summaryEntries = [...updatedEntries, ...invalidEntries].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
         await writeCsvSummary(summaryEntries, filename, input.outputDirectory);
@@ -141,7 +142,7 @@ async function processWebsiteDownloads(
         console.log(`Unable to download any valid files for ${finalName}, creating empty placeholder ${finalName}`);
         writeUnavailablePlaceholder(input.filename, input.outputDirectory);
       }
-      assignCaptureIndices(baseEntries, input.filename);
+      assignOutputIndices(baseEntries, input.filename);
       writeUniqueFileEntries(baseEntries, input.filename, input.outputDirectory);
       const summaryEntries = [...baseEntries, ...unavailableEntries, ...skippedEntries].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
       await writeCsvSummary(summaryEntries, input.filename, input.outputDirectory);
