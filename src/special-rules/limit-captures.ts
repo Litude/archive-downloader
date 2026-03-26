@@ -1,9 +1,13 @@
 import JSON5 from "json5";
 import fs from "fs";
-import path from "path";
+import path, { dirname } from "path";
 import { DateTime } from "luxon";
+import { fileURLToPath } from "url";
 import { LimitedCaptureConfig, LimitedCaptureRange } from "../types/download-input-types.js";
 import { ExtendedCdxEntry } from "../types/wayback-types.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 let defaultLimitedCaptures: LimitedCaptureConfig[] | null = null;
 function loadDefaultLimitedCaptureConfigs(): LimitedCaptureConfig[] {

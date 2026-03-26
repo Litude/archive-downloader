@@ -1,10 +1,14 @@
-import path from "path";
+import path, { dirname } from "path";
 import JSON5 from "json5";
 import fs from "fs";
 import { timestampMax, timestampMin } from "../utils/timestamp.js";
 import { UrlEntry } from "../types/download-input-types.js";
 import { MirrorData, MirrorUrlData } from "../types/website-types.js";
 import { urlIsIpv4Address } from "../utils/address.js";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 function normalizeUrl(url: string): string {
   let normalized = url;

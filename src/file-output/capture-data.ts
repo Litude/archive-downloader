@@ -177,8 +177,10 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
         protocol: entry.protocol,
         archiveRecordFormat,
         archiveRecordAvailable,
-        classification: entry.classification,
-        classificationDetails: entry.classificationDetails,
+        classification: {
+          type: entry.classification,
+          details: entry.classificationDetails,
+        },
         cdxEntry: {
           urlkey: mainCdxEntry.urlkey,
           timestamp: mainCdxEntry.timestamp,

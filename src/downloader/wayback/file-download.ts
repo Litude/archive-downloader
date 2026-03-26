@@ -1,7 +1,8 @@
 import axios, { AxiosResponse } from "axios";
 import fs from "fs";
-import path from "path";
+import path, { dirname } from "path";
 import JSON5 from "json5";
+import { fileURLToPath } from "url";
 import { fetchPartiallyArchivedFileData } from "./partial-file.js";
 import { DownloadedFile } from "../../types/download-types.js";
 import { preventAxiosRedirects } from "../../utils/axios-utils.js";
@@ -10,6 +11,8 @@ import { CdxEntry } from "../../types/wayback-types.js";
 import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common.js";
 import { parseRawHeadersToPairs } from "../../utils/raw-header-parser.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const WEB_ARCHIVE = "web.archive.org/web";
 const REQUEST_TIMEOUT = 60_000; // 60 seconds
 const INITIAL_BACKOFF = WAYBACK_INITIAL_BACKOFF; // 30 seconds

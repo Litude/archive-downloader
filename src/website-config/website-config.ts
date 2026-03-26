@@ -1,6 +1,7 @@
 import JSON5 from "json5";
 import fs from "fs";
-import path from "path";
+import path, { dirname } from "path";
+import { fileURLToPath } from "url";
 import { DownloadFileInput, UrlEntry } from "../types/download-input-types.js";
 import { determineFilenameFromUrls, determineOutputSubdirectoryFromUrls } from "../file-name/file-name.js";
 import { createMirrorUrls } from "../mirrors/mirrors.js";
@@ -8,6 +9,9 @@ import { createAdditionalUrls } from "../mirrors/additional-urls.js";
 import { readFileAsJson5 } from "../utils/file-json.js";
 import { MirrorData, MirrorUrlData, WebsiteFileEntryJson } from "../types/website-types.js";
 import { parseJsonTransformations } from "../transformation/transformation.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Timestamps can be limited at several levels:
 // - Global max/min timestamps for all urls in a json file
