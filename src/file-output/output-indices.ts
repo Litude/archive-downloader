@@ -10,7 +10,7 @@ export function assignOutputIndices(captureEntries: CaptureEntry[], filename: Fi
 function assignCaptureIndices(captureEntries: CaptureEntry[], filename: Filename): void {
   const headerFilename = structuredClone(filename);
   const encounteredFilenames = new Set<string>();
-  captureEntries.forEach(entry => {
+  captureEntries.forEach((entry) => {
     const entryFilename = structuredClone(headerFilename);
     if (entry.classification.type !== "ok") {
       entryFilename.flags = "invalid";
@@ -27,20 +27,25 @@ function assignCaptureIndices(captureEntries: CaptureEntry[], filename: Filename
   });
 }
 
+// Index used for actual output. Since only valid entries will have an "actual" output entry,
+// this will be undefined for other entries
 function assignContentIndices(captureEntries: CaptureEntry[], filename: Filename): void {
   const uniqueEntries = new Map<string, CaptureEntry>();
   const shaHasModified = new Set<string>();
 
   // First pass: identify which sha256 have modified timestamps
-  captureEntries.forEach(entry => {
-    if (entry.lastModified && entry.sha256) {
+  captureEntries.forEach((entry) => {
+    if (entry.lastModified && entry.sha256 && entry.classification.type === "ok") {
       shaHasModified.add(entry.sha256);
     }
   });
 
   // Second pass: collect unique entries, skipping no-modify ones if a modified exists
-  captureEntries.forEach(entry => {
-    if (!entry.lastModified && entry.sha256 && shaHasModified.has(entry.sha256)) {
+  captureEntries.forEach((entry) => {
+    if (
+      (!entry.lastModified && entry.sha256 && shaHasModified.has(entry.sha256)) ||
+      entry.classification.type !== "ok"
+    ) {
       return; // skip this entry
     }
     const key = `${entry.sha256}-${entry.lastModified ? entry.lastModified.toISO() : "no-modified"}`;
@@ -54,13 +59,8 @@ function assignContentIndices(captureEntries: CaptureEntry[], filename: Filename
 
   uniqueEntries.forEach((entry, key) => {
     const entryFilename = structuredClone(filename);
-    const entryIsValid = entry.classification.type === "ok";
 
-    if (!entryIsValid) {
-      entryFilename.flags = "invalid";
-    }
-
-    const filenameTimestamp = entryIsValid ? (entry.lastModified ?? entry.captureTimestamp) : entry.captureTimestamp;
+    const filenameTimestamp = entry.lastModified ?? entry.captureTimestamp;
     entryFilename.timestamp = filenameTimestamp.toFormat("yyyyLLddHHmmss");
 
     let outputFilename = filenameToString(entryFilename, "full");
@@ -75,12 +75,11 @@ function assignContentIndices(captureEntries: CaptureEntry[], filename: Filename
     outputIndexMap.set(key, counter);
   });
 
-  captureEntries.forEach(entry => {
+  captureEntries.forEach((entry) => {
     const key = `${entry.sha256}-${entry.lastModified ? entry.lastModified.toISO() : "no-modified"}`;
     if (outputIndexMap.has(key)) {
       entry.contentIndex = outputIndexMap.get(key);
-    }
-    else {
+    } else {
       entry.contentIndex = null;
     }
   });

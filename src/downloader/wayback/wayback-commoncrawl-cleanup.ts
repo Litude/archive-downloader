@@ -19,17 +19,40 @@ import { fetchWaybackFile } from "./file-download.js";
  *  If the downloadStatus is not 'digest-match', we only need to redownload the commoncrawl
  *  entry and perform reclassification based on the result.
  */
-export async function cleanUpCorruptCommonCrawlEntries(baseEntries: CaptureEntry[], classificationOverrides?: Record<string, CaptureClassification>) {
+export async function cleanUpCorruptCommonCrawlEntries(
+  baseEntries: CaptureEntry[],
+  classificationOverrides?: Record<string, CaptureClassification>,
+) {
   for (const entry of baseEntries) {
-    const isCommonCrawl = entry.metadata?.wayback?.item.collections.some(coll => coll.id === "commoncrawl");
-    if (isCommonCrawl && entry.rawResponseHeaders?.some(([key, value]) => key.toLowerCase() === "content-encoding" && value.toLowerCase() === "gzip")) {
-      console.log(`Entry ${entry.url} at ${entry.timestamp} is gzipped and is from Common Crawl, performing post-cleanup.`);
+    const isCommonCrawl = entry.metadata?.wayback?.item.collections.some(
+      (coll) => coll.id === "commoncrawl",
+    );
+    if (
+      isCommonCrawl &&
+      entry.rawResponseHeaders?.some(
+        ([key, value]) =>
+          key.toLowerCase() === "content-encoding" && value.toLowerCase() === "gzip",
+      )
+    ) {
+      console.log(
+        `Entry ${entry.url} at ${entry.timestamp} is gzipped and is from Common Crawl, performing post-cleanup.`,
+      );
       if (entry.downloadStatus === "downloaded") {
-        const matchingNonCommonCrawlEntries = baseEntries.filter(e => e.cdxEntry.digest === entry.cdxEntry.digest && !e.metadata?.wayback?.item.collections.some(coll => coll.id === "commoncrawl"));
+        const matchingNonCommonCrawlEntries = baseEntries.filter(
+          (e) =>
+            e.cdxEntry.digest === entry.cdxEntry.digest &&
+            !e.metadata?.wayback?.item.collections.some((coll) => coll.id === "commoncrawl"),
+        );
         if (matchingNonCommonCrawlEntries.length > 0) {
-          console.log(`Found ${matchingNonCommonCrawlEntries.length} other entries with the same digest that are not from Common Crawl. Need to refetch actual content...`);
+          console.log(
+            `Found ${matchingNonCommonCrawlEntries.length} other entries with the same digest that are not from Common Crawl. Need to refetch actual content...`,
+          );
           const firstEntry = matchingNonCommonCrawlEntries[0];
-          const fileContent = await fetchWaybackFile(firstEntry.timestamp, firstEntry.url, firstEntry.statusCode ?? 0);
+          const fileContent = await fetchWaybackFile(
+            firstEntry.timestamp,
+            firstEntry.url,
+            firstEntry.statusCode ?? 0,
+          );
           const sha256 = computeSha256(fileContent.content);
           const actualDigest = computeWaybackDigest(fileContent.content);
           const classification = classifyEntry(
@@ -43,10 +66,13 @@ export async function cleanUpCorruptCommonCrawlEntries(baseEntries: CaptureEntry
             classificationOverrides,
           );
           if (classification.type !== firstEntry.classification.type) {
-            console.log(`Classification of ${matchingNonCommonCrawlEntries.length} non-Common Crawl entries (${firstEntry.url} changed from ${firstEntry.classification.type} to ${classification.type} after refetching content.`);
-          }
-          else {
-            console.log(`Classification of ${matchingNonCommonCrawlEntries.length} non-Common Crawl entries (${firstEntry.url}) remains the same (${classification.type}) after refetching content.`);
+            console.log(
+              `Classification of ${matchingNonCommonCrawlEntries.length} non-Common Crawl entries (${firstEntry.url} changed from ${firstEntry.classification.type} to ${classification.type} after refetching content.`,
+            );
+          } else {
+            console.log(
+              `Classification of ${matchingNonCommonCrawlEntries.length} non-Common Crawl entries (${firstEntry.url}) remains the same (${classification.type}) after refetching content.`,
+            );
           }
           for (const matchingEntry of matchingNonCommonCrawlEntries) {
             matchingEntry.content = fileContent.content;
@@ -58,10 +84,15 @@ export async function cleanUpCorruptCommonCrawlEntries(baseEntries: CaptureEntry
           }
           firstEntry.downloadStatus = "downloaded";
         }
-      }
-      else if (entry.downloadStatus === "digest-match") {
-        console.log(`Common Crawl entry ${entry.url} at ${entry.timestamp} was not downloaded but had a digest match. Refetching content to verify...`);
-        const fileContent = await fetchWaybackFile(entry.timestamp, entry.url, entry.statusCode ?? 0);
+      } else if (entry.downloadStatus === "digest-match") {
+        console.log(
+          `Common Crawl entry ${entry.url} at ${entry.timestamp} was not downloaded but had a digest match. Refetching content to verify...`,
+        );
+        const fileContent = await fetchWaybackFile(
+          entry.timestamp,
+          entry.url,
+          entry.statusCode ?? 0,
+        );
         const sha256 = computeSha256(fileContent.content);
         const actualDigest = computeWaybackDigest(fileContent.content);
         const classification = classifyEntry(
@@ -75,10 +106,13 @@ export async function cleanUpCorruptCommonCrawlEntries(baseEntries: CaptureEntry
           classificationOverrides,
         );
         if (classification.type !== entry.classification.type) {
-          console.log(`Classification of Common Crawl entry ${entry.url} at ${entry.timestamp} changed from ${entry.classification.type} to ${classification.type} after refetching content.`);
-        }
-        else {
-          console.log(`Classification of Common Crawl entry ${entry.url} at ${entry.timestamp} remains the same (${classification.type}) after refetching content.`);
+          console.log(
+            `Classification of Common Crawl entry ${entry.url} at ${entry.timestamp} changed from ${entry.classification.type} to ${classification.type} after refetching content.`,
+          );
+        } else {
+          console.log(
+            `Classification of Common Crawl entry ${entry.url} at ${entry.timestamp} remains the same (${classification.type}) after refetching content.`,
+          );
         }
         entry.content = fileContent.content;
         entry.sha256 = sha256;

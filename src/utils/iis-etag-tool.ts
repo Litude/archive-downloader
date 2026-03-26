@@ -13,19 +13,16 @@ function main(argv: string[]) {
     const date = argv[3];
     const etag = createIisEtagFromDate(date);
     console.log(etag);
-  }
-  else if (command === "parse") {
+  } else if (command === "parse") {
     const etag = argv[3];
 
     const match = etag.match(/^"?([0-9a-fA-F]+):[0-9a-fA-F]+"?$/);
     let result: string[] | null = null;
     if (match) {
       result = parseIisEtagDate(argv[2], DateTime.now());
-    }
-    else if (etag.length >= 8 && etag.length <= 16 && /^[0-9a-fA-F]+$/.test(etag)) {
+    } else if (etag.length >= 8 && etag.length <= 16 && /^[0-9a-fA-F]+$/.test(etag)) {
       result = parseIisEtagDate(`"${etag}:0000000000000000"`, DateTime.now());
-    }
-    else {
+    } else {
       console.error("ETag does not match expected formats");
       process.exit(1);
     }
@@ -35,8 +32,7 @@ function main(argv: string[]) {
       for (const date of result) {
         console.log(date);
       }
-    }
-    else {
+    } else {
       console.log("No valid ETag dates found");
     }
   }

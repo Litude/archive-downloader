@@ -1,9 +1,9 @@
 import { parseArchiveRecordHeadersToPairs, RawHeader } from "../utils/raw-header-parser.js";
 
 export function parseWarcinfoFile(buffer: Buffer): {
-    timestamp: string;
-    metadata: RawHeader[];
-    lines: RawHeader[];
+  timestamp: string;
+  metadata: RawHeader[];
+  lines: RawHeader[];
 } {
   const content = buffer.toString("latin1");
 

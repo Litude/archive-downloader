@@ -3,7 +3,10 @@ import fs from "fs";
 import path, { dirname } from "path";
 import { fileURLToPath } from "url";
 import { DownloadFileInput, UrlEntry } from "../types/download-input-types.js";
-import { determineFilenameFromUrls, determineOutputSubdirectoryFromUrls } from "../file-name/file-name.js";
+import {
+  determineFilenameFromUrls,
+  determineOutputSubdirectoryFromUrls,
+} from "../file-name/file-name.js";
 import { createMirrorUrls } from "../mirrors/mirrors.js";
 import { createAdditionalUrls } from "../mirrors/additional-urls.js";
 import { readFileAsJson5 } from "../utils/file-json.js";
@@ -31,18 +34,32 @@ function getEntryUrls(
   maxTimestamp?: string,
   minTimestamp?: string,
 ): {
-    url: string,
-    maxTimestamp?: string,
-    minTimestamp?: string
+  url: string;
+  maxTimestamp?: string;
+  minTimestamp?: string;
 }[] {
   if (entry.urls) {
-    return entry.urls.map(
-      u => typeof u === "string" ?
-        { url: u, maxTimestamp: entry.maxTimestamp ?? maxTimestamp, minTimestamp: entry.minTimestamp ?? minTimestamp }
-        : { url: u.url, maxTimestamp: u.maxTimestamp ?? entry.maxTimestamp ?? maxTimestamp, minTimestamp: u.minTimestamp ?? entry.minTimestamp ?? minTimestamp },
+    return entry.urls.map((u) =>
+      typeof u === "string"
+        ? {
+            url: u,
+            maxTimestamp: entry.maxTimestamp ?? maxTimestamp,
+            minTimestamp: entry.minTimestamp ?? minTimestamp,
+          }
+        : {
+            url: u.url,
+            maxTimestamp: u.maxTimestamp ?? entry.maxTimestamp ?? maxTimestamp,
+            minTimestamp: u.minTimestamp ?? entry.minTimestamp ?? minTimestamp,
+          },
     );
   } else if (entry.url) {
-    return [{ url: entry.url, maxTimestamp: entry.maxTimestamp ?? maxTimestamp, minTimestamp: entry.minTimestamp ?? minTimestamp }];
+    return [
+      {
+        url: entry.url,
+        maxTimestamp: entry.maxTimestamp ?? maxTimestamp,
+        minTimestamp: entry.minTimestamp ?? minTimestamp,
+      },
+    ];
   } else {
     throw new Error('Each file entry must have either "url" or "urls" field');
   }
@@ -57,13 +74,19 @@ function createAllMirrorUrls(
   {
     maxTimestamp,
     minTimestamp,
-  } : {
-    maxTimestamp?: string,
-    minTimestamp?: string
+  }: {
+    maxTimestamp?: string;
+    minTimestamp?: string;
   },
 ): UrlEntry[] {
   const mirrorUrls = createMirrorUrls(urls, mirrors);
-  const additionalUrls = file.additionalUrls ? createAdditionalUrls(file.additionalUrls, file.maxTimestamp ?? maxTimestamp, file.minTimestamp ?? minTimestamp) : [];
+  const additionalUrls = file.additionalUrls
+    ? createAdditionalUrls(
+        file.additionalUrls,
+        file.maxTimestamp ?? maxTimestamp,
+        file.minTimestamp ?? minTimestamp,
+      )
+    : [];
   return [...mirrorUrls, ...additionalUrls];
 }
 
@@ -76,7 +99,7 @@ function replaceJsonConfigVariables<T>(obj: T, variables: Record<string, any>): 
       return variables[varName];
     }) as T;
   } else if (Array.isArray(obj)) {
-    return obj.map(item => replaceJsonConfigVariables(item, variables)) as T;
+    return obj.map((item) => replaceJsonConfigVariables(item, variables)) as T;
   } else if (obj !== null && typeof obj === "object") {
     return Object.fromEntries(
       Object.entries(obj).map(([k, v]) => [k, replaceJsonConfigVariables(v, variables)]),
@@ -96,14 +119,18 @@ function readVariables(): Record<string, any> {
       return {};
     }
   } else {
-    console.warn(`Variables file not found at ${variablesPath}, proceeding without variable substitution.`);
+    console.warn(
+      `Variables file not found at ${variablesPath}, proceeding without variable substitution.`,
+    );
     return {};
   }
 }
 
-export function readWebsiteJsonConfig(jsonPath: string, baseDirectory: string, {
-  noMirrors = false,
-}): DownloadFileInput[] {
+export function readWebsiteJsonConfig(
+  jsonPath: string,
+  baseDirectory: string,
+  { noMirrors = false },
+): DownloadFileInput[] {
   let config = readFileAsJson5(jsonPath);
   const variables = readVariables();
   config = replaceJsonConfigVariables(config, variables);
@@ -115,31 +142,40 @@ export function readWebsiteJsonConfig(jsonPath: string, baseDirectory: string, {
 
   const files: WebsiteFileEntryJson[] = config.files;
 
-  const result = files.map(file => {
+  const result = files.map((file) => {
     const urls = getEntryUrls(file, maxTimestamp, minTimestamp);
 
-    const mirrors = [...new Set([
-      ...(commonMirrors || []),
-      ...(file.additionalMirrors || []),
-    ])];
+    const mirrors = [...new Set([...(commonMirrors || []), ...(file.additionalMirrors || [])])];
     const filename = determineFilenameFromUrls(file, urls, file.queryParams);
     filename.queryParams = file.queryParams;
-    const outputDir = determineOutputSubdirectoryFromUrls(urls, baseDirectory, config.commonSettings?.baseDirectory);
+    const outputDir = determineOutputSubdirectoryFromUrls(
+      urls,
+      baseDirectory,
+      config.commonSettings?.baseDirectory,
+    );
 
-    const allUrls = noMirrors ? urls : createAllMirrorUrls(urls, file, mirrors, { maxTimestamp, minTimestamp });
+    const allUrls = noMirrors
+      ? urls
+      : createAllMirrorUrls(urls, file, mirrors, { maxTimestamp, minTimestamp });
 
     const transformations = parseJsonTransformations(file.transformations || []);
 
     const allClassifications = { ...commonClassifications, ...file.classifications };
 
     if (file.excludedCaptures && file.excludedCaptures.length > 0) {
-      throw new Error('The "excludedCaptures" field is deprecated and should be handled by getting all headers');
+      throw new Error(
+        'The "excludedCaptures" field is deprecated and should be handled by getting all headers',
+      );
     }
     if (file.skippedFileWriteCaptures && file.skippedFileWriteCaptures.length > 0) {
-      throw new Error('The "skippedFileWriteCaptures" field is deprecated and should be handled by getting all headers');
+      throw new Error(
+        'The "skippedFileWriteCaptures" field is deprecated and should be handled by getting all headers',
+      );
     }
     if (file.forcedUniqueEntries) {
-      throw new Error('The "forcedUniqueEntries" field is deprecated and should be handled by getting all headers');
+      throw new Error(
+        'The "forcedUniqueEntries" field is deprecated and should be handled by getting all headers',
+      );
     }
 
     return {
@@ -149,7 +185,8 @@ export function readWebsiteJsonConfig(jsonPath: string, baseDirectory: string, {
       transformations,
       queryHashParameters: file.queryHashParameters,
       classifications: Object.keys(allClassifications).length > 0 ? allClassifications : undefined,
-      skippedCaptures: file.skippedCaptures && file.skippedCaptures.length > 0 ? file.skippedCaptures : undefined,
+      skippedCaptures:
+        file.skippedCaptures && file.skippedCaptures.length > 0 ? file.skippedCaptures : undefined,
     };
   });
 

@@ -32,7 +32,9 @@ function makeDenseCaptures(datePrefix: string): ExtendedCdxEntry[] {
   const captures: ExtendedCdxEntry[] = [];
   for (let h = 0; h < 24; h++) {
     for (let m = 0; m < 60; m += 10) {
-      captures.push(makeCdx(`${datePrefix}${String(h).padStart(2, "0")}${String(m).padStart(2, "0")}00`));
+      captures.push(
+        makeCdx(`${datePrefix}${String(h).padStart(2, "0")}${String(m).padStart(2, "0")}00`),
+      );
     }
   }
   return captures;
@@ -50,7 +52,7 @@ describe("selectByClockTime", () => {
     const result = selectByClockTime(captures, 12);
 
     expect(result).toHaveLength(12);
-    const hours = result.map(s => parseInt(s.timestamp.slice(8, 10)));
+    const hours = result.map((s) => parseInt(s.timestamp.slice(8, 10)));
     // interval = 2h, targets at minute 60,180,300,...,1380 => hours 1,3,5,...,23
     expect(hours).toEqual([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23]);
   });
@@ -65,7 +67,7 @@ describe("selectByClockTime", () => {
     const result = selectByClockTime(captures, 12);
     expect(result.length).toBeLessThanOrEqual(3);
     // All selected are unique
-    const timestamps = result.map(s => s.timestamp);
+    const timestamps = result.map((s) => s.timestamp);
     expect(new Set(timestamps).size).toBe(timestamps.length);
   });
 
@@ -75,7 +77,7 @@ describe("selectByClockTime", () => {
     expect(result.length).toBeLessThanOrEqual(7);
     expect(result.length).toBeGreaterThanOrEqual(1);
     // Check uniqueness
-    const timestamps = result.map(s => s.timestamp);
+    const timestamps = result.map((s) => s.timestamp);
     expect(new Set(timestamps).size).toBe(timestamps.length);
   });
 
@@ -131,10 +133,7 @@ describe("filterLimitedCapturesForUrl", () => {
   });
 
   it("keeps all captures on a day with fewer captures than capturesPerDay", () => {
-    const snaps = [
-      makeCdx("20001001010000"),
-      makeCdx("20001001120000"),
-    ];
+    const snaps = [makeCdx("20001001010000"), makeCdx("20001001120000")];
     const result = filterLimitedCapturesForUrl(snaps, [{ ...range, capturesPerDay: 12 }]);
     expect(result).toHaveLength(2);
   });
@@ -162,7 +161,7 @@ describe("filterLimitedCapturesForUrl", () => {
     expect(result.length).toBeLessThanOrEqual(12);
     expect(result.length).toBeGreaterThanOrEqual(1);
     // Verify all timestamps are unique
-    const timestamps = result.map(s => s.timestamp);
+    const timestamps = result.map((s) => s.timestamp);
     expect(new Set(timestamps).size).toBe(timestamps.length);
     // Verify sorted
     for (let i = 1; i < result.length; i++) {
@@ -179,11 +178,11 @@ describe("filterLimitedCapturesForUrl", () => {
     const result = filterLimitedCapturesForUrl(snaps, [{ ...range, capturesPerDay: 3 }]);
 
     // Outside captures must be present
-    expect(result.some(s => s.timestamp === "20000901120000")).toBe(true);
-    expect(result.some(s => s.timestamp === "20001101120000")).toBe(true);
+    expect(result.some((s) => s.timestamp === "20000901120000")).toBe(true);
+    expect(result.some((s) => s.timestamp === "20001101120000")).toBe(true);
     // Inside captures should be limited
-    const insideResults = result.filter(s =>
-      s.timestamp >= range.startTimestamp && s.timestamp <= range.endTimestamp,
+    const insideResults = result.filter(
+      (s) => s.timestamp >= range.startTimestamp && s.timestamp <= range.endTimestamp,
     );
     expect(insideResults).toHaveLength(3);
   });
@@ -206,10 +205,10 @@ describe("filterLimitedCapturesForUrl", () => {
 
     const result = filterLimitedCapturesForUrl(snaps, [multiDayRange]);
     // Day 1 → 3 captures (index-based from 5)
-    const day1Results = result.filter(s => s.timestamp.startsWith("20001001"));
+    const day1Results = result.filter((s) => s.timestamp.startsWith("20001001"));
     expect(day1Results).toHaveLength(3);
     // Day 2 → 2 captures (all kept)
-    const day2Results = result.filter(s => s.timestamp.startsWith("20001002"));
+    const day2Results = result.filter((s) => s.timestamp.startsWith("20001002"));
     expect(day2Results).toHaveLength(2);
   });
 
@@ -237,6 +236,6 @@ describe("filterLimitedCapturesForUrl", () => {
     const result = filterLimitedCapturesForUrl(snaps, [{ ...range, capturesPerDay: 12 }]);
     // Only the 3 captures with status 200 should remain
     expect(result).toHaveLength(3);
-    expect(result.every(s => s.status === 200)).toBe(true);
+    expect(result.every((s) => s.status === 200)).toBe(true);
   });
 });

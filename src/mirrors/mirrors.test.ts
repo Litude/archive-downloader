@@ -42,9 +42,7 @@ describe("mirrors", () => {
     ];
 
     it("should add original URL first", () => {
-      const urls: UrlEntry[] = [
-        { url: "http://example.com/test.html" },
-      ];
+      const urls: UrlEntry[] = [{ url: "http://example.com/test.html" }];
 
       const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
 
@@ -66,11 +64,7 @@ describe("mirrors", () => {
         },
       ];
 
-      const result = createMirrorUrlsWithConfig(
-        urls,
-        [],
-        mockMirrorData,
-      );
+      const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
 
       expect(result[0]).toEqual({
         excludeInvalid: false,
@@ -81,9 +75,7 @@ describe("mirrors", () => {
     });
 
     it("should add mirrors from mirror data with only path", () => {
-      const urls: UrlEntry[] = [
-        { url: "http://www.example.com/test.html" },
-      ];
+      const urls: UrlEntry[] = [{ url: "http://www.example.com/test.html" }];
 
       const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
 
@@ -141,20 +133,11 @@ describe("mirrors", () => {
     });
 
     it("should add additional mirrors from site config with path only", () => {
-      const urls: UrlEntry[] = [
-        { url: "http://example.com/page.html" },
-      ];
+      const urls: UrlEntry[] = [{ url: "http://example.com/page.html" }];
 
-      const additionalMirrors = [
-        "http://custom-example.org",
-        "http://another-mirror.org",
-      ];
+      const additionalMirrors = ["http://custom-example.org", "http://another-mirror.org"];
 
-      const result = createMirrorUrlsWithConfig(
-        urls,
-        additionalMirrors,
-        mockMirrorData,
-      );
+      const result = createMirrorUrlsWithConfig(urls, additionalMirrors, mockMirrorData);
 
       expect(result.length).toBe(4); // original + 1 from mirrorData + 2 additional
       expect(result[2].url).toBe("http://custom-example.org/page.html");
@@ -162,9 +145,7 @@ describe("mirrors", () => {
     });
 
     it("should handle paths correctly for root-level files", () => {
-      const urls: UrlEntry[] = [
-        { url: "http://example.com/robots.txt" },
-      ];
+      const urls: UrlEntry[] = [{ url: "http://example.com/robots.txt" }];
 
       const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
 
@@ -173,9 +154,7 @@ describe("mirrors", () => {
     });
 
     it("should handle paths correctly for nested directories", () => {
-      const urls: UrlEntry[] = [
-        { url: "http://microsoft.com/games/age2/default.htm" },
-      ];
+      const urls: UrlEntry[] = [{ url: "http://microsoft.com/games/age2/default.htm" }];
 
       const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
 
@@ -185,9 +164,7 @@ describe("mirrors", () => {
     });
 
     it("should handle URLs with no matching mirrors", () => {
-      const urls: UrlEntry[] = [
-        { url: "http://unknown-site.com/page.html" },
-      ];
+      const urls: UrlEntry[] = [{ url: "http://unknown-site.com/page.html" }];
 
       const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
 
@@ -223,11 +200,7 @@ describe("mirrors", () => {
 
       const additionalMirrors = ["http://custom-archive.org"];
 
-      const result = createMirrorUrlsWithConfig(
-        urls,
-        additionalMirrors,
-        mockMirrorData,
-      );
+      const result = createMirrorUrlsWithConfig(urls, additionalMirrors, mockMirrorData);
 
       // Additional mirrors should use per-URL timestamps
       expect(result[2].maxTimestamp).toBe("20050101000000");
@@ -235,9 +208,7 @@ describe("mirrors", () => {
     });
 
     it("should preserve query parameters when adding mirrors", () => {
-      const urls: UrlEntry[] = [
-        { url: "http://www.example.com/page.html?id=123&sort=desc" },
-      ];
+      const urls: UrlEntry[] = [{ url: "http://www.example.com/page.html?id=123&sort=desc" }];
 
       const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
 
@@ -247,9 +218,7 @@ describe("mirrors", () => {
     });
 
     it("should preserve hash fragments when adding mirrors", () => {
-      const urls: UrlEntry[] = [
-        { url: "http://www.example.com/page.html#section2" },
-      ];
+      const urls: UrlEntry[] = [{ url: "http://www.example.com/page.html#section2" }];
 
       const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
 
@@ -266,26 +235,23 @@ describe("mirrors", () => {
       const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
 
       expect(result.length).toBe(3); // original + 2 mirrors
-      expect(result[0].url).toBe("http://www.microsoft.com/games/age2/default.htm?lang=en&version=1#downloads");
-      expect(result[1].url).toBe("http://region1.microsoft.com/games/age2/default.htm?lang=en&version=1#downloads");
-      expect(result[2].url).toBe("http://region2.microsoft.com/games/age2/default.htm?lang=en&version=1#downloads");
+      expect(result[0].url).toBe(
+        "http://www.microsoft.com/games/age2/default.htm?lang=en&version=1#downloads",
+      );
+      expect(result[1].url).toBe(
+        "http://region1.microsoft.com/games/age2/default.htm?lang=en&version=1#downloads",
+      );
+      expect(result[2].url).toBe(
+        "http://region2.microsoft.com/games/age2/default.htm?lang=en&version=1#downloads",
+      );
     });
 
     it("should preserve query parameters in additional mirrors", () => {
-      const urls: UrlEntry[] = [
-        { url: "http://example.com/page.html?param=value" },
-      ];
+      const urls: UrlEntry[] = [{ url: "http://example.com/page.html?param=value" }];
 
-      const additionalMirrors = [
-        "http://custom-example.org",
-        "http://another-mirror.org",
-      ];
+      const additionalMirrors = ["http://custom-example.org", "http://another-mirror.org"];
 
-      const result = createMirrorUrlsWithConfig(
-        urls,
-        additionalMirrors,
-        mockMirrorData,
-      );
+      const result = createMirrorUrlsWithConfig(urls, additionalMirrors, mockMirrorData);
 
       expect(result.length).toBe(4); // original + 1 from mirrorData + 2 additional
       expect(result[0].url).toBe("http://example.com/page.html?param=value");
@@ -294,17 +260,11 @@ describe("mirrors", () => {
     });
 
     it("should preserve hash fragments in additional mirrors", () => {
-      const urls: UrlEntry[] = [
-        { url: "http://example.com/page.html#anchor" },
-      ];
+      const urls: UrlEntry[] = [{ url: "http://example.com/page.html#anchor" }];
 
       const additionalMirrors = ["http://custom-archive.org"];
 
-      const result = createMirrorUrlsWithConfig(
-        urls,
-        additionalMirrors,
-        mockMirrorData,
-      );
+      const result = createMirrorUrlsWithConfig(urls, additionalMirrors, mockMirrorData);
 
       expect(result[0].url).toBe("http://example.com/page.html#anchor");
       expect(result[2].url).toBe("http://custom-archive.org/page.html#anchor");

@@ -14,12 +14,14 @@ export interface RegexTransformationOptions {
 type Transform = (captureGroups: string[]) => string[];
 
 const TRANSFORMS: Record<string, Transform> = {
-  captureToLowerCase: (groups) => groups.map(g => g.toLowerCase()),
-  captureToUpperCase: (groups) => groups.map(g => g.toUpperCase()),
+  captureToLowerCase: (groups) => groups.map((g) => g.toLowerCase()),
+  captureToUpperCase: (groups) => groups.map((g) => g.toUpperCase()),
 };
 
 function applyTransforms(captureGroups: string[], transformNames?: string[]): string[] {
-  if (!transformNames || !transformNames.length) return captureGroups;
+  if (!transformNames || !transformNames.length) {
+    return captureGroups;
+  }
 
   let result = captureGroups;
   for (const transformName of transformNames) {
@@ -31,7 +33,10 @@ function applyTransforms(captureGroups: string[], transformNames?: string[]): st
   return result;
 }
 
-function applyRegexNormalizationRules(content: Buffer, normalizations: RegexTransformation[]): Buffer | null {
+function applyRegexNormalizationRules(
+  content: Buffer,
+  normalizations: RegexTransformation[],
+): Buffer | null {
   let htmlContent = content.toString("latin1");
   let contentChanged = false;
 
@@ -56,12 +61,20 @@ function applyRegexNormalizationRules(content: Buffer, normalizations: RegexTran
   return contentChanged ? Buffer.from(htmlContent, "latin1") : null;
 }
 
-function transformInputs(input: TransformationInput, transformationOptions: Record<string, any>): TransformationOutput[] {
-  const normalizedContent = applyRegexNormalizationRules(input.content, (transformationOptions as RegexTransformationOptions).transforms);
-  return [{
-    content: normalizedContent ?? input.content,
-    queryParams: {},
-  }];
+function transformInputs(
+  input: TransformationInput,
+  transformationOptions: Record<string, any>,
+): TransformationOutput[] {
+  const normalizedContent = applyRegexNormalizationRules(
+    input.content,
+    (transformationOptions as RegexTransformationOptions).transforms,
+  );
+  return [
+    {
+      content: normalizedContent ?? input.content,
+      queryParams: {},
+    },
+  ];
 }
 
 export const RegexNormalizer = {

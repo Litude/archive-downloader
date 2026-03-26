@@ -1,4 +1,9 @@
-import { Transformation, TransformationInput, TransformationOutput, TransformationProvider } from "../types/transformation-types.js";
+import {
+  Transformation,
+  TransformationInput,
+  TransformationOutput,
+  TransformationProvider,
+} from "../types/transformation-types.js";
 import { TransformationJson } from "../types/website-types.js";
 import { computeSha256 } from "../utils/hash.js";
 import { ConquerorsUsTransformation } from "./conquerors-us-layout/conquerors-us-transformation.js";
@@ -11,7 +16,6 @@ export function applyTransformationPipeline(
   initialBuffers: { sha256: string; content: Buffer }[],
   transformations: Transformation[],
 ): TransformationInput[] {
-
   // Start with initial inputs (one per unique sha256)
   let currentInputs: TransformationInput[] = initialBuffers.map(({ sha256, content }) => ({
     content,
@@ -46,7 +50,10 @@ export function applyTransformationPipeline(
 
     for (const output of allOutputs) {
       const contentSha256 = computeSha256(output.content);
-      const contentQueryKey = Object.entries(output.queryParams).sort(([keyA], [keyB]) => keyA.localeCompare(keyB)).map(([k, v]) => `${k}=${v}`).join("&");
+      const contentQueryKey = Object.entries(output.queryParams)
+        .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+        .map(([k, v]) => `${k}=${v}`)
+        .join("&");
       const combinedKey = `${contentSha256}|${contentQueryKey}`;
 
       const existing = uniqueOutputs.get(combinedKey);
@@ -75,7 +82,9 @@ export function applyTransformationPipeline(
   return currentInputs;
 }
 
-export function parseJsonTransformations(transformationsJson: TransformationJson[]): Transformation[] {
+export function parseJsonTransformations(
+  transformationsJson: TransformationJson[],
+): Transformation[] {
   return transformationsJson.map(({ name, options }) => {
     const transformation = Transformations[name];
     if (!transformation) {

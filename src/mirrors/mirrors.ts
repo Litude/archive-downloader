@@ -29,10 +29,12 @@ function loadDefaultMirrors(): MirrorData[] {
   if (defaultMirrors !== null) {
     return defaultMirrors;
   }
-  const mirrorData: MirrorData[] = JSON5.parse(fs.readFileSync(path.join(__dirname, "../../data/settings/mirrors.json"), "utf-8"));
+  const mirrorData: MirrorData[] = JSON5.parse(
+    fs.readFileSync(path.join(__dirname, "../../data/settings/mirrors.json"), "utf-8"),
+  );
   defaultMirrors = mirrorData;
   return mirrorData;
-};
+}
 
 // Timestamps can be limited at several levels:
 // - Global max/min timestamps for all urls in a json file
@@ -55,7 +57,7 @@ function collectMirrors(
   const mirrors: MirrorUrlData[] = [];
 
   // Collect from mirrorData (mirrors.json)
-  const baseMirrors = mirrorData.find(m => normalizeUrl(m.url) === cleanedUrl);
+  const baseMirrors = mirrorData.find((m) => normalizeUrl(m.url) === cleanedUrl);
   if (baseMirrors) {
     for (const m of baseMirrors.mirrors) {
       mirrors.push(toMirrorUrlData(m));

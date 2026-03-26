@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { computeWaybackDigest } from "./hash.js";
 
 describe("computeWaybackDigest", () => {
-
   it("should compute correct digest for white.gif", () => {
     // GIF89a 1x1 white pixel
     const hexData = `

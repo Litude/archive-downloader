@@ -2,15 +2,18 @@ import { DateTime } from "luxon";
 import { parseArchiveRecordHeadersToPairs, RawHeader } from "../utils/raw-header-parser.js";
 import { dechunkChunkedResponse } from "./dechunk.js";
 
-export function parseArcFile(buffer: Buffer, metadataPrefix?: string): {
-    url: string;
-    ip: string;
-    status: number;
-    protocol: string;
-    timestamp: string;
-    metadata: RawHeader[];
-    content: Buffer;
-    headers: RawHeader[];
+export function parseArcFile(
+  buffer: Buffer,
+  metadataPrefix?: string,
+): {
+  url: string;
+  ip: string;
+  status: number;
+  protocol: string;
+  timestamp: string;
+  metadata: RawHeader[];
+  content: Buffer;
+  headers: RawHeader[];
 } {
   const content = buffer.toString("latin1");
   const headerEnd = content.indexOf("\n");
@@ -50,7 +53,10 @@ export function parseArcFile(buffer: Buffer, metadataPrefix?: string): {
 
   const parsedHeaders = parseArchiveRecordHeadersToPairs(httpHeaderLines.slice(1));
 
-  const isChunked = parsedHeaders.some(([name, value]) => name.toLowerCase() === "transfer-encoding" && value.toLowerCase() === "chunked");
+  const isChunked = parsedHeaders.some(
+    ([name, value]) =>
+      name.toLowerCase() === "transfer-encoding" && value.toLowerCase() === "chunked",
+  );
   if (isChunked) {
     payloadBuffer = dechunkChunkedResponse(payloadBuffer);
   }
@@ -60,10 +66,16 @@ export function parseArcFile(buffer: Buffer, metadataPrefix?: string): {
     ip,
     status: statusCode,
     protocol,
-    timestamp: DateTime.fromFormat(timestamp, "yyyyLLddHHmmss", { zone: "utc" }).toISO({ suppressMilliseconds: true }) || timestamp,
-    metadata: metadataPrefix ? parsedHeaders.filter(([name]) => name.startsWith(metadataPrefix)) : [],
+    timestamp:
+      DateTime.fromFormat(timestamp, "yyyyLLddHHmmss", { zone: "utc" }).toISO({
+        suppressMilliseconds: true,
+      }) || timestamp,
+    metadata: metadataPrefix
+      ? parsedHeaders.filter(([name]) => name.startsWith(metadataPrefix))
+      : [],
     content: payloadBuffer,
-    headers: metadataPrefix ? parsedHeaders.filter(([name]) => !name.startsWith(metadataPrefix)) : parsedHeaders,
+    headers: metadataPrefix
+      ? parsedHeaders.filter(([name]) => !name.startsWith(metadataPrefix))
+      : parsedHeaders,
   };
-
 }

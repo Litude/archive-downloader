@@ -1,4 +1,3 @@
-
 export function dechunkChunkedResponse(body: Buffer): Buffer {
   let position = 0;
   const chunks: Buffer[] = [];

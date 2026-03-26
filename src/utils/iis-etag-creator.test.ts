@@ -5,7 +5,9 @@ import { parseIisEtagDate } from "./iis-etag-parser.js";
 
 function captureAt(iso: string): DateTime<true> {
   const dt = DateTime.fromISO(iso, { zone: "utc" });
-  if (!dt.isValid) throw new Error(`Invalid test date: ${iso}`);
+  if (!dt.isValid) {
+    throw new Error(`Invalid test date: ${iso}`);
+  }
   return dt as DateTime<true>;
 }
 

@@ -4,21 +4,25 @@ import { CaptureEntry } from "../types/capture-types.js";
 import { Filename } from "../types/download-input-types.js";
 import { filenameToString, getOriginalQueryString } from "../file-name/file-name.js";
 
-export function writeUniqueFileEntries(captureEntries: CaptureEntry[], filename: Filename, outputDirectory: string) {
+export function writeUniqueFileEntries(
+  captureEntries: CaptureEntry[],
+  filename: Filename,
+  outputDirectory: string,
+) {
   // For each unique sha256 + modify timestamp combination, write the file to disk
   // However if there is a sha256 entry that has a modify timestamp, we DO NOT write the no-timestamp version
   const uniqueEntries = new Map<string, CaptureEntry>();
   const shaHasModified = new Set<string>();
 
   // First pass: identify which sha256 have modified timestamps
-  captureEntries.forEach(entry => {
+  captureEntries.forEach((entry) => {
     if (entry.lastModified && entry.sha256) {
       shaHasModified.add(entry.sha256);
     }
   });
 
   // Second pass: collect unique entries, skipping no-modify ones if a modified exists
-  captureEntries.forEach(entry => {
+  captureEntries.forEach((entry) => {
     if (!entry.lastModified && entry.sha256 && shaHasModified.has(entry.sha256)) {
       return; // skip this entry
     }
@@ -42,17 +46,17 @@ export function writeUniqueFileEntries(captureEntries: CaptureEntry[], filename:
 
     if (entryFilename.flags === "invalid") {
       invalidFilesWritten++;
-    }
-    else if (entryFilename.flags === "raw") {
+    } else if (entryFilename.flags === "raw") {
       rawFilesWritten++;
-    }
-    else {
+    } else {
       validFilesWritten++;
     }
 
     const entryHasFlags = entryFilename.flags ? true : false;
 
-    const filenameTimestamp = !entryHasFlags ? (entry.lastModified ?? entry.captureTimestamp) : entry.captureTimestamp;
+    const filenameTimestamp = !entryHasFlags
+      ? (entry.lastModified ?? entry.captureTimestamp)
+      : entry.captureTimestamp;
     entryFilename.timestamp = filenameTimestamp.toFormat("yyyyLLddHHmmss");
 
     const filenameIndex = !entryHasFlags ? entry.contentIndex : entry.captureIndex;
@@ -60,12 +64,18 @@ export function writeUniqueFileEntries(captureEntries: CaptureEntry[], filename:
     if (filenameIndex === null) {
       // This should not really happen?! Should only occur for entries that don't have a modify date but some other entry with the same sha256 does have a modify date,
       // but in that case they should be skipped entirely by the filtering at the start and not get to this point
-      console.error(`Entry with sha256 ${entry.sha256} has content index null, but should have a valid index since it has flags ${entryFilename.flags}`);
+      console.error(
+        `Entry with sha256 ${entry.sha256} has content index null, but should have a valid index since it has flags ${entryFilename.flags}`,
+      );
       return;
     }
 
     // 0 is intentionally skipped so entries only show the suffix if there are multiple with the same timestamp+flags, to keep the filenames cleaner
-    const outputFilename = filenameToString(entryFilename, "full", filenameIndex ? filenameIndex : undefined);
+    const outputFilename = filenameToString(
+      entryFilename,
+      "full",
+      filenameIndex ? filenameIndex : undefined,
+    );
 
     const mainDir = outputDirectory;
     const archivalDir = path.join(outputDirectory, ".archivaldata");
@@ -90,15 +100,23 @@ export function writeUniqueFileEntries(captureEntries: CaptureEntry[], filename:
     }
   });
 
-  console.log(`${filenameToString(filename, "simple")} - Total capture entries processed: ${captureEntries.length}`);
+  console.log(
+    `${filenameToString(filename, "simple")} - Total capture entries processed: ${captureEntries.length}`,
+  );
 
   if (validFilesWritten > 0) {
-    console.log(`${filenameToString(filename, "simple")} - Unique valid version files saved: ${validFilesWritten}`);
+    console.log(
+      `${filenameToString(filename, "simple")} - Unique valid version files saved: ${validFilesWritten}`,
+    );
   }
   if (invalidFilesWritten > 0) {
-    console.log(`${filenameToString(filename, "simple")} - Unique invalid version files saved: ${invalidFilesWritten}`);
+    console.log(
+      `${filenameToString(filename, "simple")} - Unique invalid version files saved: ${invalidFilesWritten}`,
+    );
   }
   if (rawFilesWritten > 0) {
-    console.log(`${filenameToString(filename, "simple")} - Raw version files saved: ${rawFilesWritten}`);
+    console.log(
+      `${filenameToString(filename, "simple")} - Raw version files saved: ${rawFilesWritten}`,
+    );
   }
 }

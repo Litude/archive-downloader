@@ -240,4 +240,3 @@ export const iis30ExtToMime: Record<string, string[]> = {
   xwd: ["image/x-xwindowdump"],
   zip: ["application/zip"],
 };
-

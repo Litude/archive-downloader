@@ -11,12 +11,18 @@ export type TransformationOutput = {
 
 export interface TransformationProvider {
   name: string;
-  transform: (input: TransformationInput, transformationOptions: Record<string, any>) => TransformationOutput[];
+  transform: (
+    input: TransformationInput,
+    transformationOptions: Record<string, any>,
+  ) => TransformationOutput[];
   validateOptions?: (options: Record<string, any>) => boolean;
 }
 
 export type Transformation = {
-  function: (input: TransformationInput, transformationOptions: Record<string, any>) => TransformationOutput[];
+  function: (
+    input: TransformationInput,
+    transformationOptions: Record<string, any>,
+  ) => TransformationOutput[];
   options: Record<string, any>;
   name: string;
 };

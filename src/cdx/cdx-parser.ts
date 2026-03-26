@@ -15,7 +15,10 @@ const CDX_FIELD_MAP: Partial<Record<string, keyof CdxEntry>> = {
 };
 
 export function parseCdx(text: string, source: string): CdxEntry[] {
-  const lines = text.split("\n").map(l => l.trimEnd()).filter(l => l.length > 0);
+  const lines = text
+    .split("\n")
+    .map((l) => l.trimEnd())
+    .filter((l) => l.length > 0);
   if (lines.length === 0) {
     throw new Error("CDX file is empty");
   }
@@ -26,7 +29,7 @@ export function parseCdx(text: string, source: string): CdxEntry[] {
   }
 
   const fieldCodes = headerLine.slice(" CDX ".length).split(" ");
-  const fieldNames = fieldCodes.map(code => CDX_FIELD_MAP[code] ?? null);
+  const fieldNames = fieldCodes.map((code) => CDX_FIELD_MAP[code] ?? null);
 
   const entries: CdxEntry[] = [];
 
@@ -36,9 +39,13 @@ export function parseCdx(text: string, source: string): CdxEntry[] {
 
     for (let j = 0; j < fieldNames.length; j++) {
       const field = fieldNames[j];
-      if (field === null) continue;
+      if (field === null) {
+        continue;
+      }
       const value = parts[j];
-      if (value === undefined || value === "-") continue;
+      if (value === undefined || value === "-") {
+        continue;
+      }
 
       if (field === "offset" || field === "length" || field === "status") {
         entry[field] = parseInt(value, 10);

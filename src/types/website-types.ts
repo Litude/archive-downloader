@@ -11,7 +11,7 @@ export interface QueryHashParameter {
 
 export interface WebsiteFileEntryJson {
   url?: string;
-  urls?: (string | { url: string, maxTimestamp?: string, minTimestamp?: string })[];
+  urls?: (string | { url: string; maxTimestamp?: string; minTimestamp?: string })[];
   additionalMirrors?: (string | MirrorUrlData)[];
   transformations?: TransformationJson[];
   filename?: string;
@@ -30,24 +30,24 @@ export interface WebsiteFileEntryJson {
   /** @deprecated should be handled by getting all headers */
   skippedFileWriteCaptures?: string[]; // supposed to be used when later captures that are identical in content actually have better modify date timestamps
   /** @deprecated should be handled by getting all headers */
-  forcedUniqueEntries?: { urls: string[], timestamps?: string[] };
+  forcedUniqueEntries?: { urls: string[]; timestamps?: string[] };
   /** @deprecated use transformation */
   normalizeTrackingImageUrl?: boolean;
 }
 
 export interface TransformationJson {
-    name: string;
-    options?: Record<string, any>;
+  name: string;
+  options?: Record<string, any>;
 }
 
 export interface MirrorData {
-    url: string;
-    mirrors: (string | MirrorUrlData)[];
+  url: string;
+  mirrors: (string | MirrorUrlData)[];
 }
 
 export interface MirrorUrlData {
-    url: string;
-    maxTimestamp?: string;
-    minTimestamp?: string;
-    excludeInvalid?: boolean;
+  url: string;
+  maxTimestamp?: string;
+  minTimestamp?: string;
+  excludeInvalid?: boolean;
 }

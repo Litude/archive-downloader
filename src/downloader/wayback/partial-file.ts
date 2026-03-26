@@ -2,7 +2,11 @@ import axios from "axios";
 import { cleanupAxiosResponseHeaders, preventAxiosRedirects } from "../../utils/axios-utils.js";
 import { parseRawHeadersToPairs, RawHeader } from "../../utils/raw-header-parser.js";
 
-async function downloadToBufferWithRetry(url: string, requestHeaders: Record<string, string> = {}, statusCode: number) {
+async function downloadToBufferWithRetry(
+  url: string,
+  requestHeaders: Record<string, string> = {},
+  statusCode: number,
+) {
   while (true) {
     try {
       return await downloadToBuffer(url, requestHeaders, statusCode);
@@ -11,7 +15,7 @@ async function downloadToBufferWithRetry(url: string, requestHeaders: Record<str
       // rate limits quite aggressively sometimes
       if (error instanceof Error && "code" in error && error.code === "ECONNREFUSED") {
         console.log(`Connection refused for ${url}, retrying after 30 seconds...`);
-        await new Promise(res => setTimeout(res, 30000));
+        await new Promise((res) => setTimeout(res, 30000));
       } else {
         throw error;
       }
@@ -19,7 +23,11 @@ async function downloadToBufferWithRetry(url: string, requestHeaders: Record<str
   }
 }
 
-async function downloadToBuffer(url: string, requestHeaders: Record<string, string> = {}, statusCode: number) {
+async function downloadToBuffer(
+  url: string,
+  requestHeaders: Record<string, string> = {},
+  statusCode: number,
+) {
   const chunks: Buffer[] = [];
   let totalBytes = 0;
   let responseHeaders: Record<string, string> = {};
@@ -65,8 +73,7 @@ async function downloadToBuffer(url: string, requestHeaders: Record<string, stri
   } catch (err: unknown) {
     if (err instanceof Error && "code" in err && err.code === "ECONNRESET") {
       //console.log(`Stream aborted after ${totalBytes} bytes: ${err instanceof Error ? err.message : String(err)}`);
-    }
-    else {
+    } else {
       // We assume this is some transient error and re-throw, let caller handle full retry logic
       throw err;
     }
@@ -94,7 +101,11 @@ async function fetchAllBytes(url: string, statusCode: number, maxAttempts = 10) 
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const rangeHeader = offset ? { Range: `bytes=${offset}-` } : undefined;
-    const { buffer, headers, rawHeaders, aborted } = await downloadToBufferWithRetry(url, rangeHeader, statusCode);
+    const { buffer, headers, rawHeaders, aborted } = await downloadToBufferWithRetry(
+      url,
+      rangeHeader,
+      statusCode,
+    );
     const len = buffer.length;
 
     console.log(`Partial download attempt ${attempt}: got ${len} bytes (offset ${offset})`);
@@ -137,9 +148,13 @@ export async function fetchPartiallyArchivedFileData(url: string, statusCode: nu
   const fetchedLength = buffer.length;
 
   if (!completeDownload) {
-    const contentLength = headers?.["content-length"] ? parseInt(headers["content-length"], 10) : null;
+    const contentLength = headers?.["content-length"]
+      ? parseInt(headers["content-length"], 10)
+      : null;
     const missingBytes = contentLength !== null ? contentLength - buffer.length : 0;
-    console.log(`Download incomplete after max attempts: got ${buffer.length} bytes but content size was ${headers?.["content-length"]} (missing ${missingBytes} bytes)`);
+    console.log(
+      `Download incomplete after max attempts: got ${buffer.length} bytes but content size was ${headers?.["content-length"]} (missing ${missingBytes} bytes)`,
+    );
 
     if (missingBytes > 0) {
       const paddingBuffer = Buffer.alloc(missingBytes, 0);
@@ -155,4 +170,3 @@ export async function fetchPartiallyArchivedFileData(url: string, statusCode: nu
     fetchedLength,
   };
 }
-

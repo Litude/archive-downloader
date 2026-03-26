@@ -19,16 +19,17 @@ const TICKS_PER_MICROSECOND = 10n;
  * Since FILETIMEs have a precision of 100 nanoseconds, the last 2 digits of
  * the nanosecond portion will always be zero.
  */
-export function parseIisEtagDate(
-  etag: string,
-  captureDate: DateTime<true>,
-): string[] | null {
+export function parseIisEtagDate(etag: string, captureDate: DateTime<true>): string[] | null {
   const match = etag.match(/^"?([0-9a-fA-F]+):[0-9a-fA-F]+"?$/);
-  if (!match) return null;
+  if (!match) {
+    return null;
+  }
 
   const timestampHex = match[1].toLowerCase();
 
-  if (timestampHex.length < 8 || timestampHex.length > 16) return null;
+  if (timestampHex.length < 8 || timestampHex.length > 16) {
+    return null;
+  }
 
   const candidates: string[] = [];
   splitBytes(timestampHex, 0, 0, new Uint8Array(8), (bytes) => {
@@ -38,8 +39,9 @@ export function parseIisEtagDate(
     }
   });
 
-  if (candidates.length === 0) return null;
-  else {
+  if (candidates.length === 0) {
+    return null;
+  } else {
     return candidates;
   }
 }
@@ -50,19 +52,19 @@ export function getMostLikelyEtagDate(
   modifyDate: DateTime<true>,
 ): string[] | null {
   const candidates = parseIisEtagDate(etag, captureDate);
-  if (!candidates) throw new Error("No valid ETag candidates found");
+  if (!candidates) {
+    throw new Error("No valid ETag candidates found");
+  }
 
   const modifyDateSec = modifyDate.toISO({ suppressMilliseconds: true }).slice(0, -1); // Remove trailing 'Z' for easier comparison
   // Since IIS truncates any sub-second precision units when creating the modify date header, the original second must match
-  const validCandidates = candidates.filter(c => c.startsWith(modifyDateSec));
+  const validCandidates = candidates.filter((c) => c.startsWith(modifyDateSec));
   if (validCandidates.length === 0) {
     console.log(`No ETag candidates match modify date ${modifyDate.toISO()}`);
     return null;
-  }
-  else if (validCandidates.length === 1) {
+  } else if (validCandidates.length === 1) {
     return validCandidates;
-  }
-  else {
+  } else {
     // Since we already checked that the seconds match, we can just sort lexicographically to find the closest candidate (i.e. the one with the smallest difference in sub-second units)
     validCandidates.sort();
     // logWarning(`Multiple ETag candidates match modify date ${modifyDate.toISO({ suppressMilliseconds: true })} (candidates: ${validCandidates.join(", ")}).`, "iis-etag-parser");
@@ -109,15 +111,15 @@ function splitBytes(
 }
 
 /** Converts 8 little-endian FILETIME bytes to a formatted UTC timestamp string. */
-function filetimeToTimestamp(
-  bytes: Uint8Array,
-): { formatted: string; unixSeconds: number } | null {
+function filetimeToTimestamp(bytes: Uint8Array): { formatted: string; unixSeconds: number } | null {
   let filetime = 0n;
   for (let i = 7; i >= 0; i--) {
     filetime = (filetime << 8n) | BigInt(bytes[i]);
   }
 
-  if (filetime < FILETIME_EPOCH_OFFSET) return null;
+  if (filetime < FILETIME_EPOCH_OFFSET) {
+    return null;
+  }
 
   const unixTicks = filetime - FILETIME_EPOCH_OFFSET;
   const totalSeconds = unixTicks / TICKS_PER_SECOND;
@@ -128,7 +130,9 @@ function filetimeToTimestamp(
   const unixMs = Number(totalSeconds) * 1000;
   const date = new Date(unixMs);
 
-  if (isNaN(date.getTime())) return null;
+  if (isNaN(date.getTime())) {
+    return null;
+  }
 
   const yyyy = date.getUTCFullYear().toString().padStart(4, "0");
   const mm = (date.getUTCMonth() + 1).toString().padStart(2, "0");
@@ -145,13 +149,9 @@ function filetimeToTimestamp(
 }
 
 /** File modification must be before the capture (with tolerance), and not impossibly old. */
-function isPlausibleDate(
-  unixSeconds: number,
-  captureDate: DateTime<true>,
-): boolean {
+function isPlausibleDate(unixSeconds: number, captureDate: DateTime<true>): boolean {
   const captureSec = captureDate.toMillis() / 1000;
   const initialTime = DateTime.fromISO("1996-01-01T00:00:00Z").toMillis() / 1000;
   const oneDay = 86400;
-  return unixSeconds >= initialTime
-      && unixSeconds <= captureSec + oneDay;
+  return unixSeconds >= initialTime && unixSeconds <= captureSec + oneDay;
 }

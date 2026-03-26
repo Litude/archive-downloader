@@ -1,7 +1,8 @@
-
 export function createIisEtagFromDate(date: string, changeNumber: number = 0): string {
   const match = date.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\.(\d{9})Z$/);
-  if (!match) throw new Error(`Invalid date format: ${date}`);
+  if (!match) {
+    throw new Error(`Invalid date format: ${date}`);
+  }
 
   const [, y, mo, d, h, mi, s, ns] = match;
   const unixMs = Date.UTC(+y, +mo - 1, +d, +h, +mi, +s);
@@ -11,7 +12,7 @@ export function createIisEtagFromDate(date: string, changeNumber: number = 0): s
   const bytes = new Uint8Array(8);
   let ft = filetime;
   for (let i = 0; i < 8; i++) {
-    bytes[i] = Number(ft & 0xFFn);
+    bytes[i] = Number(ft & 0xffn);
     ft >>= 8n;
   }
 
@@ -19,8 +20,10 @@ export function createIisEtagFromDate(date: string, changeNumber: number = 0): s
   for (let i = 0; i < 8; i++) {
     const b = bytes[i];
     const high = b >> 4;
-    if (high !== 0) hex += high.toString(16);
-    hex += (b & 0xF).toString(16);
+    if (high !== 0) {
+      hex += high.toString(16);
+    }
+    hex += (b & 0xf).toString(16);
   }
 
   return `"${hex}:${changeNumber.toString(16)}"`;

@@ -21,5 +21,5 @@ export interface ExtendedCdxEntry extends CdxEntry {
   metadata?: {
     headers: Record<string, string>;
     rawHeaders: RawHeader[];
-  }
+  };
 }

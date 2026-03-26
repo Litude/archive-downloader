@@ -31,9 +31,9 @@ async function processWebsiteDownloads(
     peekAllFiles = false,
     writeHeaders = false,
   }: {
-    includeInvalid?: boolean
-    peekAllFiles?: boolean
-    writeHeaders?: boolean
+    includeInvalid?: boolean;
+    peekAllFiles?: boolean;
+    writeHeaders?: boolean;
   },
 ) {
   const context: Context = {
@@ -51,17 +51,20 @@ async function processWebsiteDownloads(
     context.fileContext = {};
     resetLog();
 
-    const { baseEntries, unavailableEntries, skippedEntries, metadata } = await downloadWaybackEntries(input, context);
-    const anyValidEntries = baseEntries.some(entry => entry.classification.type === "ok");
+    const { baseEntries, unavailableEntries, skippedEntries, metadata } =
+      await downloadWaybackEntries(input, context);
+    const anyValidEntries = baseEntries.some((entry) => entry.classification.type === "ok");
 
     input.filename.queryHashParameters = input.queryHashParameters;
     if (anyValidEntries && input.transformations.length > 0) {
-
       // First find all unique sha256 buffers
       const seenSha256Values = new Set<string>();
       const uniqueBuffers: { sha256: string; content: Buffer }[] = [];
-      const validBaseEntries = baseEntries.filter((entry): entry is WithRequired<CaptureEntry, "sha256" | "content"> => entry.classification.type === "ok");
-      const invalidEntries = baseEntries.filter(entry => entry.classification.type !== "ok");
+      const validBaseEntries = baseEntries.filter(
+        (entry): entry is WithRequired<CaptureEntry, "sha256" | "content"> =>
+          entry.classification.type === "ok",
+      );
+      const invalidEntries = baseEntries.filter((entry) => entry.classification.type !== "ok");
       for (const entry of validBaseEntries) {
         if (!seenSha256Values.has(entry.sha256)) {
           uniqueBuffers.push({ sha256: entry.sha256, content: entry.content });
@@ -73,13 +76,21 @@ async function processWebsiteDownloads(
         uniqueBuffers,
         input.transformations,
       );
-      console.log(`Transformation pipeline produced ${transformationResults.length} unique output files`);
+      console.log(
+        `Transformation pipeline produced ${transformationResults.length} unique output files`,
+      );
 
       // first we need to group by all unique query param combinations (each produces a separate set of output files);
 
-      const groupedByQueryParams = new Map<string, { content: Buffer; sourceSha256Values: string[] }[]>();
+      const groupedByQueryParams = new Map<
+        string,
+        { content: Buffer; sourceSha256Values: string[] }[]
+      >();
       for (const result of transformationResults) {
-        const queryParamKey = Object.entries(result.queryParams).sort().map(([k, v]) => `${k}=${v ?? ""}`).join("&");
+        const queryParamKey = Object.entries(result.queryParams)
+          .sort()
+          .map(([k, v]) => `${k}=${v ?? ""}`)
+          .join("&");
         if (!groupedByQueryParams.has(queryParamKey)) {
           groupedByQueryParams.set(queryParamKey, []);
         }
@@ -94,20 +105,25 @@ async function processWebsiteDownloads(
       for (const [queryParamKey, outputs] of groupedByQueryParams.entries()) {
         const outputSha256Set = new Set<string>();
         console.log(`Writing files for query params: ${queryParamKey} (${outputs.length} files)`);
-        const queryParams = queryParamKey.split("&").reduce((acc, pair) => {
-          const [k, ...v] = pair.split("=");
-          acc[k] = v.join("=");
-          return acc;
-        }, {} as Record<string, string>);
+        const queryParams = queryParamKey.split("&").reduce(
+          (acc, pair) => {
+            const [k, ...v] = pair.split("=");
+            acc[k] = v.join("=");
+            return acc;
+          },
+          {} as Record<string, string>,
+        );
 
         const filename = structuredClone(input.filename);
         filename.queryParams = Object.assign(filename.queryParams ?? {}, queryParams);
 
-        const updatedEntries = validBaseEntries.map(entry => ({ ...entry }));
+        const updatedEntries = validBaseEntries.map((entry) => ({ ...entry }));
 
         for (const output of outputs) {
           // Find all entries that match any of the source sha256 values
-          const matchingEntries = updatedEntries.filter(entry => output.sourceSha256Values.includes(entry.sha256));
+          const matchingEntries = updatedEntries.filter((entry) =>
+            output.sourceSha256Values.includes(entry.sha256),
+          );
           const outputSha256 = computeSha256(output.content);
           outputSha256Set.add(outputSha256);
           for (const entry of matchingEntries) {
@@ -122,9 +138,15 @@ async function processWebsiteDownloads(
         }
         assignOutputIndices(updatedEntries, filename);
         writeUniqueFileEntries(updatedEntries, filename, input.outputDirectory);
-        const summaryEntries = [...updatedEntries, ...invalidEntries].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+        const summaryEntries = [...updatedEntries, ...invalidEntries].sort((a, b) =>
+          a.timestamp.localeCompare(b.timestamp),
+        );
         await writeCsvSummary(summaryEntries, filename, input.outputDirectory);
-        const rawFiles = baseEntries.filter(entry => entry.sha256 && (entry.classification.type !== "ok" || !outputSha256Set.has(entry.sha256)));
+        const rawFiles = baseEntries.filter(
+          (entry) =>
+            entry.sha256 &&
+            (entry.classification.type !== "ok" || !outputSha256Set.has(entry.sha256)),
+        );
         const rawFilename = structuredClone(filename);
         rawFilename.flags = "raw";
         writeUniqueFileEntries(rawFiles, rawFilename, input.outputDirectory);
@@ -133,16 +155,19 @@ async function processWebsiteDownloads(
           writeCaptureData(updatedEntries, filename, input.outputDirectory);
         }
       }
-    }
-    else {
+    } else {
       if (!anyValidEntries) {
         const finalName = filenameToString(input.filename, "simple");
-        console.log(`Unable to download any valid files for ${finalName}, creating empty placeholder ${finalName}`);
+        console.log(
+          `Unable to download any valid files for ${finalName}, creating empty placeholder ${finalName}`,
+        );
         writeUnavailablePlaceholder(input.filename, input.outputDirectory);
       }
       assignOutputIndices(baseEntries, input.filename);
       writeUniqueFileEntries(baseEntries, input.filename, input.outputDirectory);
-      const summaryEntries = [...baseEntries, ...unavailableEntries, ...skippedEntries].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+      const summaryEntries = [...baseEntries, ...unavailableEntries, ...skippedEntries].sort(
+        (a, b) => a.timestamp.localeCompare(b.timestamp),
+      );
       await writeCsvSummary(summaryEntries, input.filename, input.outputDirectory);
       if (writeHeaders) {
         writeCaptureData(baseEntries, input.filename, input.outputDirectory);
@@ -159,15 +184,48 @@ async function processWebsiteDownloads(
 
 async function main() {
   const argv = await yargs(hideBin(process.argv))
-    .option("output-dir", { type: "string", default: "output", describe: "Directory to write output files" })
-    .option("mirrors", { type: "string", default: "", describe: "Comma-separated list of additional mirror URLs" })
-    .option("max-timestamp", { type: "string", default: "", describe: "Maximum timestamp for CDX index entries" })
-    .option("min-timestamp", { type: "string", default: "", describe: "Minimum timestamp for CDX index entries" })
+    .option("output-dir", {
+      type: "string",
+      default: "output",
+      describe: "Directory to write output files",
+    })
+    .option("mirrors", {
+      type: "string",
+      default: "",
+      describe: "Comma-separated list of additional mirror URLs",
+    })
+    .option("max-timestamp", {
+      type: "string",
+      default: "",
+      describe: "Maximum timestamp for CDX index entries",
+    })
+    .option("min-timestamp", {
+      type: "string",
+      default: "",
+      describe: "Minimum timestamp for CDX index entries",
+    })
     .option("json", { type: "string", describe: "Path to JSON input file" })
-    .option("mirrors", { type: "boolean", default: true, describe: "Use mirrors and additional URLs" })
-    .option("peek-all", { type: "boolean", default: true, describe: "Peek into all downloaded files to get accurate last-modified timestamps and wayback filenames" })
-    .option("headers", { type: "boolean", default: true, describe: "Write HTTP headers for each downloaded file (requires --peek-all)" })
-    .option("include-invalid", { type: "boolean", default: true, describe: "Include invalid snapshots when downloading" })
+    .option("mirrors", {
+      type: "boolean",
+      default: true,
+      describe: "Use mirrors and additional URLs",
+    })
+    .option("peek-all", {
+      type: "boolean",
+      default: true,
+      describe:
+        "Peek into all downloaded files to get accurate last-modified timestamps and wayback filenames",
+    })
+    .option("headers", {
+      type: "boolean",
+      default: true,
+      describe: "Write HTTP headers for each downloaded file (requires --peek-all)",
+    })
+    .option("include-invalid", {
+      type: "boolean",
+      default: true,
+      describe: "Include invalid snapshots when downloading",
+    })
     .demandCommand(0)
     .parse();
 
@@ -187,20 +245,21 @@ async function main() {
     console.log(`Max timestamp: ${argv["max-timestamp"] || "None"}`);
     console.log(`Min timestamp: ${argv["min-timestamp"] || "None"}`);
     console.log("================\n");
-    const downloadInputs = readWebsiteJsonConfig(argv.json, argv["output-dir"], { noMirrors: !argv["mirrors"] });
+    const downloadInputs = readWebsiteJsonConfig(argv.json, argv["output-dir"], {
+      noMirrors: !argv["mirrors"],
+    });
     await processWebsiteDownloads(downloadInputs, {
       includeInvalid: argv["include-invalid"],
       peekAllFiles: argv["peek-all"],
       writeHeaders: argv["headers"],
     });
     return;
-  }
-  else {
+  } else {
     console.log("No input JSON file specified, nothing to do.");
   }
-};
+}
 
-main().catch(e => {
+main().catch((e) => {
   console.error(e);
   process.exit(1);
 });

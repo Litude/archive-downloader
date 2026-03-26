@@ -1,6 +1,10 @@
 import axios from "axios";
 import zlib from "zlib";
-import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF, WAYBACK_REQUEST_TIMEOUT } from "./wayback-common.js";
+import {
+  WAYBACK_INITIAL_BACKOFF,
+  WAYBACK_MAX_BACKOFF,
+  WAYBACK_REQUEST_TIMEOUT,
+} from "./wayback-common.js";
 import { ArchiveRecord, CaptureEntry } from "../../types/capture-types.js";
 import { parseCdx } from "../../cdx/cdx-parser.js";
 import { CdxEntry } from "../../types/wayback-types.js";
@@ -30,26 +34,33 @@ async function internalCheckRecordAvailability(filename: string): Promise<boolea
       // also return 403 but it seems to be some sort of intermittent error that can happen even for publicly available items
       // but for some items 403 is all that is returned...? So we retry 403 a few times to be sure and if it keeps happening we assume it's not available.
       else if (response.status === 401) {
-        console.log(`Original record for ${filename} is NOT publicly available (status code ${response.status})`);
+        console.log(
+          `Original record for ${filename} is NOT publicly available (status code ${response.status})`,
+        );
         return false;
-      }
-      else if (response.status === 403) {
+      } else if (response.status === 403) {
         error403Count++;
         if (error403Count >= 4) {
-          console.error(`Received 403 four times in a row for ${filename}, treating as not available.`);
+          console.error(
+            `Received 403 four times in a row for ${filename}, treating as not available.`,
+          );
           return false;
         }
-        console.log(`Received 403 when checking availability for ${filename}, this may be an intermittent error.`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * error403Count)); // Wait a bit longer for each consecutive 403 to give the server a chance to recover
+        console.log(
+          `Received 403 when checking availability for ${filename}, this may be an intermittent error.`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 1000 * error403Count)); // Wait a bit longer for each consecutive 403 to give the server a chance to recover
         attempt++;
       } else {
         throw new Error(`Unexpected status code ${response.status} for ${url}`);
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`Error checking availability for ${url} (${errorMessage}), retrying in ${backoff / 1000}s...`);
+      console.error(
+        `Error checking availability for ${url} (${errorMessage}), retrying in ${backoff / 1000}s...`,
+      );
       // Wait a bit before retrying to avoid spamming the server
-      await new Promise(resolve => setTimeout(resolve, backoff));
+      await new Promise((resolve) => setTimeout(resolve, backoff));
       backoff = Math.min(backoff * 2, WAYBACK_MAX_BACKOFF);
       attempt++;
     }
@@ -76,14 +87,19 @@ async function fetchRecordArchiveCdx(cdxFilename: string, itemId: string) {
   while (true) {
     try {
       console.log(`Fetching CDX file for item ${itemId} (attempt ${attempt})...`);
-      const response = await axios.get(cdxUrl, { responseType: "arraybuffer", timeout: WAYBACK_REQUEST_TIMEOUT });
+      const response = await axios.get(cdxUrl, {
+        responseType: "arraybuffer",
+        timeout: WAYBACK_REQUEST_TIMEOUT,
+      });
       const decompressed = zlib.gunzipSync(Buffer.from(response.data));
       const text = decompressed.toString("utf-8");
       return parseCdx(text, "wayback");
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`Error fetching CDX file for ${cdxUrl} (${errorMessage}), retrying in ${backoff / 1000}s...`);
-      await new Promise(resolve => setTimeout(resolve, backoff));
+      console.error(
+        `Error fetching CDX file for ${cdxUrl} (${errorMessage}), retrying in ${backoff / 1000}s...`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, backoff));
       backoff = Math.min(backoff * 2, WAYBACK_MAX_BACKOFF);
       attempt++;
     }
@@ -96,17 +112,21 @@ async function downloadCdx(cdxFilename: string, entryFilename: string, entry: Ca
   // Filter CDX entries to only those that match the capture timestamp and URL of the original entry, to avoid downloading unnecessary records
   const mainCdxEntry = entry.cdxEntry.revisitEntry ?? entry.cdxEntry;
   const matchingEntries = cdxEntries.filter(
-    cdxEntry => cdxEntry.timestamp === mainCdxEntry.timestamp &&
-            cdxEntry.url === mainCdxEntry.url &&
-            cdxEntry.digest === mainCdxEntry.digest &&
-            cdxEntry.length === mainCdxEntry.length &&
-            cdxEntry.status === mainCdxEntry.status,
+    (cdxEntry) =>
+      cdxEntry.timestamp === mainCdxEntry.timestamp &&
+      cdxEntry.url === mainCdxEntry.url &&
+      cdxEntry.digest === mainCdxEntry.digest &&
+      cdxEntry.length === mainCdxEntry.length &&
+      cdxEntry.status === mainCdxEntry.status,
   );
   if (matchingEntries.length === 0) {
-    throw new Error(`No matching CDX entries found for ${cdxFilename} with timestamp ${entry.timestamp} and URL ${entry.url}?!`);
-  }
-  else if (matchingEntries.length > 1) {
-    console.warn(`Multiple matching CDX entries found for ${cdxFilename} with timestamp ${entry.timestamp} and URL ${entry.url}! Picking first.`);
+    throw new Error(
+      `No matching CDX entries found for ${cdxFilename} with timestamp ${entry.timestamp} and URL ${entry.url}?!`,
+    );
+  } else if (matchingEntries.length > 1) {
+    console.warn(
+      `Multiple matching CDX entries found for ${cdxFilename} with timestamp ${entry.timestamp} and URL ${entry.url}! Picking first.`,
+    );
   }
   return matchingEntries[0];
 }
@@ -118,7 +138,9 @@ async function fetchRecordBytes(filename: string, offset: number, length: number
   let backoff = WAYBACK_INITIAL_BACKOFF;
   while (true) {
     try {
-      console.log(`Fetching record bytes for ${filename} (range ${rangeHeader}, attempt ${attempt})...`);
+      console.log(
+        `Fetching record bytes for ${filename} (range ${rangeHeader}, attempt ${attempt})...`,
+      );
       const response = await axios.get(url, {
         headers: { Range: rangeHeader },
         responseType: "arraybuffer",
@@ -128,8 +150,10 @@ async function fetchRecordBytes(filename: string, offset: number, length: number
       return decompressed;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`Error fetching record bytes for ${url} range ${rangeHeader} (${errorMessage}), retrying in ${backoff / 1000}s...`);
-      await new Promise(resolve => setTimeout(resolve, backoff));
+      console.error(
+        `Error fetching record bytes for ${url} range ${rangeHeader} (${errorMessage}), retrying in ${backoff / 1000}s...`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, backoff));
       backoff = Math.min(backoff * 2, WAYBACK_MAX_BACKOFF);
       attempt++;
     }
@@ -156,12 +180,17 @@ async function fetchWarcGlobalHeader(filename: string): Promise<Buffer> {
         let settled = false;
 
         function settle(result: Buffer | Error) {
-          if (settled) return;
+          if (settled) {
+            return;
+          }
           settled = true;
           response.data.destroy();
           gunzip.destroy();
-          if (result instanceof Error) reject(result);
-          else resolve(result);
+          if (result instanceof Error) {
+            reject(result);
+          } else {
+            resolve(result);
+          }
         }
 
         gunzip.on("data", (chunk: Buffer) => {
@@ -191,13 +220,17 @@ async function fetchWarcGlobalHeader(filename: string): Promise<Buffer> {
           settle(Buffer.concat(chunks));
         });
         gunzip.on("error", (err) => settle(err));
-        response.data.on("error", (err: unknown) => settle(err instanceof Error ? err : new Error(String(err))));
+        response.data.on("error", (err: unknown) =>
+          settle(err instanceof Error ? err : new Error(String(err))),
+        );
         response.data.pipe(gunzip);
       });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`Error fetching WARC global header for ${url} (${errorMessage}), retrying in ${backoff / 1000}s...`);
-      await new Promise(resolve => setTimeout(resolve, backoff));
+      console.error(
+        `Error fetching WARC global header for ${url} (${errorMessage}), retrying in ${backoff / 1000}s...`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, backoff));
       backoff = Math.min(backoff * 2, WAYBACK_MAX_BACKOFF);
       attempt++;
     }
@@ -208,12 +241,12 @@ function getCdxFilenameFromEntry(entry: CaptureEntry): string {
   const filename = entry.cdxEntry.filename;
   if (filename?.endsWith(".arc.gz")) {
     return filename.replace(".arc.gz", ".arc.os.cdx.gz");
-  }
-  else if (filename?.endsWith(".warc.gz")) {
+  } else if (filename?.endsWith(".warc.gz")) {
     return filename.replace(".warc.gz", ".warc.os.cdx.gz");
-  }
-  else {
-    throw new Error(`Unsupported archive format for fetching original record, only .arc.gz and .warc.gz are supported, but got ${filename}`);
+  } else {
+    throw new Error(
+      `Unsupported archive format for fetching original record, only .arc.gz and .warc.gz are supported, but got ${filename}`,
+    );
   }
 }
 
@@ -237,12 +270,15 @@ export async function fetchArchiveRecord(entry: CaptureEntry): Promise<ArchiveRe
   const content = await fetchRecordBytes(filename, offset, length);
   if (filename.endsWith(".arc.gz")) {
     return [{ type: "arc", content }];
-  }
-  else if (filename.endsWith(".warc.gz")) {
+  } else if (filename.endsWith(".warc.gz")) {
     const globalHeader = await fetchWarcGlobalHeader(filename);
-    return [{ type: "warcinfo", content: globalHeader }, { type: "warc", content }];
-  }
-  else {
-    throw new Error(`Unsupported archive format for fetching original record, only .arc.gz and .warc.gz are supported, but got ${filename}`);
+    return [
+      { type: "warcinfo", content: globalHeader },
+      { type: "warc", content },
+    ];
+  } else {
+    throw new Error(
+      `Unsupported archive format for fetching original record, only .arc.gz and .warc.gz are supported, but got ${filename}`,
+    );
   }
 }

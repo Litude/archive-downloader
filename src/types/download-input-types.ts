@@ -44,5 +44,5 @@ export interface Filename {
   timestamp?: string; // TODO: Or date or something else?
   flags?: string;
   queryParams?: Record<string, string>;
-  queryHashParameters?: QueryHashParameter[]
+  queryHashParameters?: QueryHashParameter[];
 }

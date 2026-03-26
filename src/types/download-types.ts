@@ -11,7 +11,7 @@ export interface DownloadedFile {
       reason: string;
       downloadedSize: number;
       actualSize: number | null;
-    }
+    };
   };
   classification?: "corrupt" | "unavailable";
   statusCode: number;

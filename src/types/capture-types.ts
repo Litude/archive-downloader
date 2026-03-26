@@ -23,7 +23,7 @@ export interface CaptureWaybackMetadata {
     }[];
     firstFileDate?: string;
     lastFileDate?: string;
-  }
+  };
 }
 
 export interface ArchiveRecord {
@@ -71,7 +71,7 @@ export interface CaptureEntry {
   headerOutput?: {
     original?: RawHeader[];
     reconstructed?: RawHeader[];
-  }
+  };
   captureIndex?: number; // set when filename has _N suffix due to duplicate timestamp+flags
   contentIndex?: number | null; // set when multiple captures have same content and timestamp, so only one file is saved but all get an index to indicate they are part of the same group
   records?: ArchiveRecord[];
@@ -87,12 +87,12 @@ export interface CaptureEntry {
       description?: string;
       publisher?: string;
       operator?: string;
-    }
+    };
     validationErrors?: {
       type: string;
       details?: any;
-    }[]
-  }
+    }[];
+  };
 }
 
 export function addValidationError(entry: CaptureEntry, error: string, details?: any) {
@@ -104,4 +104,3 @@ export function addValidationError(entry: CaptureEntry, error: string, details?:
   }
   entry.metadata.validationErrors.push({ type: error, details });
 }
-

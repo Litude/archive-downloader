@@ -11,7 +11,11 @@ function detectIisVersionFromServerHeader(serverHeader: string): string | null {
   return match ? match[1] : null;
 }
 
-export function isIisDefaultMimetype(filename: string, mimetype: string, serverHeader: string): boolean {
+export function isIisDefaultMimetype(
+  filename: string,
+  mimetype: string,
+  serverHeader: string,
+): boolean {
   const iisVersion = detectIisVersionFromServerHeader(serverHeader);
   if (!iisVersion) {
     return false;
@@ -27,32 +31,36 @@ export function isIisDefaultMimetype(filename: string, mimetype: string, serverH
   }
 
   switch (iisVersion) {
-  case "2.0": {
-    const mimetypes = iis20ExtToMime[extension];
-    return mimetypes ? mimetypes.includes(mimetype) : iis20ExtToMime["*"].includes(mimetype);
-  }
-  case "3.0": {
-    const mimetypes = iis30ExtToMime[extension];
-    return mimetypes ? mimetypes.includes(mimetype) : iis30ExtToMime["*"].includes(mimetype);
-  }
-  case "4.0": {
-    const mimetypes = iis40ExtToMime[extension];
-    return mimetypes ? mimetypes.includes(mimetype) : iis40ExtToMime["*"].includes(mimetype);
-  }
-  case "5.0": {
-    const mimetypes = iis50ExtToMime[extension];
-    return mimetypes ? mimetypes.includes(mimetype) : iis50ExtToMime["*"].includes(mimetype);
-  }
-  case "6.0":
-  case "7.0":
-  case "7.5":
-  case "8.0":
-  case "8.5": {
-    const mimetypes = [...iis60RtmExtToMime[extension], ...iis60rc1ExtToMime[extension], ...iis60sp2ExtToMime[extension]];
-    return mimetypes ? mimetypes.includes(mimetype) : iis60RtmExtToMime["*"].includes(mimetype);
-  }
-  default:
-    console.warn(`Unknown IIS server version: ${iisVersion}`);
-    return false;
+    case "2.0": {
+      const mimetypes = iis20ExtToMime[extension];
+      return mimetypes ? mimetypes.includes(mimetype) : iis20ExtToMime["*"].includes(mimetype);
+    }
+    case "3.0": {
+      const mimetypes = iis30ExtToMime[extension];
+      return mimetypes ? mimetypes.includes(mimetype) : iis30ExtToMime["*"].includes(mimetype);
+    }
+    case "4.0": {
+      const mimetypes = iis40ExtToMime[extension];
+      return mimetypes ? mimetypes.includes(mimetype) : iis40ExtToMime["*"].includes(mimetype);
+    }
+    case "5.0": {
+      const mimetypes = iis50ExtToMime[extension];
+      return mimetypes ? mimetypes.includes(mimetype) : iis50ExtToMime["*"].includes(mimetype);
+    }
+    case "6.0":
+    case "7.0":
+    case "7.5":
+    case "8.0":
+    case "8.5": {
+      const mimetypes = [
+        ...iis60RtmExtToMime[extension],
+        ...iis60rc1ExtToMime[extension],
+        ...iis60sp2ExtToMime[extension],
+      ];
+      return mimetypes ? mimetypes.includes(mimetype) : iis60RtmExtToMime["*"].includes(mimetype);
+    }
+    default:
+      console.warn(`Unknown IIS server version: ${iisVersion}`);
+      return false;
   }
 }

@@ -11,7 +11,10 @@ import { QueryHashParameter, WebsiteFileEntryJson } from "../types/website-types
 function transformQueryParams(
   queryParams: Record<string, string> | undefined,
   queryHashParameters: QueryHashParameter[] | undefined,
-): { queryParams: Record<string, string> | undefined, originalQueryParams: Record<string, string> | undefined } {
+): {
+  queryParams: Record<string, string> | undefined;
+  originalQueryParams: Record<string, string> | undefined;
+} {
   if (!queryParams || !queryHashParameters || queryHashParameters.length === 0) {
     return { queryParams, originalQueryParams: undefined };
   }
@@ -38,8 +41,7 @@ function transformQueryParams(
       // If outputValue is provided, we will use it directly without applying the regex pattern
       transformedParams[hashParam.outputName ?? hashParam.paramName] = hashParam.outputValue;
       continue;
-    }
-    else {
+    } else {
       try {
         const regex = new RegExp(hashParam.pattern);
         const match = regex.exec(originalValue);
@@ -47,11 +49,12 @@ function transformQueryParams(
         if (match) {
           // Extract the capture groups specified in the configuration
           const extractedParts = hashParam.captureGroups
-            .map(groupIndex => match[groupIndex])
-            .filter(part => part !== undefined);
+            .map((groupIndex) => match[groupIndex])
+            .filter((part) => part !== undefined);
 
           if (extractedParts.length > 0) {
-            transformedParams[hashParam.outputName ?? hashParam.paramName] = extractedParts.join("-");
+            transformedParams[hashParam.outputName ?? hashParam.paramName] =
+              extractedParts.join("-");
           } else if (hashParam.required) {
             // If required param doesn't match pattern, return original params
             return { queryParams, originalQueryParams: undefined };
@@ -93,7 +96,10 @@ export function determineFilenameFromUrls(
   if (urls.length > 0) {
     for (const urlEntry of urls) {
       if (!urlEntry.mirrorUrl && !urlEntry.url.endsWith("/")) {
-        const outputParams = queryParams ?? urlEntry.url.includes("?") ? Object.fromEntries(new URLSearchParams(urlEntry.url.split("?")[1])) : undefined;
+        const outputParams =
+          (queryParams ?? urlEntry.url.includes("?"))
+            ? Object.fromEntries(new URLSearchParams(urlEntry.url.split("?")[1]))
+            : undefined;
         return {
           base: path.parse(urlEntry.url).name,
           ext: path.parse(urlEntry.url).ext,
@@ -102,8 +108,10 @@ export function determineFilenameFromUrls(
       }
     }
   }
-  throw new Error("Cannot determine filename: no filename specified and no original URL with filename found");
-};
+  throw new Error(
+    "Cannot determine filename: no filename specified and no original URL with filename found",
+  );
+}
 
 // Output dir: output/domain/path
 export function determineOutputSubdirectoryFromUrls(
@@ -179,7 +187,9 @@ function writeQueryParamsToString(
   }
 
   // First we will sort alphabetically by key to ensure consistent ordering
-  const sortedEntries = Object.entries(paramsToWrite).sort(([keyA], [keyB]) => keyA.localeCompare(keyB));
+  const sortedEntries = Object.entries(paramsToWrite).sort(([keyA], [keyB]) =>
+    keyA.localeCompare(keyB),
+  );
   const paramsArray: string[] = [];
   for (const [key, value] of sortedEntries) {
     // We will ignore empty/null values
@@ -191,12 +201,10 @@ function writeQueryParamsToString(
   if (result) {
     if (hashedQuery) {
       return `~h${result}`;
-    }
-    else {
+    } else {
       return escape ? escapeFilename(`?${result}`) : `?${result}`;
     }
-  }
-  else {
+  } else {
     return "";
   }
 }
@@ -204,9 +212,8 @@ function writeQueryParamsToString(
 // To improve filename readability, we will format timestamps as YYYYMMDD-HHmmss instead of just YYYYMMDDHHmmss
 function timestampFormatted(input: string): string {
   if (input.length === 14) {
-    return `${input.slice(0,8)}-${input.slice(8,14)}`;
-  }
-  else {
+    return `${input.slice(0, 8)}-${input.slice(8, 14)}`;
+  } else {
     return input;
   }
 }
@@ -220,8 +227,7 @@ export function filenameToString(
   const ext = escapeFilename(filename.ext);
   if (formatType === "simple") {
     return `${base}${writeQueryParamsToString(filename.queryParams, filename.queryHashParameters)}${ext}`;
-  }
-  else {
+  } else {
     return `${base}${writeQueryParamsToString(filename.queryParams, filename.queryHashParameters)}.${timestampFormatted(filename.timestamp ?? "19700101000000")}${counter !== undefined ? `_${counter}` : ""}${filename.flags ? `.${filename.flags}` : ""}${ext}`;
   }
 }
@@ -231,9 +237,7 @@ export function filenameToString(
  * @param filename The filename object
  * @returns The original query string (without transformation), or undefined if no query params exist
  */
-export function getOriginalQueryString(
-  filename: Filename,
-): string | undefined {
+export function getOriginalQueryString(filename: Filename): string | undefined {
   if (!filename.queryParams) {
     return undefined;
   }
@@ -244,8 +248,7 @@ export function getOriginalQueryString(
     const queryString = writeQueryParamsToString(filename.queryParams, undefined, false);
     if (queryString.startsWith("?")) {
       return queryString.slice(1);
-    }
-    else {
+    } else {
       return queryString;
     }
   }

@@ -2,14 +2,14 @@ import { parseArchiveRecordHeadersToPairs, RawHeader } from "../utils/raw-header
 import { dechunkChunkedResponse } from "./dechunk.js";
 
 export function parseWarcFile(buffer: Buffer): {
-    url: string;
-    ip: string;
-    status: number;
-    protocol: string;
-    timestamp: string;
-    metadata: RawHeader[];
-    content: Buffer;
-    headers: RawHeader[];
+  url: string;
+  ip: string;
+  status: number;
+  protocol: string;
+  timestamp: string;
+  metadata: RawHeader[];
+  content: Buffer;
+  headers: RawHeader[];
 } {
   const content = buffer.toString("latin1");
 
@@ -59,7 +59,10 @@ export function parseWarcFile(buffer: Buffer): {
   const httpHeaders = parseArchiveRecordHeadersToPairs(httpHeaderLines.slice(1));
   let payloadBuffer = httpBlock.subarray(httpHeaderEnd + 4);
 
-  const isChunked = httpHeaders.some(([name, value]) => name.toLowerCase() === "transfer-encoding" && value.toLowerCase() === "chunked");
+  const isChunked = httpHeaders.some(
+    ([name, value]) =>
+      name.toLowerCase() === "transfer-encoding" && value.toLowerCase() === "chunked",
+  );
   if (isChunked) {
     payloadBuffer = dechunkChunkedResponse(payloadBuffer);
   }

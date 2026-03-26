@@ -17,8 +17,7 @@ export function createAdditionalUrls(
         maxTimestamp: maxTimestamp,
         minTimestamp: minTimestamp,
       });
-    }
-    else {
+    } else {
       parsed.push({
         url: url.url,
         mirrorUrl: true,

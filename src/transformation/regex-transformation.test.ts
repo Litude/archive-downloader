@@ -10,16 +10,12 @@ function normalize(html: string, transforms: RegexTransformation[]): string | nu
 describe("RegexNormalizer", () => {
   describe("basic replacement", () => {
     it("replaces a pattern with a literal string", () => {
-      const result = normalize("Hello World", [
-        { pattern: "World", replacement: "Earth" },
-      ]);
+      const result = normalize("Hello World", [{ pattern: "World", replacement: "Earth" }]);
       expect(result).toBe("Hello Earth");
     });
 
     it("returns null when nothing changes", () => {
-      const result = normalize("Hello Earth", [
-        { pattern: "World", replacement: "Earth" },
-      ]);
+      const result = normalize("Hello Earth", [{ pattern: "World", replacement: "Earth" }]);
       expect(result).toBeNull();
     });
 

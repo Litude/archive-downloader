@@ -21,7 +21,9 @@ function generateInvalidRedirectPage(url: string) {
 <META HTTP-EQUIV="Pragma" CONTENT="no cache">
 <META HTTP-EQUIV="Expires" CONTENT="-1">
 </HEAD></HTML>
-`.toLowerCase().trim();
+`
+    .toLowerCase()
+    .trim();
 }
 
 function decodeHtml(buffer: Buffer): string {
@@ -29,10 +31,13 @@ function decodeHtml(buffer: Buffer): string {
   const preview = new TextDecoder(encoding).decode(buffer.subarray(0, 2048));
 
   // These are not all standard ways, but the purpose is to detect the encoding in the best way possible, so non-standard ways are fine
-  const match = preview.match(/<meta\s+charset=["']?([^"'>\s]+)/i)
-             || preview.match(/<meta\s+http-equiv=["']?Content-Type["']?\s+content=["'][^"']*charset=([^"'>\s]+)/i)
-             || preview.match(/<meta\s+name=["']?charset["']?\s+content=["'][^"']*charset=([^"'>\s]+)/i)
-             || preview.match(/<meta\s+name=["']?charset["']?\s+content=["']?([^"'>\s]+)/i);
+  const match =
+    preview.match(/<meta\s+charset=["']?([^"'>\s]+)/i) ||
+    preview.match(
+      /<meta\s+http-equiv=["']?Content-Type["']?\s+content=["'][^"']*charset=([^"'>\s]+)/i,
+    ) ||
+    preview.match(/<meta\s+name=["']?charset["']?\s+content=["'][^"']*charset=([^"'>\s]+)/i) ||
+    preview.match(/<meta\s+name=["']?charset["']?\s+content=["']?([^"'>\s]+)/i);
   if (match) {
     encoding = match[1];
   }
@@ -55,31 +60,35 @@ export function classifyEntryWithConfig(
   }
   if (downloadClassification === "corrupt") {
     if (downloadMetadata?.downloadErrorDetails) {
-      return { type: "corrupt", details: { reason: downloadMetadata.downloadErrorDetails.reason, downloadedSize: downloadMetadata.downloadErrorDetails.downloadedSize, actualSize: downloadMetadata.downloadErrorDetails.actualSize } };
-    }
-    else {
+      return {
+        type: "corrupt",
+        details: {
+          reason: downloadMetadata.downloadErrorDetails.reason,
+          downloadedSize: downloadMetadata.downloadErrorDetails.downloadedSize,
+          actualSize: downloadMetadata.downloadErrorDetails.actualSize,
+        },
+      };
+    } else {
       return { type: "corrupt" };
     }
   }
 
   if (statusCode === 200 && content.length === 0) {
     return { type: "corrupt", details: { reason: "empty_content" } };
-  }
-  else if (downloadClassification === "unavailable") {
+  } else if (downloadClassification === "unavailable") {
     return { type: "unavailable" };
-  }
-  else if (statusCode === 404) {
+  } else if (statusCode === 404) {
     return { type: "not_found" };
-  }
-  else if ([301, 302, 307, 308].includes(statusCode)) {
+  } else if ([301, 302, 307, 308].includes(statusCode)) {
     return { type: "redirect" };
-  }
-  else if (config.transientRedirectSha256.includes(sha256)) {
+  } else if (config.transientRedirectSha256.includes(sha256)) {
     return { type: "transient_retry" };
-  }
-  else if (mimetype.toLowerCase().includes("html")) {
+  } else if (mimetype.toLowerCase().includes("html")) {
     const text = decodeHtml(content).toLowerCase();
-    if (config.notFoundStrings.some(s => text.includes(s)) || config.notFoundSha256.includes(sha256)) {
+    if (
+      config.notFoundStrings.some((s) => text.includes(s)) ||
+      config.notFoundSha256.includes(sha256)
+    ) {
       return { type: "not_found", details: { reason: "not_found_string_detected" } };
     }
 
@@ -107,18 +116,37 @@ export function classifyEntry(
   classificationOverrides?: Record<string, CaptureClassification>,
 ): Classification {
   const config = loadDefaultConfig();
-  return classifyEntryWithConfig(url, sha256, mimetype, content, downloadClassification, downloadMetadata, statusCode, classificationOverrides, config);
+  return classifyEntryWithConfig(
+    url,
+    sha256,
+    mimetype,
+    content,
+    downloadClassification,
+    downloadMetadata,
+    statusCode,
+    classificationOverrides,
+    config,
+  );
 }
 
-let defaultConfig : ClassifierConfig | null = null;
+let defaultConfig: ClassifierConfig | null = null;
 function loadDefaultConfig(): ClassifierConfig {
   if (defaultConfig !== null) {
     return defaultConfig;
   }
   defaultConfig = {
-    notFoundStrings: JSON5.parse(fs.readFileSync(path.join(__dirname, "../../data/settings/not_found_strings.json"), "utf-8")).map((s: string) => s.toLowerCase()),
-    notFoundSha256: JSON5.parse(fs.readFileSync(path.join(__dirname, "../../data/settings/not_found_sha256.json"), "utf-8")),
-    transientRedirectSha256: JSON5.parse(fs.readFileSync(path.join(__dirname, "../../data/settings/transient_redirect_sha256.json"), "utf-8")),
+    notFoundStrings: JSON5.parse(
+      fs.readFileSync(path.join(__dirname, "../../data/settings/not_found_strings.json"), "utf-8"),
+    ).map((s: string) => s.toLowerCase()),
+    notFoundSha256: JSON5.parse(
+      fs.readFileSync(path.join(__dirname, "../../data/settings/not_found_sha256.json"), "utf-8"),
+    ),
+    transientRedirectSha256: JSON5.parse(
+      fs.readFileSync(
+        path.join(__dirname, "../../data/settings/transient_redirect_sha256.json"),
+        "utf-8",
+      ),
+    ),
   };
   return defaultConfig;
 }
