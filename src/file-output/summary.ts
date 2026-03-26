@@ -34,7 +34,7 @@ export async function writeCsvSummary(captureEntries: CaptureEntry[], filename: 
     output_index: entry.contentIndex === null ? undefined : entry.contentIndex,
     url: entry.url,
     statuscode: entry.statusCode,
-    classification: entry.classification,
+    classification: entry.classification.type,
     mimetype: entry.mimetype,
     archive_source: entry.cdxEntry.source,
     additional_sources: entry.additionalSources ? entry.additionalSources.map(source => source.source).join(";") : undefined,

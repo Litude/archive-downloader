@@ -1,7 +1,7 @@
 import JSON5 from "json5";
 import fs from "fs";
 import path, { dirname } from "path";
-import { CaptureClassification } from "../types/capture-types.js";
+import { CaptureClassification, Classification } from "../types/capture-types.js";
 import { DownloadedFile } from "../types/download-types.js";
 import { fileURLToPath } from "url";
 
@@ -49,13 +49,13 @@ export function classifyEntryWithConfig(
   statusCode: number,
   classificationOverrides: Record<string, CaptureClassification> | undefined,
   config: ClassifierConfig,
-): { type: CaptureClassification, classificationDetails?: Record<string, any> } {
+): Classification {
   if (classificationOverrides && classificationOverrides[sha256]) {
     return { type: classificationOverrides[sha256] };
   }
   if (downloadClassification === "corrupt") {
     if (downloadMetadata?.downloadErrorDetails) {
-      return { type: "corrupt", classificationDetails: { reason: downloadMetadata.downloadErrorDetails.reason, downloadedSize: downloadMetadata.downloadErrorDetails.downloadedSize, actualSize: downloadMetadata.downloadErrorDetails.actualSize } };
+      return { type: "corrupt", details: { reason: downloadMetadata.downloadErrorDetails.reason, downloadedSize: downloadMetadata.downloadErrorDetails.downloadedSize, actualSize: downloadMetadata.downloadErrorDetails.actualSize } };
     }
     else {
       return { type: "corrupt" };
@@ -63,7 +63,7 @@ export function classifyEntryWithConfig(
   }
 
   if (statusCode === 200 && content.length === 0) {
-    return { type: "corrupt", classificationDetails: { reason: "empty_content" } };
+    return { type: "corrupt", details: { reason: "empty_content" } };
   }
   else if (downloadClassification === "unavailable") {
     return { type: "unavailable" };
@@ -80,7 +80,7 @@ export function classifyEntryWithConfig(
   else if (mimetype.toLowerCase().includes("html")) {
     const text = decodeHtml(content).toLowerCase();
     if (config.notFoundStrings.some(s => text.includes(s)) || config.notFoundSha256.includes(sha256)) {
-      return { type: "not_found", classificationDetails: { reason: "not_found_string_detected" } };
+      return { type: "not_found", details: { reason: "not_found_string_detected" } };
     }
 
     const invalidRedirectPage = generateInvalidRedirectPage(url);
@@ -105,7 +105,7 @@ export function classifyEntry(
   downloadMetadata: DownloadedFile["metadata"] | undefined,
   statusCode: number,
   classificationOverrides?: Record<string, CaptureClassification>,
-): { type: CaptureClassification, classificationDetails?: Record<string, any> } {
+): Classification {
   const config = loadDefaultConfig();
   return classifyEntryWithConfig(url, sha256, mimetype, content, downloadClassification, downloadMetadata, statusCode, classificationOverrides, config);
 }

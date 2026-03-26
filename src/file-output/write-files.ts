@@ -34,7 +34,7 @@ export function writeUniqueFileEntries(captureEntries: CaptureEntry[], filename:
 
   uniqueEntries.forEach((entry) => {
     const entryFilename = structuredClone(filename);
-    const entryIsValid = entry.classification === "ok";
+    const entryIsValid = entry.classification.type === "ok";
 
     if (!entryIsValid) {
       entryFilename.flags = "invalid";

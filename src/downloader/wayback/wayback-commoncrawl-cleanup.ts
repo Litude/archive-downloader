@@ -22,7 +22,7 @@ import { fetchWaybackFile } from "./file-download.js";
 export async function cleanUpCorruptCommonCrawlEntries(baseEntries: CaptureEntry[], classificationOverrides?: Record<string, CaptureClassification>) {
   for (const entry of baseEntries) {
     const isCommonCrawl = entry.metadata?.wayback?.item.collections.some(coll => coll.id === "commoncrawl");
-    if (isCommonCrawl && entry.rawHeaders?.some(([key, value]) => key.toLowerCase() === "content-encoding" && value.toLowerCase() === "gzip")) {
+    if (isCommonCrawl && entry.rawResponseHeaders?.some(([key, value]) => key.toLowerCase() === "content-encoding" && value.toLowerCase() === "gzip")) {
       console.log(`Entry ${entry.url} at ${entry.timestamp} is gzipped and is from Common Crawl, performing post-cleanup.`);
       if (entry.downloadStatus === "downloaded") {
         const matchingNonCommonCrawlEntries = baseEntries.filter(e => e.cdxEntry.digest === entry.cdxEntry.digest && !e.metadata?.wayback?.item.collections.some(coll => coll.id === "commoncrawl"));
@@ -35,15 +35,15 @@ export async function cleanUpCorruptCommonCrawlEntries(baseEntries: CaptureEntry
           const classification = classifyEntry(
             fileContent.url,
             sha256,
-            fileContent.headers["content-type"],
+            fileContent.responseHeaders["content-type"],
             fileContent.content,
             fileContent.classification,
             fileContent.metadata,
             fileContent.statusCode,
             classificationOverrides,
           );
-          if (classification.type !== firstEntry.classification) {
-            console.log(`Classification of ${matchingNonCommonCrawlEntries.length} non-Common Crawl entries (${firstEntry.url} changed from ${firstEntry.classification} to ${classification.type} after refetching content.`);
+          if (classification.type !== firstEntry.classification.type) {
+            console.log(`Classification of ${matchingNonCommonCrawlEntries.length} non-Common Crawl entries (${firstEntry.url} changed from ${firstEntry.classification.type} to ${classification.type} after refetching content.`);
           }
           else {
             console.log(`Classification of ${matchingNonCommonCrawlEntries.length} non-Common Crawl entries (${firstEntry.url}) remains the same (${classification.type}) after refetching content.`);
@@ -53,8 +53,7 @@ export async function cleanUpCorruptCommonCrawlEntries(baseEntries: CaptureEntry
             matchingEntry.sha256 = sha256;
             matchingEntry.originalSha256 = sha256;
             matchingEntry.actualDigest = actualDigest;
-            matchingEntry.classification = classification.type;
-            matchingEntry.classificationDetails = classification.classificationDetails;
+            matchingEntry.classification = classification;
             matchingEntry.downloadStatus = "digest-match";
           }
           firstEntry.downloadStatus = "downloaded";
@@ -68,15 +67,15 @@ export async function cleanUpCorruptCommonCrawlEntries(baseEntries: CaptureEntry
         const classification = classifyEntry(
           fileContent.url,
           sha256,
-          fileContent.headers["content-type"],
+          fileContent.responseHeaders["content-type"],
           fileContent.content,
           fileContent.classification,
           fileContent.metadata,
           fileContent.statusCode,
           classificationOverrides,
         );
-        if (classification.type !== entry.classification) {
-          console.log(`Classification of Common Crawl entry ${entry.url} at ${entry.timestamp} changed from ${entry.classification} to ${classification.type} after refetching content.`);
+        if (classification.type !== entry.classification.type) {
+          console.log(`Classification of Common Crawl entry ${entry.url} at ${entry.timestamp} changed from ${entry.classification.type} to ${classification.type} after refetching content.`);
         }
         else {
           console.log(`Classification of Common Crawl entry ${entry.url} at ${entry.timestamp} remains the same (${classification.type}) after refetching content.`);
@@ -85,8 +84,7 @@ export async function cleanUpCorruptCommonCrawlEntries(baseEntries: CaptureEntry
         entry.sha256 = sha256;
         entry.originalSha256 = sha256;
         entry.actualDigest = actualDigest;
-        entry.classification = classification.type;
-        entry.classificationDetails = classification.classificationDetails;
+        entry.classification = classification;
         entry.downloadStatus = "downloaded";
       }
     }

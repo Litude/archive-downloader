@@ -4,7 +4,7 @@ import { classifyEntry } from "../classification/classifier.js";
 import { DownloadedFile } from "../types/download-types.js";
 import { parseHeaderTimestamps } from "../utils/timestamp.js";
 import { downloadUniqueDigestsForSnapshots, fetchWaybackFileHeaders } from "./wayback/file-download.js";
-import { addValidationError, CaptureClassification, CaptureEntry, CaptureWaybackMetadata } from "../types/capture-types.js";
+import { addValidationError, CaptureClassification, CaptureEntry, CaptureWaybackMetadata, Classification } from "../types/capture-types.js";
 import { getWaybackFilename } from "../utils/wayback-filename.js";
 import { filenameToString } from "../file-name/file-name.js";
 import { DateTime } from "luxon";
@@ -34,14 +34,14 @@ function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
 }
 
 function classifyDigestFiles(uniqueDigestFiles: Map<string, DownloadedFile>, digestHashes: Map<string, { sha256: string; actualDigest: string }>, classificationOverrides?: Record<string, CaptureClassification>) {
-  const classifications = new Map<string, { type: CaptureClassification; classificationDetails?: Record<string, any> }>();
+  const classifications = new Map<string, Classification>();
 
   [...uniqueDigestFiles.entries()].forEach(([digest, file]) => {
     const hashes = digestHashes.get(digest)!;
     const classification = classifyEntry(
       file.url,
       hashes.sha256,
-      file.headers["content-type"],
+      file.responseHeaders["content-type"],
       file.content,
       file.classification,
       file.metadata,
@@ -100,8 +100,7 @@ export async function downloadWaybackEntries(
         cdxEntry: entry,
         url: entry.url,
         statusCode: entry.status,
-        classification: "skipped" as const,
-        classificationDetails: undefined,
+        classification: { type: "skipped" } as const,
         mimetype: entry.mimetype,
         actualDigest: undefined,
         sha256: undefined,
@@ -116,8 +115,8 @@ export async function downloadWaybackEntries(
       const downloadedFile = entry.digest ? uniqueDigestFiles.get(entry.digest) : undefined;
 
       const downloadIsExactMatch = downloadedFile && entry.url === downloadedFile.url && entry.timestamp === downloadedFile.timestamp;
-      const headers = downloadIsExactMatch ? downloadedFile.headers : entry.metadata?.headers;
-      const rawHeaders = downloadIsExactMatch ? downloadedFile.rawHeaders : entry.metadata?.rawHeaders;
+      const headers = downloadIsExactMatch ? downloadedFile.responseHeaders : entry.metadata?.headers;
+      const rawHeaders = downloadIsExactMatch ? downloadedFile.rawResponseHeaders : entry.metadata?.rawHeaders;
       const timestamps = headers ? parseHeaderTimestamps(entry.url, headers, entry.timestamp, true) : { captureDate: DateTime.fromFormat(entry.timestamp, "yyyyLLddHHmmss", { zone: "utc" }) as DateTime<true>, lastModified: null, mementoDate: null, serverDate: null };
       const waybackFilename = fetchAllHeaders && headers ? getWaybackFilename(headers) : undefined;
       const lastModified = timestamps.lastModified;
@@ -139,8 +138,7 @@ export async function downloadWaybackEntries(
         lastModified,
         url: entry.url,
         statusCode: entry.status,
-        classification: entry.digest ? classifiedEntries.get(entry.digest)!.type : "unavailable",
-        classificationDetails: entry.digest ? classifiedEntries.get(entry.digest)!.classificationDetails : undefined,
+        classification: entry.digest ? classifiedEntries.get(entry.digest)! : { type: "unavailable" as const },
         mimetype: entry.mimetype,
         actualDigest: entry.digest ? digestFileHashes.get(entry.digest)!.actualDigest : undefined,
         sha256: entry.digest ? digestFileHashes.get(entry.digest)!.sha256 : undefined,
@@ -153,7 +151,7 @@ export async function downloadWaybackEntries(
     }
   }).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
-  const unavailableEntries: CaptureEntry[] = baseEntries.filter(entry => entry.classification === "unavailable").map((entry) => {
+  const unavailableEntries: CaptureEntry[] = baseEntries.filter(entry => entry.classification.type === "unavailable").map((entry) => {
     const captureTimestamp = DateTime.fromFormat(entry.timestamp, "yyyyLLddHHmmss", { zone: "utc" });
     if (!captureTimestamp.isValid) {
       throw new Error(`Invalid capture timestamp format: ${entry.timestamp}`);
@@ -180,16 +178,16 @@ export async function downloadWaybackEntries(
   if (unavailableEntries.length > 0) {
     console.log(`Total unavailable entries for ${filenameToString(input.filename, "simple")}: ${unavailableEntries.length}`);
   }
-  const skippedEntries = baseEntries.filter(entry => entry.classification === "skipped");
+  const skippedEntries = baseEntries.filter(entry => entry.classification.type === "skipped");
   if (skippedEntries.length > 0) {
     console.log(`Total skipped entries for ${filenameToString(input.filename, "simple")}: ${skippedEntries.length}`);
   }
-  baseEntries = baseEntries.filter(entry => entry.classification !== "unavailable" && entry.classification !== "skipped");
+  baseEntries = baseEntries.filter(entry => entry.classification.type !== "unavailable" && entry.classification.type !== "skipped");
 
   // If fetchAllHeaders is enabled, we need to query wayback for the headers of all files that were not actually downloaded
   if (fetchAllHeaders) {
-    const entriesToPeek = baseEntries.filter(entry => !entry.headers);
-    const prefetchedHeaders = baseEntries.filter(entry => entry.headers && entry.downloadStatus !== "downloaded").length;
+    const entriesToPeek = baseEntries.filter(entry => !entry.responseHeaders);
+    const prefetchedHeaders = baseEntries.filter(entry => entry.responseHeaders && entry.downloadStatus !== "downloaded").length;
     if (prefetchedHeaders > 0) {
       console.log(`Note: ${prefetchedHeaders} entries have had their headers already fetched.`);
     }
@@ -198,16 +196,16 @@ export async function downloadWaybackEntries(
     for (const entry of entriesToPeek) {
       console.log(`Fetching headers for ${entry.url} at ${entry.timestamp} (${++currentIndex}/${entriesToPeek.length}): `);
       const response = await fetchWaybackFileHeaders(entry.timestamp, entry.url, entry.statusCode ? [entry.statusCode] : undefined);
-      const timestamps = parseHeaderTimestamps(entry.url, response.headers, entry.timestamp, true);
-      const waybackFilename = getWaybackFilename(response.headers);
+      const timestamps = parseHeaderTimestamps(entry.url, response.responseHeaders, entry.timestamp, true);
+      const waybackFilename = getWaybackFilename(response.responseHeaders);
       const existingEntry = baseEntries.find(e => e.url === entry.url && e.timestamp === entry.timestamp);
       if (!existingEntry) {
         throw new Error(`Existing entry for ${entry.url} at ${entry.timestamp} not found?!`);
       }
       existingEntry.mementoDateTime = timestamps.mementoDate ?? undefined;
       existingEntry.lastModified = timestamps.lastModified;
-      existingEntry.headers = response.headers;
-      existingEntry.rawHeaders = response.rawHeaders;
+      existingEntry.responseHeaders = response.responseHeaders;
+      existingEntry.rawResponseHeaders = response.rawResponseHeaders;
       existingEntry.cdxEntry.filename = waybackFilename;
     }
   }
@@ -314,8 +312,8 @@ export async function downloadWaybackEntries(
         addValidationError(entry, "record-url-mismatch", { recordUrl: record.url, entryUrl: entry.url });
       }
     }
-    else if (entry.headers && entry.rawHeaders) {
-      entry.headerOutput = cleanupWaybackHeaders(entry.url, entry.headers, entry.rawHeaders, input.filename);
+    else if (entry.responseHeaders && entry.rawResponseHeaders) {
+      entry.headerOutput = cleanupWaybackHeaders(entry.url, entry.responseHeaders, entry.rawResponseHeaders, input.filename);
     }
 
     if (entry.mementoDateTime && entry.mementoDateTime.toMillis() !== entry.captureTimestamp.toMillis()) {

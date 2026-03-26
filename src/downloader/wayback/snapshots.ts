@@ -122,7 +122,7 @@ async function fetchHeadersUntilSuccess(timestamp: string, url: string, statusCo
       if (context.settings.skipOn302) {
         return result;
       }
-      if (result.headers["x-archive-src"] === undefined) {
+      if (result.responseHeaders["x-archive-src"] === undefined) {
         if (!allRedirect && !potentialRedirect) {
           throw new Error(`Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}`);
         }
@@ -212,7 +212,7 @@ async function resolveDuplicateSnapshots(snapshots: ExtendedCdxEntry[], limitedC
             if (matchingSnapshots.length > 0) {
               console.log(`Resolved duplicate snapshots for ${actualSnapShot.url} at ${timestamp}: status ${actualSnapShot.status}`);
               const snapshot = getMergedSnapshot(matchingSnapshots);
-              snapshot.metadata = { headers: result.headers, rawHeaders: result.rawHeaders };
+              snapshot.metadata = { headers: result.responseHeaders, rawHeaders: result.rawResponseHeaders };
               uniqueSnapshots.push(snapshot);
               filteredSnapshots += snapshotsAtTimestamp.length - 1;
               break;

@@ -52,7 +52,7 @@ async function processWebsiteDownloads(
     resetLog();
 
     const { baseEntries, unavailableEntries, skippedEntries, metadata } = await downloadWaybackEntries(input, context);
-    const anyValidEntries = baseEntries.some(entry => entry.classification === "ok");
+    const anyValidEntries = baseEntries.some(entry => entry.classification.type === "ok");
 
     input.filename.queryHashParameters = input.queryHashParameters;
     if (anyValidEntries && input.transformations.length > 0) {
@@ -60,8 +60,8 @@ async function processWebsiteDownloads(
       // First find all unique sha256 buffers
       const seenSha256Values = new Set<string>();
       const uniqueBuffers: { sha256: string; content: Buffer }[] = [];
-      const validBaseEntries = baseEntries.filter((entry): entry is WithRequired<CaptureEntry, "sha256" | "content"> => entry.classification === "ok");
-      const invalidEntries = baseEntries.filter(entry => entry.classification !== "ok");
+      const validBaseEntries = baseEntries.filter((entry): entry is WithRequired<CaptureEntry, "sha256" | "content"> => entry.classification.type === "ok");
+      const invalidEntries = baseEntries.filter(entry => entry.classification.type !== "ok");
       for (const entry of validBaseEntries) {
         if (!seenSha256Values.has(entry.sha256)) {
           uniqueBuffers.push({ sha256: entry.sha256, content: entry.content });
@@ -124,7 +124,7 @@ async function processWebsiteDownloads(
         writeUniqueFileEntries(updatedEntries, filename, input.outputDirectory);
         const summaryEntries = [...updatedEntries, ...invalidEntries].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
         await writeCsvSummary(summaryEntries, filename, input.outputDirectory);
-        const rawFiles = baseEntries.filter(entry => entry.sha256 && (entry.classification !== "ok" || !outputSha256Set.has(entry.sha256)));
+        const rawFiles = baseEntries.filter(entry => entry.sha256 && (entry.classification.type !== "ok" || !outputSha256Set.has(entry.sha256)));
         const rawFilename = structuredClone(filename);
         rawFilename.flags = "raw";
         writeUniqueFileEntries(rawFiles, rawFilename, input.outputDirectory);

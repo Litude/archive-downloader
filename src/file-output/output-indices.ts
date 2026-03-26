@@ -12,7 +12,7 @@ function assignCaptureIndices(captureEntries: CaptureEntry[], filename: Filename
   const encounteredFilenames = new Set<string>();
   captureEntries.forEach(entry => {
     const entryFilename = structuredClone(headerFilename);
-    if (entry.classification !== "ok") {
+    if (entry.classification.type !== "ok") {
       entryFilename.flags = "invalid";
     }
     entryFilename.timestamp = entry.captureTimestamp.toFormat("yyyyLLddHHmmss");
@@ -54,7 +54,7 @@ function assignContentIndices(captureEntries: CaptureEntry[], filename: Filename
 
   uniqueEntries.forEach((entry, key) => {
     const entryFilename = structuredClone(filename);
-    const entryIsValid = entry.classification === "ok";
+    const entryIsValid = entry.classification.type === "ok";
 
     if (!entryIsValid) {
       entryFilename.flags = "invalid";

@@ -31,6 +31,24 @@ export interface ArchiveRecord {
   content: Buffer;
 }
 
+export type CorruptClassificationDetails =
+  | { reason: "empty_content" }
+  | { reason: string; downloadedSize: number; actualSize: number | null };
+
+export type NotFoundClassificationDetails = { reason: "not_found_string_detected" };
+
+export type Classification =
+  | { type: "ok" }
+  | { type: "corrupt"; details?: CorruptClassificationDetails }
+  | { type: "not_found"; details?: NotFoundClassificationDetails }
+  | { type: "transient_retry" }
+  | { type: "redirect" }
+  | { type: "unavailable" }
+  | { type: "skipped" }
+  | { type: "forbidden" };
+
+export type CaptureClassification = Classification["type"];
+
 export interface CaptureEntry {
   timestamp: string; // same as captureTimestamp but as string YYYYMMDDHHmmss
   captureTimestamp: DateTime<true>;
@@ -39,16 +57,15 @@ export interface CaptureEntry {
   lastModified: DateTime<true> | null;
   url: string;
   statusCode?: number;
-  classification: CaptureClassification;
-  classificationDetails?: Record<string, any>;
+  classification: Classification;
   mimetype: string; // TODO: Should this be populated from the actual headers when available instead, the CDX index has some pretty bad values here sometimes?
   actualDigest?: string;
   sha256?: string; // always the sha256 of the file as saved
   originalSha256?: string; // if file is somehow post-processed, this is the sha256 of the original downloaded file
   content?: Buffer<ArrayBufferLike>;
   downloadStatus: "downloaded" | "digest-match" | "skipped" | "unavailable";
-  headers?: Record<string, string>;
-  rawHeaders?: RawHeader[];
+  responseHeaders?: Record<string, string>;
+  rawResponseHeaders?: RawHeader[];
   hostIp?: string;
   protocol?: string;
   headerOutput?: {
@@ -77,8 +94,6 @@ export interface CaptureEntry {
     }[]
   }
 }
-
-export type CaptureClassification = "ok" | "corrupt" | "not_found" | "transient_retry" | "redirect" | "unavailable" | "skipped" | "forbidden";
 
 export function addValidationError(entry: CaptureEntry, error: string, details?: any) {
   if (!entry.metadata) {

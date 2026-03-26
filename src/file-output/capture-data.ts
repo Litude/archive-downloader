@@ -71,7 +71,7 @@ function getExactModificationDate(captureEntry: CaptureEntry): { modificationTim
 
 // TODO: Is this even needed, we don't actually even want to fetch commoncrawl captures from wayback?
 function getExactCaptureDate(captureEntry: CaptureEntry): string | null {
-  const headers = captureEntry.headers;
+  const headers = captureEntry.responseHeaders;
   if (headers?.["x-archive-orig-x_commoncrawl_fetchtimestamp"]) {
     const timestamp = +headers["x-archive-orig-x_commoncrawl_fetchtimestamp"];
     const date = new Date(timestamp);
@@ -127,7 +127,7 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
 
   captureEntries.forEach(entry => {
     const entryFilename = structuredClone(headerFilename);
-    if (entry.classification !== "ok") {
+    if (entry.classification.type !== "ok") {
       entryFilename.flags = "invalid";
     }
     entryFilename.timestamp = entry.captureTimestamp.toFormat("yyyyLLddHHmmss");
@@ -177,10 +177,7 @@ export function writeCaptureData(captureEntries: CaptureEntry[], filename: Filen
         protocol: entry.protocol,
         archiveRecordFormat,
         archiveRecordAvailable,
-        classification: {
-          type: entry.classification,
-          details: entry.classificationDetails,
-        },
+        classification: entry.classification,
         cdxEntry: {
           urlkey: mainCdxEntry.urlkey,
           timestamp: mainCdxEntry.timestamp,

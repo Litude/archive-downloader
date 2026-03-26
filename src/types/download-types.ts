@@ -4,8 +4,8 @@ export interface DownloadedFile {
   content: Buffer;
   url: string;
   timestamp: string;
-  headers: Record<string, any>;
-  rawHeaders: RawHeader[];
+  responseHeaders: Record<string, string>;
+  rawResponseHeaders: RawHeader[];
   metadata?: {
     downloadErrorDetails?: {
       reason: string;

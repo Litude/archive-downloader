@@ -1,5 +1,5 @@
 import axios from "axios";
-import { preventAxiosRedirects } from "../../utils/axios-utils.js";
+import { cleanupAxiosResponseHeaders, preventAxiosRedirects } from "../../utils/axios-utils.js";
 import { parseRawHeadersToPairs, RawHeader } from "../../utils/raw-header-parser.js";
 
 async function downloadToBufferWithRetry(url: string, requestHeaders: Record<string, string> = {}, statusCode: number) {
@@ -22,7 +22,7 @@ async function downloadToBufferWithRetry(url: string, requestHeaders: Record<str
 async function downloadToBuffer(url: string, requestHeaders: Record<string, string> = {}, statusCode: number) {
   const chunks: Buffer[] = [];
   let totalBytes = 0;
-  let responseHeaders = {};
+  let responseHeaders: Record<string, string> = {};
   let rawHeaders: RawHeader[] = [];
   let status = 0;
   let aborted = false;
@@ -42,7 +42,7 @@ async function downloadToBuffer(url: string, requestHeaders: Record<string, stri
       },
     });
 
-    responseHeaders = response.headers;
+    responseHeaders = cleanupAxiosResponseHeaders(response.headers);
     rawHeaders = parseRawHeadersToPairs(response.request.res.rawHeaders);
     status = response.status;
 

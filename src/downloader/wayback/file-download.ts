@@ -5,7 +5,7 @@ import JSON5 from "json5";
 import { fileURLToPath } from "url";
 import { fetchPartiallyArchivedFileData } from "./partial-file.js";
 import { DownloadedFile } from "../../types/download-types.js";
-import { preventAxiosRedirects } from "../../utils/axios-utils.js";
+import { cleanupAxiosResponseHeaders, preventAxiosRedirects } from "../../utils/axios-utils.js";
 import { getWaybackCaptureBaseUrl } from "../../utils/address.js";
 import { CdxEntry } from "../../types/wayback-types.js";
 import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common.js";
@@ -167,8 +167,8 @@ export async function fetchWaybackFile(
         content,
         url,
         timestamp,
-        headers: response.headers,
-        rawHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders),
+        responseHeaders: cleanupAxiosResponseHeaders(response.headers),
+        rawResponseHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders),
         classification,
         statusCode: response.status,
       };
@@ -219,7 +219,7 @@ export async function fetchWaybackFileHeaders(
       if (ERROR_STATUS_CODES.includes(response.status)) {
         throw new Error(`HTTP ${response.status}`);
       }
-      return { url, timestamp, headers: response.headers, rawHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders), statusCode: response.status };
+      return { url, timestamp, responseHeaders: cleanupAxiosResponseHeaders(response.headers), rawResponseHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders), statusCode: response.status };
     } catch (e: unknown) {
       console.log(`Error fetching headers for ${timestamp}-${url}: ${e}, retrying in ${backoff / 1000}s...`);
       await new Promise(res => setTimeout(res, backoff));
@@ -254,8 +254,8 @@ async function fetchCorruptFileWithoutDecompression(
         content,
         url,
         timestamp,
-        headers: response.headers,
-        rawHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders),
+        responseHeaders: cleanupAxiosResponseHeaders(response.headers),
+        rawResponseHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders),
         metadata: {
           downloadErrorDetails: {
             reason: "truncated",
@@ -292,8 +292,8 @@ async function fetchPartialFile(
         content: buffer,
         url,
         timestamp,
-        headers,
-        rawHeaders,
+        responseHeaders: headers,
+        rawResponseHeaders: rawHeaders,
         classification: !valid ? "corrupt" : undefined,
         metadata: !valid ? {
           downloadErrorDetails: {
