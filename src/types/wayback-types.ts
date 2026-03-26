@@ -1,4 +1,4 @@
-import { RawHeader } from "../utils/raw-header-parser";
+import { RawHeader } from "../utils/raw-header-parser.js";
 
 export interface CdxEntry {
   urlkey: string;

@@ -1,13 +1,13 @@
 import JSON5 from "json5";
 import fs from "fs";
 import path from "path";
-import { DownloadFileInput, UrlEntry } from "../types/download-input-types";
-import { determineFilenameFromUrls, determineOutputSubdirectoryFromUrls } from "../file-name/file-name";
-import { createMirrorUrls } from "../mirrors/mirrors";
-import { createAdditionalUrls } from "../mirrors/additional-urls";
-import { readFileAsJson5 } from "../utils/file-json";
-import { MirrorData, MirrorUrlData, WebsiteFileEntryJson } from "../types/website-types";
-import { parseJsonTransformations } from "../transformation/transformation";
+import { DownloadFileInput, UrlEntry } from "../types/download-input-types.js";
+import { determineFilenameFromUrls, determineOutputSubdirectoryFromUrls } from "../file-name/file-name.js";
+import { createMirrorUrls } from "../mirrors/mirrors.js";
+import { createAdditionalUrls } from "../mirrors/additional-urls.js";
+import { readFileAsJson5 } from "../utils/file-json.js";
+import { MirrorData, MirrorUrlData, WebsiteFileEntryJson } from "../types/website-types.js";
+import { parseJsonTransformations } from "../transformation/transformation.js";
 
 // Timestamps can be limited at several levels:
 // - Global max/min timestamps for all urls in a json file
@@ -23,25 +23,25 @@ import { parseJsonTransformations } from "../transformation/transformation";
 // The mirror specific timestamps are handled in mirrors.ts (they will clamp the other timestamps)
 
 function getEntryUrls(
-    entry: WebsiteFileEntryJson,
-    maxTimestamp?: string,
-    minTimestamp?: string
+  entry: WebsiteFileEntryJson,
+  maxTimestamp?: string,
+  minTimestamp?: string,
 ): {
     url: string,
     maxTimestamp?: string,
     minTimestamp?: string
 }[] {
-    if (entry.urls) {
-        return entry.urls.map(
-        u => typeof u === "string" ?
-            { url: u, maxTimestamp: entry.maxTimestamp ?? maxTimestamp, minTimestamp: entry.minTimestamp ?? minTimestamp }
-        : { url: u.url, maxTimestamp: u.maxTimestamp ?? entry.maxTimestamp ?? maxTimestamp, minTimestamp: u.minTimestamp ?? entry.minTimestamp ?? minTimestamp }
-        );
-    } else if (entry.url) {
-        return [{ url: entry.url, maxTimestamp: entry.maxTimestamp ?? maxTimestamp, minTimestamp: entry.minTimestamp ?? minTimestamp }];
-    } else {
-        throw new Error('Each file entry must have either "url" or "urls" field');
-    }
+  if (entry.urls) {
+    return entry.urls.map(
+      u => typeof u === "string" ?
+        { url: u, maxTimestamp: entry.maxTimestamp ?? maxTimestamp, minTimestamp: entry.minTimestamp ?? minTimestamp }
+        : { url: u.url, maxTimestamp: u.maxTimestamp ?? entry.maxTimestamp ?? maxTimestamp, minTimestamp: u.minTimestamp ?? entry.minTimestamp ?? minTimestamp },
+    );
+  } else if (entry.url) {
+    return [{ url: entry.url, maxTimestamp: entry.maxTimestamp ?? maxTimestamp, minTimestamp: entry.minTimestamp ?? minTimestamp }];
+  } else {
+    throw new Error('Each file entry must have either "url" or "urls" field');
+  }
 }
 
 // Reads defined mirrors, additional mirrors and additional URLs
@@ -52,18 +52,16 @@ function createAllMirrorUrls(
   mirrors: (string | MirrorData | MirrorUrlData)[],
   {
     maxTimestamp,
-    minTimestamp
+    minTimestamp,
   } : {
     maxTimestamp?: string,
     minTimestamp?: string
-  }
+  },
 ): UrlEntry[] {
-    const mirrorUrls = createMirrorUrls(urls, mirrors);
-    const additionalUrls = file.additionalUrls ? createAdditionalUrls(file.additionalUrls, file.maxTimestamp ?? maxTimestamp, file.minTimestamp ?? minTimestamp) : [];
-    return [...mirrorUrls, ...additionalUrls];
+  const mirrorUrls = createMirrorUrls(urls, mirrors);
+  const additionalUrls = file.additionalUrls ? createAdditionalUrls(file.additionalUrls, file.maxTimestamp ?? maxTimestamp, file.minTimestamp ?? minTimestamp) : [];
+  return [...mirrorUrls, ...additionalUrls];
 }
-
-
 
 function replaceJsonConfigVariables<T>(obj: T, variables: Record<string, any>): T {
   if (typeof obj === "string") {
@@ -77,17 +75,17 @@ function replaceJsonConfigVariables<T>(obj: T, variables: Record<string, any>): 
     return obj.map(item => replaceJsonConfigVariables(item, variables)) as T;
   } else if (obj !== null && typeof obj === "object") {
     return Object.fromEntries(
-      Object.entries(obj).map(([k, v]) => [k, replaceJsonConfigVariables(v, variables)])
+      Object.entries(obj).map(([k, v]) => [k, replaceJsonConfigVariables(v, variables)]),
     ) as T;
   }
   return obj;
 }
 
 function readVariables(): Record<string, any> {
-  const variablesPath = path.join(__dirname, '../../data/settings/variables.json');
+  const variablesPath = path.join(__dirname, "../../data/settings/variables.json");
   if (fs.existsSync(variablesPath)) {
     try {
-      const variablesContent = fs.readFileSync(variablesPath, 'utf-8');
+      const variablesContent = fs.readFileSync(variablesPath, "utf-8");
       return JSON5.parse(variablesContent);
     } catch (error) {
       console.error(`Error reading variables from ${variablesPath}:`, error);
@@ -100,7 +98,7 @@ function readVariables(): Record<string, any> {
 }
 
 export function readWebsiteJsonConfig(jsonPath: string, baseDirectory: string, {
-  noMirrors = false
+  noMirrors = false,
 }): DownloadFileInput[] {
   let config = readFileAsJson5(jsonPath);
   const variables = readVariables();
@@ -118,7 +116,7 @@ export function readWebsiteJsonConfig(jsonPath: string, baseDirectory: string, {
 
     const mirrors = [...new Set([
       ...(commonMirrors || []),
-      ...(file.additionalMirrors || [])
+      ...(file.additionalMirrors || []),
     ])];
     const filename = determineFilenameFromUrls(file, urls, file.queryParams);
     filename.queryParams = file.queryParams;
@@ -127,7 +125,7 @@ export function readWebsiteJsonConfig(jsonPath: string, baseDirectory: string, {
     const allUrls = noMirrors ? urls : createAllMirrorUrls(urls, file, mirrors, { maxTimestamp, minTimestamp });
 
     const transformations = parseJsonTransformations(file.transformations || []);
-    
+
     const allClassifications = { ...commonClassifications, ...file.classifications };
 
     if (file.excludedCaptures && file.excludedCaptures.length > 0) {
@@ -147,7 +145,7 @@ export function readWebsiteJsonConfig(jsonPath: string, baseDirectory: string, {
       transformations,
       queryHashParameters: file.queryHashParameters,
       classifications: Object.keys(allClassifications).length > 0 ? allClassifications : undefined,
-      skippedCaptures: file.skippedCaptures && file.skippedCaptures.length > 0 ? file.skippedCaptures : undefined
+      skippedCaptures: file.skippedCaptures && file.skippedCaptures.length > 0 ? file.skippedCaptures : undefined,
     };
   });
 

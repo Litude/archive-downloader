@@ -40,7 +40,7 @@ export interface WaybackMetadata {
     scandate: string; // YYYYMMDDHHMMSS
     boxid: string;
     backup_location: string;
-    'fail-reasons': string;
+    "fail-reasons": string;
     [key: string]: any; // for any additional fields that may be present, such as those added by metadata enrichment (e.g. numwarcs/numarcs) or custom metadata fields
 }
 

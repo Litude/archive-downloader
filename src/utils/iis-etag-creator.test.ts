@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { DateTime } from "luxon";
-import { createIisEtagFromDate } from "./iis-etag-creator";
-import { parseIisEtagDate } from "./iis-etag-parser";
+import { createIisEtagFromDate } from "./iis-etag-creator.js";
+import { parseIisEtagDate } from "./iis-etag-parser.js";
 
 function captureAt(iso: string): DateTime<true> {
   const dt = DateTime.fromISO(iso, { zone: "utc" });

@@ -13,7 +13,7 @@ export function parseRawHeadersToPairs(rawHeaders: string | string[]): RawHeader
 export function parseArchiveRecordHeadersToPairs(recordHeaders: string[]): RawHeader[] {
   const headerPairs: RawHeader[] = [];
   for (const headerLine of recordHeaders) {
-    const separatorIndex = headerLine.indexOf(':');
+    const separatorIndex = headerLine.indexOf(":");
     if (separatorIndex > -1) {
       const name = headerLine.substring(0, separatorIndex).trim();
       const value = headerLine.substring(separatorIndex + 1).trim();

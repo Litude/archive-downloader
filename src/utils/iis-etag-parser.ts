@@ -1,5 +1,4 @@
 import { DateTime } from "luxon";
-import { logWarning } from "./log-context";
 
 const FILETIME_EPOCH_OFFSET = 116444736000000000n;
 const TICKS_PER_SECOND = 10000000n;
@@ -16,13 +15,13 @@ const TICKS_PER_MICROSECOND = 10n;
  * Returns an ISO-like UTC string "YYYY-MM-DDTHH:mm:ss.nnnnnnnnnZ" with
  * nanosecond precision, or null if the ETag doesn't match IIS format
  * or no valid date is found.
- * 
+ *
  * Since FILETIMEs have a precision of 100 nanoseconds, the last 2 digits of
  * the nanosecond portion will always be zero.
  */
 export function parseIisEtagDate(
   etag: string,
-  captureDate: DateTime<true>
+  captureDate: DateTime<true>,
 ): string[] | null {
   const match = etag.match(/^"?([0-9a-fA-F]+):[0-9a-fA-F]+"?$/);
   if (!match) return null;
@@ -46,9 +45,9 @@ export function parseIisEtagDate(
 }
 
 export function getMostLikelyEtagDate(
-    etag: string,
-    captureDate: DateTime<true>,
-    modifyDate: DateTime<true>
+  etag: string,
+  captureDate: DateTime<true>,
+  modifyDate: DateTime<true>,
 ): string[] | null {
   const candidates = parseIisEtagDate(etag, captureDate);
   if (!candidates) throw new Error("No valid ETag candidates found");
@@ -82,7 +81,7 @@ function splitBytes(
   charIndex: number,
   byteIndex: number,
   bytes: Uint8Array,
-  onResult: (bytes: Uint8Array) => void
+  onResult: (bytes: Uint8Array) => void,
 ): void {
   if (byteIndex === 8) {
     if (charIndex === hex.length) {
@@ -103,7 +102,7 @@ function splitBytes(
   splitBytes(hex, charIndex + 1, byteIndex + 1, bytes, onResult);
 
   // 2-char: byte value 0x10–0xFF (leading nibble non-zero, kept)
-  if (charIndex + 1 < hex.length && hex[charIndex] !== '0') {
+  if (charIndex + 1 < hex.length && hex[charIndex] !== "0") {
     bytes[byteIndex] = parseInt(hex.substring(charIndex, charIndex + 2), 16);
     splitBytes(hex, charIndex + 2, byteIndex + 1, bytes, onResult);
   }
@@ -111,7 +110,7 @@ function splitBytes(
 
 /** Converts 8 little-endian FILETIME bytes to a formatted UTC timestamp string. */
 function filetimeToTimestamp(
-  bytes: Uint8Array
+  bytes: Uint8Array,
 ): { formatted: string; unixSeconds: number } | null {
   let filetime = 0n;
   for (let i = 7; i >= 0; i--) {
@@ -131,13 +130,13 @@ function filetimeToTimestamp(
 
   if (isNaN(date.getTime())) return null;
 
-  const yyyy = date.getUTCFullYear().toString().padStart(4, '0');
-  const mm = (date.getUTCMonth() + 1).toString().padStart(2, '0');
-  const dd = date.getUTCDate().toString().padStart(2, '0');
-  const hh = date.getUTCHours().toString().padStart(2, '0');
-  const min = date.getUTCMinutes().toString().padStart(2, '0');
-  const ss = date.getUTCSeconds().toString().padStart(2, '0');
-  const us = nanoseconds.toString().padStart(9, '0');
+  const yyyy = date.getUTCFullYear().toString().padStart(4, "0");
+  const mm = (date.getUTCMonth() + 1).toString().padStart(2, "0");
+  const dd = date.getUTCDate().toString().padStart(2, "0");
+  const hh = date.getUTCHours().toString().padStart(2, "0");
+  const min = date.getUTCMinutes().toString().padStart(2, "0");
+  const ss = date.getUTCSeconds().toString().padStart(2, "0");
+  const us = nanoseconds.toString().padStart(9, "0");
 
   return {
     formatted: `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}.${us}Z`,
@@ -148,20 +147,11 @@ function filetimeToTimestamp(
 /** File modification must be before the capture (with tolerance), and not impossibly old. */
 function isPlausibleDate(
   unixSeconds: number,
-  captureDate: DateTime<true>
+  captureDate: DateTime<true>,
 ): boolean {
   const captureSec = captureDate.toMillis() / 1000;
   const initialTime = DateTime.fromISO("1996-01-01T00:00:00Z").toMillis() / 1000;
   const oneDay = 86400;
   return unixSeconds >= initialTime
       && unixSeconds <= captureSec + oneDay;
-}
-
-function isoToUnixSeconds(iso: string): number {
-  const [datePart, timePart] = iso.replace('Z', '').split('T');
-  const [y, m, d] = datePart.split('-').map(Number);
-  const [hh, mm, rest] = timePart.split(':');
-  const [ss, us] = rest.split('.');
-  const date = Date.UTC(y, m - 1, d, Number(hh), Number(mm), Number(ss));
-  return date / 1000 + Number(us) / 1_000_000;
 }

@@ -1,178 +1,178 @@
-import { describe, it, expect } from 'vitest';
-import { determineFilenameFromUrls, getOriginalQueryString, filenameToString } from './file-name';
-import { WebsiteFileEntryJson } from '../types/website-types';
-import { UrlEntry } from '../types/download-input-types';
+import { describe, it, expect } from "vitest";
+import { determineFilenameFromUrls, getOriginalQueryString, filenameToString } from "./file-name.js";
+import { WebsiteFileEntryJson } from "../types/website-types.js";
+import { UrlEntry } from "../types/download-input-types.js";
 
-describe('Query Hash Parameters', () => {
-  it('should transform query parameters in filename based on queryHashParameters', () => {
+describe("Query Hash Parameters", () => {
+  it("should transform query parameters in filename based on queryHashParameters", () => {
     const file: WebsiteFileEntryJson = {
-      filename: 'screenshot_slideshow.asp',
+      filename: "screenshot_slideshow.asp",
       queryHashParameters: [
         {
-          paramName: 'bottomframe',
-          outputName: 'btm',
-          pattern: '\\/Games\\/CONQUERORS\\/SCREENSHOTS_(subnav_[sb])\\.htm',
+          paramName: "bottomframe",
+          outputName: "btm",
+          pattern: "\\/Games\\/CONQUERORS\\/SCREENSHOTS_(subnav_[sb])\\.htm",
           captureGroups: [1],
-          required: false
+          required: false,
         },
         {
-          paramName: 'topframe',
-          outputName: 'top',
-          pattern: '\\/Games\\/CONQUERORS\\/(screenshots_[mb])\\.asp\\?image=(\\d+)',
+          paramName: "topframe",
+          outputName: "top",
+          pattern: "\\/Games\\/CONQUERORS\\/(screenshots_[mb])\\.asp\\?image=(\\d+)",
           captureGroups: [1, 2],
-          required: false
-        }
-      ]
+          required: false,
+        },
+      ],
     };
 
     const urls: UrlEntry[] = [];
     const queryParams = {
-      bottomframe: '/Games/CONQUERORS/SCREENSHOTS_subnav_s.htm',
-      topframe: '/Games/CONQUERORS/screenshots_m.asp?image=15'
+      bottomframe: "/Games/CONQUERORS/SCREENSHOTS_subnav_s.htm",
+      topframe: "/Games/CONQUERORS/screenshots_m.asp?image=15",
     };
 
     const filename = determineFilenameFromUrls(file, urls, queryParams);
     filename.queryHashParameters = file.queryHashParameters;
-    const filenameStr = filenameToString(filename, 'simple');
+    const filenameStr = filenameToString(filename, "simple");
 
     // Should use transformed params in the filename
-    expect(filenameStr).toContain('btm=subnav_s');
-    expect(filenameStr).toContain('top=screenshots_m-15');
-    expect(filenameStr).not.toContain('/Games/CONQUERORS');
-    
+    expect(filenameStr).toContain("btm=subnav_s");
+    expect(filenameStr).toContain("top=screenshots_m-15");
+    expect(filenameStr).not.toContain("/Games/CONQUERORS");
+
     // Original query params should still be stored in the filename object
     expect(filename.queryParams).toEqual(queryParams);
   });
 
-  it('should handle multiple capture groups', () => {
+  it("should handle multiple capture groups", () => {
     const file: WebsiteFileEntryJson = {
-      filename: 'test.asp',
+      filename: "test.asp",
       queryHashParameters: [
         {
-          paramName: 'top',
-          pattern: '\\/Games\\/CONQUERORS\\/(screenshots_[mb])\\.asp\\?image=(\\d+)',
+          paramName: "top",
+          pattern: "\\/Games\\/CONQUERORS\\/(screenshots_[mb])\\.asp\\?image=(\\d+)",
           captureGroups: [1, 2],
-          required: false
-        }
-      ]
+          required: false,
+        },
+      ],
     };
 
     const urls: UrlEntry[] = [];
     const queryParams = {
-      top: '/Games/CONQUERORS/screenshots_b.asp?image=12'
+      top: "/Games/CONQUERORS/screenshots_b.asp?image=12",
     };
 
     const filename = determineFilenameFromUrls(file, urls, queryParams);
     filename.queryHashParameters = file.queryHashParameters;
-    const filenameStr = filenameToString(filename, 'simple');
+    const filenameStr = filenameToString(filename, "simple");
 
-    expect(filenameStr).toContain('top=screenshots_b-12');
+    expect(filenameStr).toContain("top=screenshots_b-12");
     expect(filename.queryParams).toEqual(queryParams);
   });
 
-  it('should return original params if pattern does not match', () => {
+  it("should return original params if pattern does not match", () => {
     const file: WebsiteFileEntryJson = {
-      filename: 'test.asp',
+      filename: "test.asp",
       queryHashParameters: [
         {
-          paramName: 'param',
-          pattern: '\\/specific\\/pattern',
+          paramName: "param",
+          pattern: "\\/specific\\/pattern",
           captureGroups: [1],
-          required: false
-        }
-      ]
+          required: false,
+        },
+      ],
     };
 
     const urls: UrlEntry[] = [];
     const queryParams = {
-      param: '/does/not/match'
+      param: "/does/not/match",
     };
 
     const filename = determineFilenameFromUrls(file, urls, queryParams);
     filename.queryHashParameters = file.queryHashParameters;
-    const filenameStr = filenameToString(filename, 'simple');
+    const filenameStr = filenameToString(filename, "simple");
 
     // Should use original params when pattern doesn't match
-    expect(filenameStr).toContain('param=~sdoes~snot~smatch');
+    expect(filenameStr).toContain("param=~sdoes~snot~smatch");
     expect(filename.queryParams).toEqual(queryParams);
   });
 
-  it('should return original params if required parameter is missing', () => {
+  it("should return original params if required parameter is missing", () => {
     const file: WebsiteFileEntryJson = {
-      filename: 'test.asp',
+      filename: "test.asp",
       queryHashParameters: [
         {
-          paramName: 'required',
-          pattern: '\\/pattern',
+          paramName: "required",
+          pattern: "\\/pattern",
           captureGroups: [1],
-          required: true
-        }
-      ]
+          required: true,
+        },
+      ],
     };
 
     const urls: UrlEntry[] = [];
     const queryParams = {
-      other: 'value'
+      other: "value",
     };
 
     const filename = determineFilenameFromUrls(file, urls, queryParams);
     filename.queryHashParameters = file.queryHashParameters;
-    const filenameStr = filenameToString(filename, 'simple');
+    const filenameStr = filenameToString(filename, "simple");
 
     // Should use original params when required param is missing
-    expect(filenameStr).toContain('other=value');
+    expect(filenameStr).toContain("other=value");
     expect(filename.queryParams).toEqual(queryParams);
   });
 
-  it('should handle optional parameters gracefully', () => {
+  it("should handle optional parameters gracefully", () => {
     const file: WebsiteFileEntryJson = {
-      filename: 'test.asp',
+      filename: "test.asp",
       queryHashParameters: [
         {
-          paramName: 'optional',
-          pattern: '\\/pattern\\/(\\w+)',
+          paramName: "optional",
+          pattern: "\\/pattern\\/(\\w+)",
           captureGroups: [1],
-          required: false
+          required: false,
         },
         {
-          paramName: 'existing',
-          pattern: '(\\w+)',
+          paramName: "existing",
+          pattern: "(\\w+)",
           captureGroups: [1],
-          required: false
-        }
-      ]
+          required: false,
+        },
+      ],
     };
 
     const urls: UrlEntry[] = [];
     const queryParams = {
-      existing: 'test'
+      existing: "test",
     };
 
     const filename = determineFilenameFromUrls(file, urls, queryParams);
     filename.queryHashParameters = file.queryHashParameters;
-    const filenameStr = filenameToString(filename, 'simple');
+    const filenameStr = filenameToString(filename, "simple");
 
-    expect(filenameStr).toContain('existing=test');
+    expect(filenameStr).toContain("existing=test");
     expect(filename.queryParams).toEqual(queryParams);
   });
 
-  it('should get original query string', () => {
+  it("should get original query string", () => {
     const file: WebsiteFileEntryJson = {
-      filename: 'test.asp',
+      filename: "test.asp",
       queryHashParameters: [
         {
-          paramName: 'param',
-          pattern: '(\\w+)',
+          paramName: "param",
+          pattern: "(\\w+)",
           captureGroups: [1],
-          required: false
-        }
-      ]
+          required: false,
+        },
+      ],
     };
 
     const urls: UrlEntry[] = [];
     const queryParams = {
-      param: 'longvalue',
-      other: 'data'
+      param: "longvalue",
+      other: "data",
     };
 
     const filename = determineFilenameFromUrls(file, urls, queryParams);
@@ -180,17 +180,17 @@ describe('Query Hash Parameters', () => {
     const originalQueryString = getOriginalQueryString(filename);
 
     // When queryHashParameters are provided, return the untransformed version
-    expect(originalQueryString).toBe('other=data&param=longvalue');
+    expect(originalQueryString).toBe("other=data&param=longvalue");
   });
 
-  it('should return undefined for original query string when no transformation configured', () => {
+  it("should return undefined for original query string when no transformation configured", () => {
     const file: WebsiteFileEntryJson = {
-      filename: 'test.asp'
+      filename: "test.asp",
     };
 
     const urls: UrlEntry[] = [];
     const queryParams = {
-      param: 'value'
+      param: "value",
     };
 
     const filename = determineFilenameFromUrls(file, urls, queryParams);

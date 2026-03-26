@@ -1,17 +1,17 @@
-import { Transformation, TransformationInput, TransformationOutput, TransformationProvider } from "../types/transformation-types";
-import { TransformationJson } from "../types/website-types";
-import { computeSha256 } from "../utils/hash";
-import { ConquerorsUsTransformation } from "./conquerors-us-layout/conquerors-us-transformation";
-import { QueryParamTransformation } from "./query-param-transformation";
-import { QueryParamFilter } from "./query-param-filter";
-import { TrackingImageNormalizer } from "./tracking-img-transformation";
-import { RegexNormalizer } from "./regex-transformation";
+import { Transformation, TransformationInput, TransformationOutput, TransformationProvider } from "../types/transformation-types.js";
+import { TransformationJson } from "../types/website-types.js";
+import { computeSha256 } from "../utils/hash.js";
+import { ConquerorsUsTransformation } from "./conquerors-us-layout/conquerors-us-transformation.js";
+import { QueryParamTransformation } from "./query-param-transformation.js";
+import { QueryParamFilter } from "./query-param-filter.js";
+import { TrackingImageNormalizer } from "./tracking-img-transformation.js";
+import { RegexNormalizer } from "./regex-transformation.js";
 
 export function applyTransformationPipeline(
   initialBuffers: { sha256: string; content: Buffer }[],
-  transformations: Transformation[]
+  transformations: Transformation[],
 ): TransformationInput[] {
-  
+
   // Start with initial inputs (one per unique sha256)
   let currentInputs: TransformationInput[] = initialBuffers.map(({ sha256, content }) => ({
     content,
@@ -22,13 +22,13 @@ export function applyTransformationPipeline(
   // Apply each transformation in sequence
   for (const { function: transformation, options, name } of transformations) {
     console.log(`Applying transformation ${name}, starting with ${currentInputs.length} inputs...`);
-    
+
     // Step 1: Apply transformation to each input (can produce multiple outputs per input)
     const allOutputs: (TransformationOutput & { sourceSha256Values: string[] })[] = [];
-    
+
     for (const input of currentInputs) {
       const outputs = transformation(input, options);
-      
+
       // Each output inherits the source sha256 values from its input
       for (const output of outputs) {
         allOutputs.push({
@@ -38,17 +38,17 @@ export function applyTransformationPipeline(
         });
       }
     }
-    
+
     console.log(`  Transformation produced ${allOutputs.length} outputs`);
-    
+
     // Step 2: Deduplicate by content sha256, merging source sha256 lists
     const uniqueOutputs = new Map<string, TransformationInput>();
-    
+
     for (const output of allOutputs) {
       const contentSha256 = computeSha256(output.content);
-      const contentQueryKey = Object.entries(output.queryParams).sort(([keyA], [keyB]) => keyA.localeCompare(keyB)).map(([k, v]) => `${k}=${v}`).join('&');
+      const contentQueryKey = Object.entries(output.queryParams).sort(([keyA], [keyB]) => keyA.localeCompare(keyB)).map(([k, v]) => `${k}=${v}`).join("&");
       const combinedKey = `${contentSha256}|${contentQueryKey}`;
-      
+
       const existing = uniqueOutputs.get(combinedKey);
       if (existing) {
         // Merge source sha256 values
@@ -65,9 +65,9 @@ export function applyTransformationPipeline(
         });
       }
     }
-    
+
     console.log(`  After deduplication: ${uniqueOutputs.size} unique outputs`);
-    
+
     // Step 3: These unique outputs become the inputs for the next transformation
     currentInputs = Array.from(uniqueOutputs.values());
   }
@@ -87,8 +87,8 @@ export function parseJsonTransformations(transformationsJson: TransformationJson
     return {
       function: transformation.transform,
       options: options || {},
-      name
-    }
+      name,
+    };
   });
 }
 
@@ -97,5 +97,5 @@ export const Transformations: Record<string, TransformationProvider> = {
   queryParamTransformation: QueryParamTransformation,
   queryParamFilter: QueryParamFilter,
   trackingImageUrlNormalizer: TrackingImageNormalizer,
-  regexTransformation: RegexNormalizer
-}
+  regexTransformation: RegexNormalizer,
+};

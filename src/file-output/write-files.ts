@@ -1,104 +1,104 @@
 import fs from "fs";
 import path from "path";
-import { CaptureEntry } from "../types/capture-types";
-import { Filename } from "../types/download-input-types";
-import { filenameToString, getOriginalQueryString } from "../file-name/file-name";
+import { CaptureEntry } from "../types/capture-types.js";
+import { Filename } from "../types/download-input-types.js";
+import { filenameToString, getOriginalQueryString } from "../file-name/file-name.js";
 
 export function writeUniqueFileEntries(captureEntries: CaptureEntry[], filename: Filename, outputDirectory: string) {
-    // For each unique sha256 + modify timestamp combination, write the file to disk
-    // However if there is a sha256 entry that has a modify timestamp, we DO NOT write the no-timestamp version
-    const uniqueEntries = new Map<string, CaptureEntry>();
-    const shaHasModified = new Set<string>();
+  // For each unique sha256 + modify timestamp combination, write the file to disk
+  // However if there is a sha256 entry that has a modify timestamp, we DO NOT write the no-timestamp version
+  const uniqueEntries = new Map<string, CaptureEntry>();
+  const shaHasModified = new Set<string>();
 
-    // First pass: identify which sha256 have modified timestamps
-    captureEntries.forEach(entry => {
-        if (entry.lastModified && entry.sha256) {
-            shaHasModified.add(entry.sha256);
-        }
-    });
-
-    // Second pass: collect unique entries, skipping no-modify ones if a modified exists
-    captureEntries.forEach(entry => {
-        if (!entry.lastModified && entry.sha256 && shaHasModified.has(entry.sha256)) {
-            return; // skip this entry
-        }
-        const key = `${entry.sha256}-${entry.lastModified ? entry.lastModified.toISO() : 'no-modified'}`;
-        if (!uniqueEntries.has(key)) {
-            uniqueEntries.set(key, entry);
-        }
-    });
-
-    let invalidFilesWritten = 0;
-    let rawFilesWritten = 0;
-    let validFilesWritten = 0;
-
-    uniqueEntries.forEach((entry) => {
-        const entryFilename = structuredClone(filename);
-        const entryIsValid = entry.classification === "ok";
-
-        if (!entryIsValid) {
-            entryFilename.flags = "invalid";
-        }
-
-        if (entryFilename.flags === "invalid") {
-            invalidFilesWritten++;
-        }
-        else if (entryFilename.flags === "raw") {
-            rawFilesWritten++;
-        }
-        else {
-            validFilesWritten++;
-        }
-
-        const entryHasFlags = entryFilename.flags ? true : false;
-
-        const filenameTimestamp = !entryHasFlags ? (entry.lastModified ?? entry.captureTimestamp) : entry.captureTimestamp
-        entryFilename.timestamp = filenameTimestamp.toFormat('yyyyLLddHHmmss');
-
-        const filenameIndex = !entryHasFlags ? entry.contentIndex : entry.captureIndex;
-
-        if (filenameIndex === null) {
-            // This should not really happen?! Should only occur for entries that don't have a modify date but some other entry with the same sha256 does have a modify date,
-            // but in that case they should be skipped entirely by the filtering at the start and not get to this point
-            console.error(`Entry with sha256 ${entry.sha256} has content index null, but should have a valid index since it has flags ${entryFilename.flags}`);
-            return;
-        }
-
-        // 0 is intentionally skipped so entries only show the suffix if there are multiple with the same timestamp+flags, to keep the filenames cleaner
-        let outputFilename = filenameToString(entryFilename, 'full', filenameIndex ? filenameIndex : undefined);
-
-        const mainDir = outputDirectory;
-        const archivalDir = path.join(outputDirectory, '.archivaldata');
-        fs.mkdirSync(archivalDir, { recursive: true });
-        fs.mkdirSync(mainDir, { recursive: true });
-
-        const outputDir = entryHasFlags ? archivalDir : mainDir;
-        const outputPath = path.join(outputDir, outputFilename);
-
-        fs.writeFileSync(outputPath, entry.content ?? Buffer.alloc(0));
-        const modificationDate = entry.lastModified ?? entry.captureTimestamp;
-        const mtime = modificationDate.toJSDate();
-        fs.utimesSync(outputPath, mtime, mtime);
-        const source = entry.lastModified ? 'Last-Modified header' : 'Wayback snapshot';
-        console.log(`Saved ${outputFilename} with mtime ${modificationDate.toISO()} (from ${source})`);
-        
-        const untransformedName = getOriginalQueryString(filename);
-        if (untransformedName) {
-            const untransformedPath = path.join(archivalDir, `${outputFilename}.query.txt`);
-            fs.writeFileSync(untransformedPath, untransformedName);
-            console.log(`Saved original query string to ${untransformedPath}`);
-        }
-    });
-
-    console.log(`${filenameToString(filename, 'simple')} - Total capture entries processed: ${captureEntries.length}`);
-
-    if (validFilesWritten > 0) {
-        console.log(`${filenameToString(filename, 'simple')} - Unique valid version files saved: ${validFilesWritten}`);
+  // First pass: identify which sha256 have modified timestamps
+  captureEntries.forEach(entry => {
+    if (entry.lastModified && entry.sha256) {
+      shaHasModified.add(entry.sha256);
     }
-    if (invalidFilesWritten > 0) {
-        console.log(`${filenameToString(filename, 'simple')} - Unique invalid version files saved: ${invalidFilesWritten}`);
+  });
+
+  // Second pass: collect unique entries, skipping no-modify ones if a modified exists
+  captureEntries.forEach(entry => {
+    if (!entry.lastModified && entry.sha256 && shaHasModified.has(entry.sha256)) {
+      return; // skip this entry
     }
-    if (rawFilesWritten > 0) {
-        console.log(`${filenameToString(filename, 'simple')} - Raw version files saved: ${rawFilesWritten}`);
+    const key = `${entry.sha256}-${entry.lastModified ? entry.lastModified.toISO() : "no-modified"}`;
+    if (!uniqueEntries.has(key)) {
+      uniqueEntries.set(key, entry);
     }
+  });
+
+  let invalidFilesWritten = 0;
+  let rawFilesWritten = 0;
+  let validFilesWritten = 0;
+
+  uniqueEntries.forEach((entry) => {
+    const entryFilename = structuredClone(filename);
+    const entryIsValid = entry.classification === "ok";
+
+    if (!entryIsValid) {
+      entryFilename.flags = "invalid";
+    }
+
+    if (entryFilename.flags === "invalid") {
+      invalidFilesWritten++;
+    }
+    else if (entryFilename.flags === "raw") {
+      rawFilesWritten++;
+    }
+    else {
+      validFilesWritten++;
+    }
+
+    const entryHasFlags = entryFilename.flags ? true : false;
+
+    const filenameTimestamp = !entryHasFlags ? (entry.lastModified ?? entry.captureTimestamp) : entry.captureTimestamp;
+    entryFilename.timestamp = filenameTimestamp.toFormat("yyyyLLddHHmmss");
+
+    const filenameIndex = !entryHasFlags ? entry.contentIndex : entry.captureIndex;
+
+    if (filenameIndex === null) {
+      // This should not really happen?! Should only occur for entries that don't have a modify date but some other entry with the same sha256 does have a modify date,
+      // but in that case they should be skipped entirely by the filtering at the start and not get to this point
+      console.error(`Entry with sha256 ${entry.sha256} has content index null, but should have a valid index since it has flags ${entryFilename.flags}`);
+      return;
+    }
+
+    // 0 is intentionally skipped so entries only show the suffix if there are multiple with the same timestamp+flags, to keep the filenames cleaner
+    const outputFilename = filenameToString(entryFilename, "full", filenameIndex ? filenameIndex : undefined);
+
+    const mainDir = outputDirectory;
+    const archivalDir = path.join(outputDirectory, ".archivaldata");
+    fs.mkdirSync(archivalDir, { recursive: true });
+    fs.mkdirSync(mainDir, { recursive: true });
+
+    const outputDir = entryHasFlags ? archivalDir : mainDir;
+    const outputPath = path.join(outputDir, outputFilename);
+
+    fs.writeFileSync(outputPath, entry.content ?? Buffer.alloc(0));
+    const modificationDate = entry.lastModified ?? entry.captureTimestamp;
+    const mtime = modificationDate.toJSDate();
+    fs.utimesSync(outputPath, mtime, mtime);
+    const source = entry.lastModified ? "Last-Modified header" : "Wayback snapshot";
+    console.log(`Saved ${outputFilename} with mtime ${modificationDate.toISO()} (from ${source})`);
+
+    const untransformedName = getOriginalQueryString(filename);
+    if (untransformedName) {
+      const untransformedPath = path.join(archivalDir, `${outputFilename}.query.txt`);
+      fs.writeFileSync(untransformedPath, untransformedName);
+      console.log(`Saved original query string to ${untransformedPath}`);
+    }
+  });
+
+  console.log(`${filenameToString(filename, "simple")} - Total capture entries processed: ${captureEntries.length}`);
+
+  if (validFilesWritten > 0) {
+    console.log(`${filenameToString(filename, "simple")} - Unique valid version files saved: ${validFilesWritten}`);
+  }
+  if (invalidFilesWritten > 0) {
+    console.log(`${filenameToString(filename, "simple")} - Unique invalid version files saved: ${invalidFilesWritten}`);
+  }
+  if (rawFilesWritten > 0) {
+    console.log(`${filenameToString(filename, "simple")} - Raw version files saved: ${rawFilesWritten}`);
+  }
 }

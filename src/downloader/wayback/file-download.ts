@@ -2,28 +2,28 @@ import axios, { AxiosResponse } from "axios";
 import fs from "fs";
 import path from "path";
 import JSON5 from "json5";
-import { fetchPartiallyArchivedFileData } from "./partial-file";
-import { DownloadedFile } from "../../types/download-types";
-import { preventAxiosRedirects } from "../../utils/axios-utils";
-import { getWaybackCaptureBaseUrl } from "../../utils/address";
-import { CdxEntry } from "../../types/wayback-types";
-import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common";
-import { parseRawHeadersToPairs } from "../../utils/raw-header-parser";
+import { fetchPartiallyArchivedFileData } from "./partial-file.js";
+import { DownloadedFile } from "../../types/download-types.js";
+import { preventAxiosRedirects } from "../../utils/axios-utils.js";
+import { getWaybackCaptureBaseUrl } from "../../utils/address.js";
+import { CdxEntry } from "../../types/wayback-types.js";
+import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common.js";
+import { parseRawHeadersToPairs } from "../../utils/raw-header-parser.js";
 
-const WEB_ARCHIVE = 'web.archive.org/web';
+const WEB_ARCHIVE = "web.archive.org/web";
 const REQUEST_TIMEOUT = 60_000; // 60 seconds
 const INITIAL_BACKOFF = WAYBACK_INITIAL_BACKOFF; // 30 seconds
 const MAX_BACKOFF = WAYBACK_MAX_BACKOFF; // 10 minutes
 
 const ERROR_STATUS_CODES = [429, 502, 503, 504];
 const REQUEST_HEADERS = {
-  'Accept-Encoding': 'identity'
+  "Accept-Encoding": "identity",
 };
 
 const selfRedirectUrls: { url: string, minTimestamp?: string }[] = JSON5.parse(
-    fs.readFileSync(
-        path.join(__dirname, '../../../data/settings/self_redirect_urls.json'), 'utf-8'
-    )
+  fs.readFileSync(
+    path.join(__dirname, "../../../data/settings/self_redirect_urls.json"), "utf-8",
+  ),
 );
 
 // The precedence for responses is as follows:
@@ -40,7 +40,7 @@ function isBetterRedirectResponse(response: AxiosResponse<any>, expectedStatusCo
     return true;
   }
   // This means we got the actual capture, but this function is not actually called in such cases
-  if (response.status === expectedStatusCode && response.headers['x-archive-src']) {
+  if (response.status === expectedStatusCode && response.headers["x-archive-src"]) {
     return true;
   }
   if (bestResponse.status === expectedStatusCode) {
@@ -69,8 +69,8 @@ async function attemptToFetchRedirectUrl(waybackUrl: string, expectedStatusCode:
   let responseBackoff = INITIAL_BACKOFF;
   while (true) {
     try {
-      const response = await axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: 'arraybuffer', maxRedirects: 0, validateStatus: (status) => [301, 302, 404].includes(status), timeout: REQUEST_TIMEOUT });
-      if (response.status === Number(expectedStatusCode) && response.headers['x-archive-src']) {
+      const response = await axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: "arraybuffer", maxRedirects: 0, validateStatus: (status) => [301, 302, 404].includes(status), timeout: REQUEST_TIMEOUT });
+      if (response.status === Number(expectedStatusCode) && response.headers["x-archive-src"]) {
         return response;
       }
 
@@ -119,14 +119,14 @@ async function getResponse(waybackUrl: string, statusCode: number) {
       return attemptToFetchRedirectUrl(waybackUrl, statusCode);
     }
     else if ([403, 404].includes(statusCode)) {
-      return axios.get(waybackUrl, { headers: REQUEST_HEADERS, ...preventAxiosRedirects, responseType: 'arraybuffer', validateStatus: status => status === statusCode, timeout: REQUEST_TIMEOUT });
+      return axios.get(waybackUrl, { headers: REQUEST_HEADERS, ...preventAxiosRedirects, responseType: "arraybuffer", validateStatus: status => status === statusCode, timeout: REQUEST_TIMEOUT });
     }
     else {
       throw new Error(`Unsupported status code for special fetch: ${statusCode}`);
     }
   }
   else {
-    return axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: 'arraybuffer', ...preventAxiosRedirects, validateStatus: status => status === Number(statusCode), timeout: REQUEST_TIMEOUT });
+    return axios.get(waybackUrl, { headers: REQUEST_HEADERS, responseType: "arraybuffer", ...preventAxiosRedirects, validateStatus: status => status === Number(statusCode), timeout: REQUEST_TIMEOUT });
   }
 }
 
@@ -136,15 +136,15 @@ function getResponseHeaders(waybackUrl: string, statusCodes?: number[]) {
       headers: REQUEST_HEADERS,
       maxRedirects: 0,
       timeout: REQUEST_TIMEOUT,
-      validateStatus: status => (statusCodes ? statusCodes.includes(status) : true)
-    }
+      validateStatus: status => (statusCodes ? statusCodes.includes(status) : true),
+    },
   );
 }
 
 export async function fetchWaybackFile(
-    timestamp: string,
-    url: string,
-    statusCode: number
+  timestamp: string,
+  url: string,
+  statusCode: number,
 ): Promise<DownloadedFile> {
   let attempt = 1;
   let headersErrorCount = 0;
@@ -156,9 +156,9 @@ export async function fetchWaybackFile(
       console.log(`Fetching file content for ${timestamp}-${url} (attempt ${attempt})...`);
       const response = await getResponse(waybackUrl, statusCode);
       if (ERROR_STATUS_CODES.includes(response.status)) {
-        throw new Error(`HTTP ${response.status}`)
+        throw new Error(`HTTP ${response.status}`);
       };
-      const classification = [301, 302].includes(statusCode) && !response.headers['x-archive-src'] ? "unavailable" : undefined;
+      const classification = [301, 302].includes(statusCode) && !response.headers["x-archive-src"] ? "unavailable" : undefined;
       const content = Buffer.from(response.data);
       return {
         content,
@@ -167,7 +167,7 @@ export async function fetchWaybackFile(
         headers: response.headers,
         rawHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders),
         classification,
-        statusCode: response.status
+        statusCode: response.status,
       };
     } catch (e: unknown) {
       if (e instanceof Error && e.message === "incorrect header check") {
@@ -204,8 +204,8 @@ export async function fetchWaybackFile(
 export async function fetchWaybackFileHeaders(
   timestamp: string,
   url: string,
-  statusCodes?: number[]
-): Promise<Omit<DownloadedFile, 'content' | 'corrupt'>> {
+  statusCodes?: number[],
+): Promise<Omit<DownloadedFile, "content" | "corrupt">> {
   let attempt = 1;
   let backoff = INITIAL_BACKOFF;
   while (true) {
@@ -227,13 +227,13 @@ export async function fetchWaybackFileHeaders(
 }
 
 function createWaybackDownloadUrl(timestamp: string, url: string, attempt?: number): string {
-  const protocol = (attempt || 0) % 2 === 0 ? 'http' : 'https';
-  return `${protocol}://${WEB_ARCHIVE}/${timestamp}id_/${url.replaceAll('\\', '%5C')}`;
+  const protocol = (attempt || 0) % 2 === 0 ? "http" : "https";
+  return `${protocol}://${WEB_ARCHIVE}/${timestamp}id_/${url.replaceAll("\\", "%5C")}`;
 }
 
 async function fetchCorruptFileWithoutDecompression(
-    timestamp: string,
-    url: string
+  timestamp: string,
+  url: string,
 ): Promise<DownloadedFile> {
   const waybackUrl = createWaybackDownloadUrl(timestamp, url);
   let attempt = 1;
@@ -241,12 +241,12 @@ async function fetchCorruptFileWithoutDecompression(
   while (true) {
     try {
       console.log(`Fetching raw file content for ${url} (attempt ${attempt})...`);
-      const response = await axios.get(waybackUrl, { decompress: false, ...preventAxiosRedirects, responseType: 'arraybuffer', timeout: REQUEST_TIMEOUT });
+      const response = await axios.get(waybackUrl, { decompress: false, ...preventAxiosRedirects, responseType: "arraybuffer", timeout: REQUEST_TIMEOUT });
       if (ERROR_STATUS_CODES.includes(response.status)) {
         throw new Error(`HTTP ${response.status}`);
       }
       const content = Buffer.from(response.data);
-      const contentLength = response.headers['content-length'] ? parseInt(response.headers['content-length'], 10) : undefined;
+      const contentLength = response.headers["content-length"] ? parseInt(response.headers["content-length"], 10) : undefined;
       return {
         content,
         url,
@@ -257,11 +257,11 @@ async function fetchCorruptFileWithoutDecompression(
           downloadErrorDetails: {
             reason: "truncated",
             downloadedSize: content.length,
-            actualSize: contentLength !== undefined && contentLength !== content.length ? contentLength : null
+            actualSize: contentLength !== undefined && contentLength !== content.length ? contentLength : null,
           },
         },
         classification: "corrupt",
-        statusCode: response.status
+        statusCode: response.status,
       };
     } catch (e: unknown) {
       console.log(`Error fetching raw file for ${url}: ${e}, retrying in ${backoff / 1000}s...`);
@@ -273,9 +273,9 @@ async function fetchCorruptFileWithoutDecompression(
 }
 
 async function fetchPartialFile(
-    timestamp: string,
-    url: string,
-    statusCode: number
+  timestamp: string,
+  url: string,
+  statusCode: number,
 ): Promise<DownloadedFile> {
   const waybackUrl = createWaybackDownloadUrl(timestamp, url);
   let attempt = 1;
@@ -284,7 +284,7 @@ async function fetchPartialFile(
     try {
       console.log(`Fetching partial file content for ${timestamp}-${url} (attempt ${attempt})...`);
       const { buffer, headers, rawHeaders, valid, fetchedLength } = await fetchPartiallyArchivedFileData(waybackUrl, statusCode);
-      const contentLength = headers['content-length'] ? parseInt(headers['content-length'], 10) : undefined;
+      const contentLength = headers["content-length"] ? parseInt(headers["content-length"], 10) : undefined;
       return {
         content: buffer,
         url,
@@ -296,10 +296,10 @@ async function fetchPartialFile(
           downloadErrorDetails: {
             reason: "truncated",
             downloadedSize: fetchedLength,
-            actualSize: contentLength !== undefined && contentLength !== fetchedLength ? contentLength : null
+            actualSize: contentLength !== undefined && contentLength !== fetchedLength ? contentLength : null,
           },
         } : {},
-        statusCode
+        statusCode,
       };
     } catch (e: unknown) {
       console.log(`Error fetching partial file for ${timestamp}-${url}: ${e}, retrying in ${backoff / 1000}s...`);
@@ -311,16 +311,16 @@ async function fetchPartialFile(
 }
 
 export async function downloadUniqueDigestsForSnapshots(input: CdxEntry[]): Promise<Map<string, DownloadedFile>> {
-    const uniqueDigestCount = new Set(input.map(entry => entry.digest)).size;
-    console.log(`Unique digests to download: ${uniqueDigestCount}`);
-    let currentDigest = 0;
-    const encounteredDigests = new Map<string, DownloadedFile>();
-    for (const entry of input) {
-        if (entry.digest && !encounteredDigests.has(entry.digest)) {
-            console.log(`Downloading snapshot ${entry.timestamp} for URL ${entry.url} (${++currentDigest}/${uniqueDigestCount})`);
-            const result = await fetchWaybackFile(entry.timestamp, entry.url, entry.status ?? 0);
-            encounteredDigests.set(entry.digest, result);
-        }
+  const uniqueDigestCount = new Set(input.map(entry => entry.digest)).size;
+  console.log(`Unique digests to download: ${uniqueDigestCount}`);
+  let currentDigest = 0;
+  const encounteredDigests = new Map<string, DownloadedFile>();
+  for (const entry of input) {
+    if (entry.digest && !encounteredDigests.has(entry.digest)) {
+      console.log(`Downloading snapshot ${entry.timestamp} for URL ${entry.url} (${++currentDigest}/${uniqueDigestCount})`);
+      const result = await fetchWaybackFile(entry.timestamp, entry.url, entry.status ?? 0);
+      encounteredDigests.set(entry.digest, result);
     }
-    return encounteredDigests;
+  }
+  return encounteredDigests;
 }

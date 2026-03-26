@@ -1,55 +1,55 @@
-import { describe, expect, it } from 'vitest';
-import { classifyEntryWithConfig, ClassifierConfig } from './classifier';
+import { describe, expect, it } from "vitest";
+import { classifyEntryWithConfig, ClassifierConfig } from "./classifier.js";
 
-describe('Classifier', () => {
+describe("Classifier", () => {
   const testConfig: ClassifierConfig = {
-    notFoundStrings: ['page not found', 'error 404'],
-    notFoundSha256: ['abc123'],
-    transientRedirectSha256: ['def456']
+    notFoundStrings: ["page not found", "error 404"],
+    notFoundSha256: ["abc123"],
+    transientRedirectSha256: ["def456"],
   };
 
-  it('should classify transient redirect by sha256', () => {
+  it("should classify transient redirect by sha256", () => {
     const result = classifyEntryWithConfig(
-      'http://example.com',
-      'def456',
-      'text/html',
-      Buffer.from('content'),
+      "http://example.com",
+      "def456",
+      "text/html",
+      Buffer.from("content"),
       undefined,
       undefined,
       200,
       undefined,
-      testConfig
+      testConfig,
     );
-    expect(result).toBe('transient_retry');
+    expect(result).toBe("transient_retry");
   });
 
-  it('should classify not found page by content', () => {
+  it("should classify not found page by content", () => {
     const result = classifyEntryWithConfig(
-      'http://example.com',
-      'xyz',
-      'text/html',
-      Buffer.from('<html>page not found</html>'),
+      "http://example.com",
+      "xyz",
+      "text/html",
+      Buffer.from("<html>page not found</html>"),
       undefined,
       undefined,
       200,
       undefined,
-      testConfig
+      testConfig,
     );
-    expect(result).toBe('not_found');
+    expect(result).toBe("not_found");
   });
 
-  it('should classify page not matching any criteria as ok', () => {
+  it("should classify page not matching any criteria as ok", () => {
     const result = classifyEntryWithConfig(
-      'http://example.com',
-      'xyz',
-      'text/html',
-      Buffer.from('<html>Hello World!</html>'),
+      "http://example.com",
+      "xyz",
+      "text/html",
+      Buffer.from("<html>Hello World!</html>"),
       undefined,
       undefined,
       200,
       undefined,
-      testConfig
+      testConfig,
     );
-    expect(result).toBe('ok');
+    expect(result).toBe("ok");
   });
 });

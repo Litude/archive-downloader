@@ -1,9 +1,9 @@
-import fs from "fs"
+import fs from "fs";
 import path from "path";
-import { CaptureEntry } from "../types/capture-types";
+import { CaptureEntry } from "../types/capture-types.js";
 import { createObjectCsvWriter } from "csv-writer";
-import { Filename } from "../types/download-input-types";
-import { filenameToString } from "../file-name/file-name";
+import { Filename } from "../types/download-input-types.js";
+import { filenameToString } from "../file-name/file-name.js";
 
 interface SummaryRow {
     capture_ts: string;
@@ -28,7 +28,7 @@ export async function writeCsvSummary(captureEntries: CaptureEntry[], filename: 
   const summaryRows: SummaryRow[] = captureEntries.map(entry => ({
     capture_ts: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
     capture_index: entry.captureIndex ?? 0,
-    modification_ts: entry.lastModified ? entry.lastModified.toISO({ suppressMilliseconds: true }) : '',
+    modification_ts: entry.lastModified ? entry.lastModified.toISO({ suppressMilliseconds: true }) : "",
     capture_sha256: entry.originalSha256 ?? entry.sha256,
     output_sha256: entry.sha256,
     output_index: entry.contentIndex === null ? undefined : entry.contentIndex,
@@ -37,7 +37,7 @@ export async function writeCsvSummary(captureEntries: CaptureEntry[], filename: 
     classification: entry.classification,
     mimetype: entry.mimetype,
     archive_source: entry.cdxEntry.source,
-    additional_sources: entry.additionalSources ? entry.additionalSources.map(source => source.source).join(';') : undefined,
+    additional_sources: entry.additionalSources ? entry.additionalSources.map(source => source.source).join(";") : undefined,
     archive_digest: entry.cdxEntry.digest,
     actual_digest: entry.actualDigest,
     archive_filename: entry.cdxEntry.filename,
@@ -56,9 +56,9 @@ export async function writeCsvSummary(captureEntries: CaptureEntry[], filename: 
   }
 
   if (summaryRows.length > 0) {
-    const archivalDir = path.join(outputDirectory, '.archivaldata');
+    const archivalDir = path.join(outputDirectory, ".archivaldata");
     fs.mkdirSync(archivalDir, { recursive: true });
-    const csvPath = path.join(archivalDir, `${filenameToString(filename, 'simple')}.archivaldata.csv`);
+    const csvPath = path.join(archivalDir, `${filenameToString(filename, "simple")}.archivaldata.csv`);
     const csvWriter = createObjectCsvWriter({
       path: csvPath,
       header: Object.keys(summaryRows[0]).map(key => ({ id: key, title: key })),

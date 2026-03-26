@@ -1,15 +1,15 @@
-import axios, { all, AxiosResponse } from "axios";
-import { DownloadFileInput, LimitedCaptureRange, UrlEntry } from "../../types/download-input-types";
-import { CdxEntry, ExtendedCdxEntry } from "../../types/wayback-types";
-import { filenameToString } from "../../file-name/file-name";
-import { fetchWaybackFileHeaders } from "./file-download";
-import { DownloadedFile } from "../../types/download-types";
-import { checkForLimitedCapture, filterLimitedCapturesForUrl } from "../../special-rules/limit-captures";
-import { Context } from "../../types/context";
-import { isDefined } from "../../utils/ts-utils";
-import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common";
+import axios, { AxiosResponse } from "axios";
+import { DownloadFileInput, LimitedCaptureRange, UrlEntry } from "../../types/download-input-types.js";
+import { CdxEntry, ExtendedCdxEntry } from "../../types/wayback-types.js";
+import { filenameToString } from "../../file-name/file-name.js";
+import { fetchWaybackFileHeaders } from "./file-download.js";
+import { DownloadedFile } from "../../types/download-types.js";
+import { checkForLimitedCapture, filterLimitedCapturesForUrl } from "../../special-rules/limit-captures.js";
+import { Context } from "../../types/context.js";
+import { isDefined } from "../../utils/ts-utils.js";
+import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common.js";
 
-const WAYBACK_CDX_API_URL = 'http://web.archive.org/cdx/search/cdx';
+const WAYBACK_CDX_API_URL = "http://web.archive.org/cdx/search/cdx";
 const REQUEST_TIMEOUT = 60000; // 60 seconds
 
 const INITIAL_BACKOFF = 30_000; // 30 seconds
@@ -22,12 +22,12 @@ export async function getSnapshotsForWebsiteFile(
   input: DownloadFileInput, context: Context,
 ) {
   const includeInvalid = context.settings.includeInvalid ?? false;
-  console.log(`Processing ${filenameToString(input.filename, 'simple')} with output directory: ${input.outputDirectory}`);
+  console.log(`Processing ${filenameToString(input.filename, "simple")} with output directory: ${input.outputDirectory}`);
 
   const preliminaryResults: {
     snapshots: ExtendedCdxEntry[],
     url: UrlEntry,
-  }[] = []
+  }[] = [];
   const unresolveableRevisits: {
     timestamps: string[],
     url: string,
@@ -35,10 +35,10 @@ export async function getSnapshotsForWebsiteFile(
   let allSnapshots: ExtendedCdxEntry[] = [];
   for (const url of input.urls) {
     const snapshots = await getSnapshotsForUrl(url);
-    const filteredSnapshots = snapshots.filter(snapshot => snapshot.mimetype !== 'warc/revisit');
+    const filteredSnapshots = snapshots.filter(snapshot => snapshot.mimetype !== "warc/revisit");
     if (filteredSnapshots.length !== snapshots.length) {
       console.log(`Filtered out ${snapshots.length - filteredSnapshots.length} warc/revisit snapshots for ${url.url}`);
-      unresolveableRevisits.push({ timestamps: snapshots.filter(s => s.mimetype === 'warc/revisit').map(s => s.timestamp), url: url.url });
+      unresolveableRevisits.push({ timestamps: snapshots.filter(s => s.mimetype === "warc/revisit").map(s => s.timestamp), url: url.url });
     }
     preliminaryResults.push({ snapshots: filteredSnapshots, url });
     allSnapshots = [...allSnapshots, ...filteredSnapshots];
@@ -46,22 +46,22 @@ export async function getSnapshotsForWebsiteFile(
   let validCdxEntries: ExtendedCdxEntry[] = [];
   let invalidCdxEntries: ExtendedCdxEntry[] = [];
 
-  console.log(`Total snapshots found: ${allSnapshots.length}`)
+  console.log(`Total snapshots found: ${allSnapshots.length}`);
   const limitedCaptureConfigs = checkForLimitedCapture(allSnapshots);
   if (limitedCaptureConfigs.length > 0) {
     console.log(`Found ${limitedCaptureConfigs.length} limited capture ranges that will be applied during postprocessing:`);
     for (const config of limitedCaptureConfigs) {
-      console.log(`- from ${config.startTimestamp} to ${config.endTimestamp} (captures per day: ${config.capturesPerDay}${config.mirrorCapturesPerDay ? `, for mirrors: ${config.mirrorCapturesPerDay}` : ''})`);
+      console.log(`- from ${config.startTimestamp} to ${config.endTimestamp} (captures per day: ${config.capturesPerDay}${config.mirrorCapturesPerDay ? `, for mirrors: ${config.mirrorCapturesPerDay}` : ""})`);
     }
   }
 
   let limitedCaptureFiltered = 0;
 
   for (const { snapshots, url } of preliminaryResults) {
-    console.log(`Postprocessing ${url.url}`)
+    console.log(`Postprocessing ${url.url}`);
     const { uniqueSnapshots, filteredValidSnapshots, filteredInvalidSnapshots } = await filterDuplicateSnapshots(url.url, includeInvalid && !url.excludeInvalid, snapshots, limitedCaptureConfigs, context);
-    let validSnapShots = uniqueSnapshots.filter(snapshot => snapshot.status?.toString().startsWith('2'));
-    let invalidSnapshots = uniqueSnapshots.filter(snapshot => !snapshot.status?.toString().startsWith('2'));
+    let validSnapShots = uniqueSnapshots.filter(snapshot => snapshot.status?.toString().startsWith("2"));
+    let invalidSnapshots = uniqueSnapshots.filter(snapshot => !snapshot.status?.toString().startsWith("2"));
     console.log(`Found ${validSnapShots.length} valid snapshots for ${url.url}`);
     if (invalidSnapshots.length > 0) {
       console.log(`Found ${invalidSnapshots.length} invalid snapshots for ${url.url}`);
@@ -88,9 +88,9 @@ export async function getSnapshotsForWebsiteFile(
     validCdxEntries = [...validCdxEntries, ...validSnapShots];
     invalidCdxEntries = [...invalidCdxEntries, ...invalidSnapshots];
   }
-  console.log(`Total valid snapshots for ${filenameToString(input.filename, 'simple')}: ${validCdxEntries.length}`);
+  console.log(`Total valid snapshots for ${filenameToString(input.filename, "simple")}: ${validCdxEntries.length}`);
   if (includeInvalid) {
-    console.log(`Total invalid snapshots for ${filenameToString(input.filename, 'simple')}: ${invalidCdxEntries.length}`);
+    console.log(`Total invalid snapshots for ${filenameToString(input.filename, "simple")}: ${invalidCdxEntries.length}`);
   }
   return {
     validCdxEntries: validCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
@@ -101,13 +101,13 @@ export async function getSnapshotsForWebsiteFile(
         filteredEntries: limitedCaptureFiltered,
       } : undefined,
       unresolveableRevisits: unresolveableRevisits.length > 0 ? {
-        entries: unresolveableRevisits
-      } : undefined
-    }
+        entries: unresolveableRevisits,
+      } : undefined,
+    },
   };
 }
 
-async function fetchHeadersUntilSuccess(timestamp: string, url: string, statusCodes: number[], context: Context): Promise<Omit<DownloadedFile, 'content' | 'corrupt'>> {
+async function fetchHeadersUntilSuccess(timestamp: string, url: string, statusCodes: number[], context: Context): Promise<Omit<DownloadedFile, "content" | "corrupt">> {
   let attempt = 1;
   // Redirects might not resolve to the actual capture, so we might not actually get x-archive-src.
   // Hopefully such timestamps that also have 200 captures would always resolve to the 200 capture or other code
@@ -122,12 +122,12 @@ async function fetchHeadersUntilSuccess(timestamp: string, url: string, statusCo
       if (context.settings.skipOn302) {
         return result;
       }
-      if (result.headers['x-archive-src'] === undefined) {
+      if (result.headers["x-archive-src"] === undefined) {
         if (!allRedirect && !potentialRedirect) {
           throw new Error(`Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}`);
         }
         else if (redirectAttempts < maxRedirectAttempts && result.statusCode === 302) {
-          console.log(`Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}, this ${allRedirect ? 'redirect only' : 'potential redirect'} capture might be unavailable. Retrying in ${redirectBackoff / 1000}s... (attempt ${redirectAttempts})`);
+          console.log(`Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}, this ${allRedirect ? "redirect only" : "potential redirect"} capture might be unavailable. Retrying in ${redirectBackoff / 1000}s... (attempt ${redirectAttempts})`);
           await new Promise(res => setTimeout(res, redirectBackoff));
           redirectBackoff = Math.min(redirectBackoff * 2, MAX_BACKOFF);
           redirectAttempts++;
@@ -201,7 +201,7 @@ async function resolveDuplicateSnapshots(snapshots: ExtendedCdxEntry[], limitedC
         filteredSnapshots += snapshotsAtTimestamp.length - 1;
       }
       else {
-        console.log(`Found ${snapshotsAtTimestamp.length} snapshots with same timestamp ${timestamp} for ${snapshotsAtTimestamp[0].url} (status codes ${snapshotsAtTimestamp.map(s => s.status).join(', ')}). Attempting to resolve by fetching headers...`);
+        console.log(`Found ${snapshotsAtTimestamp.length} snapshots with same timestamp ${timestamp} for ${snapshotsAtTimestamp[0].url} (status codes ${snapshotsAtTimestamp.map(s => s.status).join(", ")}). Attempting to resolve by fetching headers...`);
         while (true) {
           try {
 
@@ -237,7 +237,7 @@ async function resolveDuplicateSnapshots(snapshots: ExtendedCdxEntry[], limitedC
               throw new Error(`Found ${snapshotsAtTimestamp.length} snapshots with same timestamp ${timestamp} for ${snapshotsAtTimestamp[0].url} but couldn't find a matching status code when fetching headers (got ${result.statusCode}, expected ${actualSnapShot.status}).`);
             }
           } catch (error: unknown) {
-            console.log((error as Error).message + ` Retrying in 30s...`);
+            console.log((error as Error).message + " Retrying in 30s...");
             await new Promise(res => setTimeout(res, 30000));
           }
         }
@@ -264,17 +264,16 @@ async function filterDuplicateSnapshots(
   keepInvalid: boolean,
   snapshots: ExtendedCdxEntry[],
   limitedCaptures: LimitedCaptureRange[],
-  context: Context
+  context: Context,
 ): Promise<{
   uniqueSnapshots: ExtendedCdxEntry[],
   filteredValidSnapshots: number,
   filteredInvalidSnapshots: number,
   filteredUnwantedSnapshots: number
 }> {
-  let filteredValidSnapshots = 0;
+  const filteredValidSnapshots = 0;
   let filteredUnwantedSnapshots = 0; // these entries are quietly discarded
-  let filteredInvalidSnapshots = 0; // these are logged as removed
-
+  const filteredInvalidSnapshots = 0; // these are logged as removed
 
   // As a very first step, we need to find all duplicate entries and resolve them by fetching the headers to see which one is actually the one that can be fetched
   let filteredSnapshots = await resolveDuplicateSnapshots(snapshots, limitedCaptures, context);
@@ -298,7 +297,7 @@ async function filterDuplicateSnapshots(
   filteredSnapshots = filteredSnapshots.filter(snapshot => {
     if ([301, 302].includes(snapshot.status ?? 0)) {
       const originalUrl = snapshot.url;
-      if (requestUrl.endsWith('/') && !originalUrl.endsWith('/')) {
+      if (requestUrl.endsWith("/") && !originalUrl.endsWith("/")) {
         filteredUnwantedSnapshots++;
         return false;
       }
@@ -322,7 +321,7 @@ async function getSnapshotsForUrl(url: UrlEntry) {
   if (filteredSnapshots.length !== allSnapshots.length) {
     console.log(`Filtered ${allSnapshots.length - filteredSnapshots.length} snapshots for ${url.url} based on timestamp constraints`);
   }
-  const revisitCount = filteredSnapshots.filter(s => s.mimetype === 'warc/revisit').length;
+  const revisitCount = filteredSnapshots.filter(s => s.mimetype === "warc/revisit").length;
   if (revisitCount > 0) {
     console.log(`Found ${revisitCount} warc/revisit snapshots for ${url.url}. Will resolve revisits.`);
     const resolvedSnapshots = await fetchWaybackCdxIndex(url.url, true);
@@ -331,12 +330,12 @@ async function getSnapshotsForUrl(url: UrlEntry) {
       throw new Error(`Unexpectedly found a different number of snapshots when fetching with resolve revisits (got ${filteredResolvedSnapshots.length}, expected ${filteredSnapshots.length}) for ${url.url}.`);
     }
     filteredSnapshots.forEach((snapshot, index) => {
-      if (snapshot.mimetype === 'warc/revisit') {
+      if (snapshot.mimetype === "warc/revisit") {
         const resolvedSnapshot = filteredResolvedSnapshots[index];
-        validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, 'timestamp');
-        validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, 'url');
-        validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, 'digest');
-        validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, 'length');
+        validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "timestamp");
+        validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "url");
+        validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "digest");
+        validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "length");
         filteredSnapshots[index] = {
           ...resolvedSnapshot,
           revisitEntry: snapshot,
@@ -367,12 +366,12 @@ async function fetchWaybackCdxIndex(url: string, resolveRevisits: boolean): Prom
   let backoff = WAYBACK_INITIAL_BACKOFF;
   while (true) {
     try {
-      console.log(`Fetching CDX index${resolveRevisits ? ' with resolve revisits' : ''} for ${url} (attempt ${attempt})...`);
+      console.log(`Fetching CDX index${resolveRevisits ? " with resolve revisits" : ""} for ${url} (attempt ${attempt})...`);
       const params = {
         url,
-        output: 'json',
-        fl: 'timestamp,original,statuscode,digest,mimetype,length,urlkey,filename,offset',
-        resolveRevisits: resolveRevisits ? 'true' : 'false',
+        output: "json",
+        fl: "timestamp,original,statuscode,digest,mimetype,length,urlkey,filename,offset",
+        resolveRevisits: resolveRevisits ? "true" : "false",
       };
       const response: AxiosResponse<string[][]> = await axios.get(WAYBACK_CDX_API_URL, { params, timeout: REQUEST_TIMEOUT });
       const data = response.data;
@@ -381,14 +380,14 @@ async function fetchWaybackCdxIndex(url: string, resolveRevisits: boolean): Prom
           urlkey: row[6],
           timestamp: row[0],
           url: row[1],
-          status: row[2] && row[2] !== '-' ? parseInt(row[2], 10) : undefined,
+          status: row[2] && row[2] !== "-" ? parseInt(row[2], 10) : undefined,
           digest: row[3],
           mimetype: row[4],
           length: row[5] ? parseInt(row[5], 10) : undefined,
           filename: row[7] ?? undefined,
           offset: row[8] ? parseInt(row[8], 10) : undefined,
-          source: "wayback"
-        }))
+          source: "wayback",
+        }));
       return snapshots;
     } catch (e) {
       console.log(`Error fetching CDX index for ${url}: ${e}, retrying in ${backoff / 1000}s...`);

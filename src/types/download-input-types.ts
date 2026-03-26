@@ -1,6 +1,6 @@
-import { CaptureClassification } from "./capture-types";
-import { Transformation } from "./transformation-types";
-import { QueryHashParameter } from "./website-types";
+import { CaptureClassification } from "./capture-types.js";
+import { Transformation } from "./transformation-types.js";
+import { QueryHashParameter } from "./website-types.js";
 
 export interface DownloadFileInput {
   urls: UrlEntry[];
@@ -14,7 +14,6 @@ export interface DownloadFileInput {
     timestamp: string;
   }[];
 }
-
 
 export interface LimitedCaptureRange {
   startTimestamp: string;

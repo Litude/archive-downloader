@@ -1,4 +1,4 @@
-import { CaptureClassification } from "./capture-types";
+import { CaptureClassification } from "./capture-types.js";
 
 export interface QueryHashParameter {
   paramName: string;

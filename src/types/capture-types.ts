@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
-import { CdxEntry, ExtendedCdxEntry } from "./wayback-types";
-import { RawHeader } from "../utils/raw-header-parser";
+import { CdxEntry, ExtendedCdxEntry } from "./wayback-types.js";
+import { RawHeader } from "../utils/raw-header-parser.js";
 
 export interface CaptureWaybackMetadata {
   item: {
@@ -46,7 +46,7 @@ export interface CaptureEntry {
   sha256?: string; // always the sha256 of the file as saved
   originalSha256?: string; // if file is somehow post-processed, this is the sha256 of the original downloaded file
   content?: Buffer<ArrayBufferLike>;
-  downloadStatus: 'downloaded' | 'digest-match' | 'skipped' | 'unavailable';
+  downloadStatus: "downloaded" | "digest-match" | "skipped" | "unavailable";
   headers?: Record<string, string>;
   rawHeaders?: RawHeader[];
   hostIp?: string;

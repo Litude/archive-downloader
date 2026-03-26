@@ -1,4 +1,4 @@
-import { RawHeader } from "../utils/raw-header-parser";
+import { RawHeader } from "../utils/raw-header-parser.js";
 
 export interface DownloadedFile {
   content: Buffer;

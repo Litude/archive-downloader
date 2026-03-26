@@ -1,11 +1,13 @@
 {
   "name": "archive-downloader",
   "version": "1.0.0",
+  "type": "module",
   "main": "src/app.js",
   "scripts": {
     "test": "vitest",
     "etag": "tsx src/utils/iis-etag-tool.ts",
-    "tsc": "tsc --noEmit --skipLibCheck"
+    "tsc": "tsc --noEmit --skipLibCheck",
+    "lint": "eslint src/**/*.ts"
   },
   "author": "",
   "license": "ISC",
@@ -20,10 +22,13 @@
     "yargs": "^18.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/luxon": "^3.7.1",
     "@types/node": "^24.3.3",
     "@types/yargs": "^17.0.33",
+    "eslint": "^10.1.0",
     "tsx": "^4.20.5",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.2"
   }
 }

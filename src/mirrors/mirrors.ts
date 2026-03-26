@@ -1,23 +1,23 @@
 import path from "path";
 import JSON5 from "json5";
 import fs from "fs";
-import { timestampMax, timestampMin } from "../utils/timestamp";
-import { UrlEntry } from "../types/download-input-types";
-import { MirrorData, MirrorUrlData } from "../types/website-types";
-import { urlIsIpv4Address } from "../utils/address";
+import { timestampMax, timestampMin } from "../utils/timestamp.js";
+import { UrlEntry } from "../types/download-input-types.js";
+import { MirrorData, MirrorUrlData } from "../types/website-types.js";
+import { urlIsIpv4Address } from "../utils/address.js";
 
 function normalizeUrl(url: string): string {
-    let normalized = url;
-    if (normalized.startsWith('http://')) {
-        normalized = normalized.slice(7);
-    }
-    if (normalized.startsWith('https://')) {
-        normalized = normalized.slice(8);
-    }
-    if (normalized.startsWith('www.')) {
-        normalized = normalized.slice(4);
-    }
-    return normalized;
+  let normalized = url;
+  if (normalized.startsWith("http://")) {
+    normalized = normalized.slice(7);
+  }
+  if (normalized.startsWith("https://")) {
+    normalized = normalized.slice(8);
+  }
+  if (normalized.startsWith("www.")) {
+    normalized = normalized.slice(4);
+  }
+  return normalized;
 }
 
 let defaultMirrors: MirrorData[] | null = null;
@@ -25,7 +25,7 @@ function loadDefaultMirrors(): MirrorData[] {
   if (defaultMirrors !== null) {
     return defaultMirrors;
   }
-  const mirrorData: MirrorData[] = JSON5.parse(fs.readFileSync(path.join(__dirname, '../../data/settings/mirrors.json'), 'utf-8'));
+  const mirrorData: MirrorData[] = JSON5.parse(fs.readFileSync(path.join(__dirname, "../../data/settings/mirrors.json"), "utf-8"));
   defaultMirrors = mirrorData;
   return mirrorData;
 };
@@ -88,7 +88,7 @@ export function createMirrorUrlsWithConfig(
       url: urlEntry.url,
       excludeInvalid: false,
       maxTimestamp: urlEntry.maxTimestamp,
-      minTimestamp: urlEntry.minTimestamp
+      minTimestamp: urlEntry.minTimestamp,
     });
 
     // Lookup common mirrors defined in mirrors.json

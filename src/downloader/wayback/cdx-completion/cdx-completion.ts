@@ -1,10 +1,10 @@
-import { CaptureEntry } from "../../../types/capture-types";
-import { fetchNlaCdxIndex } from "./nla-archive";
+import { CaptureEntry } from "../../../types/capture-types.js";
+import { fetchNlaCdxIndex } from "./nla-archive.js";
 
 export async function tryToCompleteMissingCdxFields(captureEntries: CaptureEntry[]) {
   for (const entry of captureEntries) {
     if (entry.cdxEntry.offset === undefined) {
-      const isNlaCrawl = entry.metadata?.wayback?.item.collections.some(coll => coll.id === 'nlaweb');
+      const isNlaCrawl = entry.metadata?.wayback?.item.collections.some(coll => coll.id === "nlaweb");
       if (isNlaCrawl) {
         try {
           const cdxEntries = await fetchNlaCdxIndex(entry.url, { from: entry.timestamp, to: entry.timestamp });

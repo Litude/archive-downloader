@@ -1,6 +1,6 @@
 import path from "path";
-import { Filename, UrlEntry } from "../types/download-input-types";
-import { QueryHashParameter, WebsiteFileEntryJson } from "../types/website-types";
+import { Filename, UrlEntry } from "../types/download-input-types.js";
+import { QueryHashParameter, WebsiteFileEntryJson } from "../types/website-types.js";
 
 /**
  * Transform query parameters into a shortened hash based on queryHashParameters configuration
@@ -10,7 +10,7 @@ import { QueryHashParameter, WebsiteFileEntryJson } from "../types/website-types
  */
 function transformQueryParams(
   queryParams: Record<string, string> | undefined,
-  queryHashParameters: QueryHashParameter[] | undefined
+  queryHashParameters: QueryHashParameter[] | undefined,
 ): { queryParams: Record<string, string> | undefined, originalQueryParams: Record<string, string> | undefined } {
   if (!queryParams || !queryHashParameters || queryHashParameters.length === 0) {
     return { queryParams, originalQueryParams: undefined };
@@ -21,7 +21,7 @@ function transformQueryParams(
 
   for (const hashParam of queryHashParameters) {
     const originalValue = queryParams[hashParam.paramName];
-    
+
     if (!originalValue) {
       if (hashParam.required) {
         // If required param is missing, return original params unchanged
@@ -43,15 +43,15 @@ function transformQueryParams(
       try {
         const regex = new RegExp(hashParam.pattern);
         const match = regex.exec(originalValue);
-        
+
         if (match) {
           // Extract the capture groups specified in the configuration
           const extractedParts = hashParam.captureGroups
             .map(groupIndex => match[groupIndex])
             .filter(part => part !== undefined);
-          
+
           if (extractedParts.length > 0) {
-            transformedParams[hashParam.outputName ?? hashParam.paramName] = extractedParts.join('-');
+            transformedParams[hashParam.outputName ?? hashParam.paramName] = extractedParts.join("-");
           } else if (hashParam.required) {
             // If required param doesn't match pattern, return original params
             return { queryParams, originalQueryParams: undefined };
@@ -81,35 +81,35 @@ function transformQueryParams(
 export function determineFilenameFromUrls(
   file: WebsiteFileEntryJson,
   urls: UrlEntry[],
-  queryParams: Record<string, string> | undefined
+  queryParams: Record<string, string> | undefined,
 ): Filename {
-    if (file.filename) {
-      return {
-        base: path.parse(file.filename).name,
-        ext: path.parse(file.filename).ext,
-        queryParams
+  if (file.filename) {
+    return {
+      base: path.parse(file.filename).name,
+      ext: path.parse(file.filename).ext,
+      queryParams,
+    };
+  }
+  if (urls.length > 0) {
+    for (const urlEntry of urls) {
+      if (!urlEntry.mirrorUrl && !urlEntry.url.endsWith("/")) {
+        const outputParams = queryParams ?? urlEntry.url.includes("?") ? Object.fromEntries(new URLSearchParams(urlEntry.url.split("?")[1])) : undefined;
+        return {
+          base: path.parse(urlEntry.url).name,
+          ext: path.parse(urlEntry.url).ext,
+          queryParams: outputParams,
+        };
       }
     }
-    if (urls.length > 0) {
-      for (const urlEntry of urls) {
-        if (!urlEntry.mirrorUrl && !urlEntry.url.endsWith('/')) {
-          const outputParams = queryParams ?? urlEntry.url.includes('?') ? Object.fromEntries(new URLSearchParams(urlEntry.url.split('?')[1])) : undefined;
-          return {
-            base: path.parse(urlEntry.url).name,
-            ext: path.parse(urlEntry.url).ext,
-            queryParams: outputParams
-          }
-        }
-      }
-    }
-    throw new Error('Cannot determine filename: no filename specified and no original URL with filename found');
+  }
+  throw new Error("Cannot determine filename: no filename specified and no original URL with filename found");
 };
 
 // Output dir: output/domain/path
 export function determineOutputSubdirectoryFromUrls(
   urls: UrlEntry[],
   rootDirectory: string,
-  websiteDirectory?: string
+  websiteDirectory?: string,
 ): string {
   const outputRoot = websiteDirectory ? path.join(rootDirectory, websiteDirectory) : rootDirectory;
   for (const urlEntry of urls) {
@@ -122,31 +122,31 @@ export function determineOutputSubdirectoryFromUrls(
       }
       // Dirname will ignore / if it is the last character and treat the preceding part only as the directory
       // So we need to add a dummy filename to ensure we get the full path
-      else if (subPath.endsWith('/')) {
+      else if (subPath.endsWith("/")) {
         subPath += "dummy";
       }
       return `${outputRoot}/${domain}/${path.dirname(subPath)}`;
     }
   }
-  throw new Error('Cannot determine output subdirectory: no original URL with full path found');
+  throw new Error("Cannot determine output subdirectory: no original URL with full path found");
 }
 
 const unsafeCharacterFallbackMap: Record<string, string> = {
   // ~h is reserved as prefix for hashed query strings
-  '?': '~q',
-  '/': '~s',
-  '\\': '~b',
-  '*': '~a',
-  ':': '~c',
-  '|': '~p',
-  '<': '~l',
-  '>': '~g',
+  "?": "~q",
+  "/": "~s",
+  "\\": "~b",
+  "*": "~a",
+  ":": "~c",
+  "|": "~p",
+  "<": "~l",
+  ">": "~g",
   '"': "~'",
-  '~': '~~',
+  "~": "~~",
 };
 
 function escapeFilename(filename: string): string {
-  let escaped = '';
+  let escaped = "";
   for (const char of filename) {
     if (unsafeCharacterFallbackMap[char]) {
       escaped += unsafeCharacterFallbackMap[char];
@@ -160,13 +160,13 @@ function escapeFilename(filename: string): string {
 function writeQueryParamsToString(
   queryParams: Record<string, string> | undefined,
   queryHashParameters?: QueryHashParameter[],
-  escape = true
+  escape = true,
 ): string {
   if (!queryParams) {
-    return '';
+    return "";
   }
   let hashedQuery = false;
-  
+
   // Transform query params if queryHashParameters are provided
   let paramsToWrite = queryParams;
   if (queryHashParameters && queryHashParameters.length > 0) {
@@ -177,7 +177,7 @@ function writeQueryParamsToString(
       paramsToWrite = transformed.queryParams ?? queryParams;
     }
   }
-  
+
   // First we will sort alphabetically by key to ensure consistent ordering
   const sortedEntries = Object.entries(paramsToWrite).sort(([keyA], [keyB]) => keyA.localeCompare(keyB));
   const paramsArray: string[] = [];
@@ -187,17 +187,17 @@ function writeQueryParamsToString(
       paramsArray.push(`${key}=${value}`);
     }
   }
-  const result = paramsArray.join('&');
+  const result = paramsArray.join("&");
   if (result) {
     if (hashedQuery) {
-      return `~h${result}`
+      return `~h${result}`;
     }
     else {
       return escape ? escapeFilename(`?${result}`) : `?${result}`;
     }
   }
   else {
-    return '';
+    return "";
   }
 }
 
@@ -213,16 +213,16 @@ function timestampFormatted(input: string): string {
 
 export function filenameToString(
   filename: Filename,
-  formatType: 'simple' | 'full' = 'full',
-  counter?: number
+  formatType: "simple" | "full" = "full",
+  counter?: number,
 ): string {
   const base = escapeFilename(filename.base);
   const ext = escapeFilename(filename.ext);
-  if (formatType === 'simple') {
+  if (formatType === "simple") {
     return `${base}${writeQueryParamsToString(filename.queryParams, filename.queryHashParameters)}${ext}`;
   }
   else {
-    return `${base}${writeQueryParamsToString(filename.queryParams, filename.queryHashParameters)}.${timestampFormatted(filename.timestamp ?? '19700101000000')}${counter !== undefined ? `_${counter}` : ''}${filename.flags ? `.${filename.flags}` : ''}${ext}`;
+    return `${base}${writeQueryParamsToString(filename.queryParams, filename.queryHashParameters)}.${timestampFormatted(filename.timestamp ?? "19700101000000")}${counter !== undefined ? `_${counter}` : ""}${filename.flags ? `.${filename.flags}` : ""}${ext}`;
   }
 }
 
@@ -232,24 +232,24 @@ export function filenameToString(
  * @returns The original query string (without transformation), or undefined if no query params exist
  */
 export function getOriginalQueryString(
-  filename: Filename
+  filename: Filename,
 ): string | undefined {
   if (!filename.queryParams) {
     return undefined;
   }
-  
+
   // If queryHashParameters are provided, return the untransformed version
   if (filename.queryHashParameters && filename.queryHashParameters.length > 0) {
     // Write without transformation
     const queryString = writeQueryParamsToString(filename.queryParams, undefined, false);
-    if (queryString.startsWith('?')) {
+    if (queryString.startsWith("?")) {
       return queryString.slice(1);
     }
     else {
       return queryString;
     }
   }
-  
+
   // Otherwise, no transformation applies, so return undefined
   return undefined;
 }

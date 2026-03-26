@@ -1,11 +1,11 @@
-import { UrlEntry } from "../types/download-input-types";
-import { MirrorUrlData } from "../types/website-types";
-import { urlIsIpv4Address } from "../utils/address";
+import { UrlEntry } from "../types/download-input-types.js";
+import { MirrorUrlData } from "../types/website-types.js";
+import { urlIsIpv4Address } from "../utils/address.js";
 
 export function createAdditionalUrls(
   additionalUrls: (string | MirrorUrlData)[],
   maxTimestamp?: string,
-  minTimestamp?: string
+  minTimestamp?: string,
 ) {
   const parsed: UrlEntry[] = [];
   for (const url of additionalUrls) {
@@ -15,7 +15,7 @@ export function createAdditionalUrls(
         mirrorUrl: true,
         excludeInvalid: urlIsIpv4Address(url),
         maxTimestamp: maxTimestamp,
-        minTimestamp: minTimestamp
+        minTimestamp: minTimestamp,
       });
     }
     else {
@@ -24,7 +24,7 @@ export function createAdditionalUrls(
         mirrorUrl: true,
         excludeInvalid: url.excludeInvalid ?? urlIsIpv4Address(url.url),
         maxTimestamp: url.maxTimestamp ?? maxTimestamp,
-        minTimestamp: url.minTimestamp ?? minTimestamp
+        minTimestamp: url.minTimestamp ?? minTimestamp,
       });
     }
   }
