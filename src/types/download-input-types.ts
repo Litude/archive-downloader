@@ -6,6 +6,7 @@ export interface DownloadFileInput {
   urls: UrlEntry[];
   filename: Filename;
   outputDirectory: string;
+  commonCrawlEnabled?: boolean;
   transformations: Transformation[];
   queryHashParameters?: QueryHashParameter[];
   classifications?: Record<string, CaptureClassification>;

@@ -109,7 +109,7 @@ async function processWebsiteDownloads(
       metadata,
     } = await downloadWaybackEntries(input, context);
 
-    const ccEntries = await downloadCommonCrawlEntries(input);
+    const ccEntries = input.commonCrawlEnabled ? await downloadCommonCrawlEntries(input) : [];
 
     const baseEntries = mergeWaybackAndCommonCrawlEntries(waybackEntries, ccEntries);
     const anyValidEntries = baseEntries.some((entry) => entry.classification.type === "ok");

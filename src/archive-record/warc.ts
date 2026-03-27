@@ -5,7 +5,10 @@ interface WarcParsingOptions {
   undoCommonCrawlHeaderNaming?: boolean;
 }
 
-export function parseWarcFile(buffer: Buffer, options?: WarcParsingOptions): {
+export function parseWarcFile(
+  buffer: Buffer,
+  options?: WarcParsingOptions,
+): {
   url: string;
   ip: string;
   status: number;
@@ -103,7 +106,9 @@ export function parseWarcFile(buffer: Buffer, options?: WarcParsingOptions): {
     // Move replacement headers to metadata and remove them (back-to-front to keep indices valid)
     for (let i = replacementIndices.length - 1; i >= 0; i--) {
       const idx = replacementIndices[i];
-      warcHeaders.push(httpHeaders[idx].map((v, j) => (j === 0 ? `X-Crawler-${v}` : v)) as RawHeader);
+      warcHeaders.push(
+        httpHeaders[idx].map((v, j) => (j === 0 ? `X-Crawler-${v}` : v)) as RawHeader,
+      );
       httpHeaders.splice(idx, 1);
     }
   }

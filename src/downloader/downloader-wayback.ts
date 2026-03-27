@@ -60,7 +60,7 @@ function classifyDigestFiles(
       file.url,
       hashes.sha256,
       extractMimeTypeFromContentType(file.responseHeaders["content-type"]) ||
-      file.responseHeaders["content-type"],
+        file.responseHeaders["content-type"],
       file.content,
       file.classification,
       file.metadata,
@@ -162,13 +162,13 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
         const timestamps = headers
           ? parseHeaderTimestamps(entry.url, headers, entry.timestamp, true)
           : {
-            captureDate: DateTime.fromFormat(entry.timestamp, "yyyyLLddHHmmss", {
-              zone: "utc",
-            }) as DateTime<true>,
-            lastModified: null,
-            mementoDate: null,
-            serverDate: null,
-          };
+              captureDate: DateTime.fromFormat(entry.timestamp, "yyyyLLddHHmmss", {
+                zone: "utc",
+              }) as DateTime<true>,
+              lastModified: null,
+              mementoDate: null,
+              serverDate: null,
+            };
         const waybackFilename =
           fetchAllHeaders && headers ? getWaybackFilename(headers) : undefined;
         const lastModified = timestamps.lastModified;
@@ -182,9 +182,9 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
             filename: waybackFilename ?? entry.filename,
             revisitEntry: entry.revisitEntry
               ? {
-                ...entry.revisitEntry,
-                filename: waybackFilename ?? entry.revisitEntry.filename,
-              }
+                  ...entry.revisitEntry,
+                  filename: waybackFilename ?? entry.revisitEntry.filename,
+                }
               : undefined,
           },
           lastModified,

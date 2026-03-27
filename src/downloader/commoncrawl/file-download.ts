@@ -17,8 +17,11 @@ import { commonCrawlCleanupData } from "./commoncrawl-cleanup.js";
 import { getCommonCrawlCollection } from "./collections.js";
 import { RawHeader } from "../../utils/raw-header-parser.js";
 
-
-function checkIfTruncated(content: Buffer, headers: RawHeader[], metadata: RawHeader[] | undefined) {
+function checkIfTruncated(
+  content: Buffer,
+  headers: RawHeader[],
+  metadata: RawHeader[] | undefined,
+) {
   // Sanity check: Received content size smaller than actual size
   const contentLengthHeader = headers.find(([k, _]) => k.toLowerCase() === "content-length");
   if (contentLengthHeader) {
@@ -33,7 +36,9 @@ function checkIfTruncated(content: Buffer, headers: RawHeader[], metadata: RawHe
     }
   }
   // Common Crawl specific header present in old arcs
-  const commonCrawlTruncatedHeader = metadata?.find(([k, _]) => k.toLowerCase() === "x-commoncrawl-contenttruncated");
+  const commonCrawlTruncatedHeader = metadata?.find(
+    ([k, _]) => k.toLowerCase() === "x-commoncrawl-contenttruncated",
+  );
   if (commonCrawlTruncatedHeader) {
     return {
       reason: "truncated",
@@ -52,7 +57,9 @@ function checkIfTruncated(content: Buffer, headers: RawHeader[], metadata: RawHe
 
   if (content.length === 1048576) {
     // Heuristic: Common Crawl truncates ARC/WARC records to 1 MiB when they exceed a certain size. If we get exactly 1 MiB, it's possible the record was truncated. We can't be sure without the actual size, so we mark it as potentially truncated.
-    console.warn(`Received common crawl content of exactly 1 MiB, which may indicate truncation. Content length: ${content.length} bytes.`);
+    console.warn(
+      `Received common crawl content of exactly 1 MiB, which may indicate truncation. Content length: ${content.length} bytes.`,
+    );
   }
 
   return undefined;
@@ -90,14 +97,20 @@ export async function downloadCommonCrawlFile(
   };
 
   try {
-    const parsed = isArc ? parseArcFile(buffer, arcCleanupData) : parseWarcFile(buffer, {
-      undoCommonCrawlHeaderNaming: true,
-    });
+    const parsed = isArc
+      ? parseArcFile(buffer, arcCleanupData)
+      : parseWarcFile(buffer, {
+          undoCommonCrawlHeaderNaming: true,
+        });
     const responseHeaders = Object.fromEntries(
       parsed.headers.map(([k, v]) => [k.toLowerCase(), v]),
     );
 
-    const contentTruncationDetails = checkIfTruncated(parsed.content, parsed.headers, parsed.metadata);
+    const contentTruncationDetails = checkIfTruncated(
+      parsed.content,
+      parsed.headers,
+      parsed.metadata,
+    );
 
     const collection = getCommonCrawlCollection(entry.collection ?? "");
 
@@ -115,9 +128,11 @@ export async function downloadCommonCrawlFile(
         collection,
         records: [{ type: "arc", content: buffer }],
         classification: contentTruncationDetails ? "corrupt" : undefined,
-        contentTruncationDetails: contentTruncationDetails ? {
-          downloadErrorDetails: contentTruncationDetails
-        } : undefined,
+        contentTruncationDetails: contentTruncationDetails
+          ? {
+              downloadErrorDetails: contentTruncationDetails,
+            }
+          : undefined,
       };
     } else {
       const warcinfoBuffer = await fetchWarcGlobalHeader(url, fetchOptions);
@@ -137,9 +152,11 @@ export async function downloadCommonCrawlFile(
           { type: "warc", content: buffer },
         ],
         classification: contentTruncationDetails ? "corrupt" : undefined,
-        contentTruncationDetails: contentTruncationDetails ? {
-          downloadErrorDetails: contentTruncationDetails
-        } : undefined,
+        contentTruncationDetails: contentTruncationDetails
+          ? {
+              downloadErrorDetails: contentTruncationDetails,
+            }
+          : undefined,
       };
     }
   } catch (error: unknown) {

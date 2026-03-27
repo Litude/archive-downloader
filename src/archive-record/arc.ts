@@ -82,11 +82,13 @@ export function parseArcFile(
         suppressMilliseconds: true,
       }) || timestamp,
     metadata: metadataPrefixes
-      ? parsedHeaders.filter(([name]) => metadataPrefixes.some(prefix => name.startsWith(prefix)))
+      ? parsedHeaders.filter(([name]) => metadataPrefixes.some((prefix) => name.startsWith(prefix)))
       : [],
     content: payloadBuffer,
     headers: metadataPrefixes
-      ? parsedHeaders.filter(([name]) => !metadataPrefixes.some(prefix => name.startsWith(prefix)))
+      ? parsedHeaders.filter(
+          ([name]) => !metadataPrefixes.some((prefix) => name.startsWith(prefix)),
+        )
       : parsedHeaders,
   };
 }

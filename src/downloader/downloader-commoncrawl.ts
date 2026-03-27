@@ -150,7 +150,7 @@ async function downloadUrlCommonCrawlEntries(
 ): Promise<CaptureEntry[]> {
   const cdxEntries = await fetchCommonCrawlCdxEntries(urlEntry, options);
 
-  const files: { file: CommonCrawlDownloadedFile, entry: ExtendedCdxEntry }[] = [];
+  const files: { file: CommonCrawlDownloadedFile; entry: ExtendedCdxEntry }[] = [];
   const captureEntries: CaptureEntry[] = [];
 
   for (const entry of cdxEntries) {
@@ -164,7 +164,6 @@ async function downloadUrlCommonCrawlEntries(
   files.forEach(({ file, entry }) => {
     captureEntries.push(buildCaptureEntry(entry, file));
   });
-
 
   return captureEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 }
