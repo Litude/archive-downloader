@@ -17,6 +17,7 @@ import { parseHeaderTimestamps } from "../utils/timestamp.js";
 import { classifyEntry } from "../classification/classifier.js";
 import { extractMimeTypeFromContentType } from "../utils/mimetype.js";
 import { parseWarcinfoFile } from "../archive-record/warcinfo.js";
+import { resolveCommonCrawlRevisitRecords } from "./commoncrawl/commoncrawl-revisit.js";
 
 async function fetchCommonCrawlCdxEntries(
   urlEntry: UrlEntry,
@@ -149,13 +150,21 @@ async function downloadUrlCommonCrawlEntries(
 ): Promise<CaptureEntry[]> {
   const cdxEntries = await fetchCommonCrawlCdxEntries(urlEntry, options);
 
+  const files: { file: CommonCrawlDownloadedFile, entry: ExtendedCdxEntry }[] = [];
   const captureEntries: CaptureEntry[] = [];
 
   for (const entry of cdxEntries) {
     console.log(`Downloading ${entry.url} (${entry.timestamp})...`);
     const file = await downloadCommonCrawlFile(entry, options);
-    captureEntries.push(buildCaptureEntry(entry, file));
+    files.push({ file, entry });
   }
+
+  resolveCommonCrawlRevisitRecords(files);
+
+  files.forEach(({ file, entry }) => {
+    captureEntries.push(buildCaptureEntry(entry, file));
+  });
+
 
   return captureEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 }

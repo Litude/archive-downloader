@@ -1,6 +1,5 @@
 TODO CommmonCrawl:
 
-- Handle warc/revisit
 - Capture errata handling (fixing capture_ts and url), url fixing needed for
   some non-common crawl stuff as well (http://\ urls)
 
