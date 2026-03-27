@@ -3,6 +3,7 @@ import { CdxEntry, ExtendedCdxEntry } from "./wayback-types.js";
 import { RawHeader } from "../utils/raw-header-parser.js";
 
 export interface CaptureWaybackMetadata {
+  mementoDateTime?: string;
   item: {
     id: string;
     title: string;
@@ -23,6 +24,16 @@ export interface CaptureWaybackMetadata {
     }[];
     firstFileDate?: string;
     lastFileDate?: string;
+  };
+}
+
+export interface CaptureCommonCrawlMetadata {
+  fetchTimestamp?: string;
+  collection: {
+    id: string;
+    title: string;
+    from: string; // ISO 8601, e.g. "2026-03-05T07:07:56"
+    to: string; // ISO 8601, e.g. "2026-03-17T14:32:36"
   };
 }
 
@@ -81,6 +92,7 @@ export interface CaptureEntry {
   }[];
   metadata?: {
     wayback?: CaptureWaybackMetadata;
+    commoncrawl?: CaptureCommonCrawlMetadata;
     crawlData?: {
       crawler?: string;
       crawljob?: string;

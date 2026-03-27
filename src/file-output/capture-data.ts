@@ -6,6 +6,7 @@ import { filenameToString } from "../file-name/file-name.js";
 import { getMostLikelyEtagDate, parseIisEtagDate } from "../utils/iis-etag-parser.js";
 import { DateTime } from "luxon";
 import { logWarning } from "../utils/log-context.js";
+import { CdxEntry } from "../types/wayback-types.js";
 
 function getCaptureHeaderValue(captureEntry: CaptureEntry, headerName: string): string | undefined {
   const header = captureEntry.headerOutput?.original?.find(
@@ -95,34 +96,27 @@ function getExactModificationDate(
   }
 }
 
-// TODO: Is this even needed, we don't actually even want to fetch commoncrawl captures from wayback?
 function getExactCaptureDate(captureEntry: CaptureEntry): string | null {
-  const headers = captureEntry.responseHeaders;
-  if (headers?.["x-archive-orig-x_commoncrawl_fetchtimestamp"]) {
-    const timestamp = +headers["x-archive-orig-x_commoncrawl_fetchtimestamp"];
-    const date = new Date(timestamp);
-    // It seems some captures have very apparent timezone issues and this header is **probably** actually the correct capture timestamp...
-    if (date.valueOf() - captureEntry.captureTimestamp.toMillis() > 8 * 3600 * 1000) {
-      logWarning(
-        `Original capture timestamp from x_commoncrawl_fetchtimestamp differs by more than 8 hours from capture timestamp for ${captureEntry.url} captured at ${captureEntry.captureTimestamp.toISO({ suppressMilliseconds: true })}. Ignoring value.`,
-        "timestamp-sanity-check",
-      );
-      console.warn(
-        `Original capture timestamp from x_commoncrawl_fetchtimestamp differs by more than 8 hours from capture timestamp for ${captureEntry.url} captured at ${captureEntry.captureTimestamp.toISO({ suppressMilliseconds: true })}. Ignoring value.`,
-      );
-      return null;
-    } else if (date.valueOf() - captureEntry.captureTimestamp.toMillis() > 1 * 3600 * 1000) {
-      logWarning(
-        `Original capture timestamp from x_commoncrawl_fetchtimestamp differs by more than 1 hour from capture timestamp for ${captureEntry.url} captured at ${captureEntry.captureTimestamp.toISO({ suppressMilliseconds: true })}.`,
-        "timestamp-sanity-check",
-      );
-      console.warn(
-        `Original capture timestamp from x_commoncrawl_fetchtimestamp differs by more than 1 hour from capture timestamp for ${captureEntry.url} captured at ${captureEntry.captureTimestamp.toISO({ suppressMilliseconds: true })}.`,
-      );
-    }
-    return DateTime.fromJSDate(date).toFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'000000Z'");
+  if (captureEntry.metadata?.commoncrawl?.fetchTimestamp) {
+    return DateTime.fromJSDate(new Date(captureEntry.metadata.commoncrawl.fetchTimestamp)).toFormat(
+      "yyyy-MM-dd'T'HH:mm:ss.SSS'000000Z'",
+    );
   }
   return null;
+}
+
+function cdxToOutputData(entry: CdxEntry) {
+  return {
+    urlkey: entry.urlkey,
+    timestamp: entry.timestamp,
+    url: entry.url,
+    status: entry.status,
+    digest: entry.digest ?? null,
+    mimetype: entry.mimetype,
+    filename: entry.filename ?? null,
+    offset: entry.offset ?? null,
+    length: entry.length ?? null,
+  };
 }
 
 /** Use for custom formatting of e.g. header tuples */
@@ -235,39 +229,18 @@ export function writeCaptureData(
         archiveRecordFormat,
         archiveRecordAvailable,
         classification: entry.classification,
-        cdxEntry: {
-          urlkey: mainCdxEntry.urlkey,
-          timestamp: mainCdxEntry.timestamp,
-          url: mainCdxEntry.url,
-          status: mainCdxEntry.status,
-          digest: mainCdxEntry.digest ?? null,
-          mimetype: mainCdxEntry.mimetype,
-          filename: mainCdxEntry.filename ?? null,
-          offset: mainCdxEntry.offset ?? null,
-          length: mainCdxEntry.length ?? null,
-        },
+        cdxEntry: cdxToOutputData(mainCdxEntry),
         cdxEntryRevisitResolved: resolvedRevisitCdxEntry
-          ? {
-              urlkey: resolvedRevisitCdxEntry.urlkey,
-              timestamp: resolvedRevisitCdxEntry.timestamp,
-              url: resolvedRevisitCdxEntry.url,
-              status: resolvedRevisitCdxEntry.status,
-              digest: resolvedRevisitCdxEntry.digest ?? null,
-              mimetype: resolvedRevisitCdxEntry.mimetype,
-              filename: resolvedRevisitCdxEntry.filename ?? null,
-              offset: resolvedRevisitCdxEntry.offset ?? null,
-              length: resolvedRevisitCdxEntry.length ?? null,
-            }
+          ? cdxToOutputData(resolvedRevisitCdxEntry)
           : undefined,
-        additionalSources: entry.additionalSources,
+        additionalSources: entry.additionalSources?.map((source) => ({
+          source: source.source,
+          cdxEntry: cdxToOutputData(source.cdxEntry),
+        })),
         crawlData: entry.metadata?.crawlData,
-        wayback: {
-          mementoDateTime: entry.mementoDateTime?.toISO({ suppressMilliseconds: true }),
-          ...entry.metadata?.wayback,
-        },
-        validationErrors: entry.metadata?.validationErrors
-          ? entry.metadata.validationErrors
-          : undefined,
+        wayback: entry.metadata?.wayback,
+        commoncrawl: entry.metadata?.commoncrawl,
+        validationErrors: entry.metadata?.validationErrors,
       },
     };
     fs.writeFileSync(captureDataPath, stringifyWithInlineTuples(captureData, inlineElementsOf));

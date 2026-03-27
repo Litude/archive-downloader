@@ -5,6 +5,8 @@ import {
   WAYBACK_MAX_BACKOFF,
   WAYBACK_REQUEST_TIMEOUT,
 } from "./wayback-common.js";
+import { fetchRangeBytes } from "../../utils/fetch-range-bytes.js";
+import { fetchWarcGlobalHeader } from "../../utils/fetch-warc-global-header.js";
 import { ArchiveRecord, CaptureEntry } from "../../types/capture-types.js";
 import { parseCdx } from "../../cdx/cdx-parser.js";
 import { CdxEntry } from "../../types/wayback-types.js";
@@ -40,16 +42,16 @@ async function internalCheckRecordAvailability(filename: string): Promise<boolea
         return false;
       } else if (response.status === 403) {
         error403Count++;
-        if (error403Count >= 4) {
+        if (error403Count >= 5) {
           console.error(
-            `Received 403 four times in a row for ${filename}, treating as not available.`,
+            `Received 403 five times in a row for ${filename}, treating as not available.`,
           );
           return false;
         }
         console.log(
           `Received 403 when checking availability for ${filename}, this may be an intermittent error.`,
         );
-        await new Promise((resolve) => setTimeout(resolve, 1000 * error403Count)); // Wait a bit longer for each consecutive 403 to give the server a chance to recover
+        await new Promise((resolve) => setTimeout(resolve, 2000 * error403Count)); // Wait a bit longer for each consecutive 403 to give the server a chance to recover
         attempt++;
       } else {
         throw new Error(`Unexpected status code ${response.status} for ${url}`);
@@ -133,108 +135,19 @@ async function downloadCdx(cdxFilename: string, entryFilename: string, entry: Ca
 
 async function fetchRecordBytes(filename: string, offset: number, length: number): Promise<Buffer> {
   const url = generateDownloadUrl(filename);
-  const rangeHeader = `bytes=${offset}-${offset + length - 1}`;
-  let attempt = 0;
-  let backoff = WAYBACK_INITIAL_BACKOFF;
-  while (true) {
-    try {
-      console.log(
-        `Fetching record bytes for ${filename} (range ${rangeHeader}, attempt ${attempt})...`,
-      );
-      const response = await axios.get(url, {
-        headers: { Range: rangeHeader },
-        responseType: "arraybuffer",
-        timeout: WAYBACK_REQUEST_TIMEOUT,
-      });
-      const decompressed = zlib.gunzipSync(Buffer.from(response.data));
-      return decompressed;
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(
-        `Error fetching record bytes for ${url} range ${rangeHeader} (${errorMessage}), retrying in ${backoff / 1000}s...`,
-      );
-      await new Promise((resolve) => setTimeout(resolve, backoff));
-      backoff = Math.min(backoff * 2, WAYBACK_MAX_BACKOFF);
-      attempt++;
-    }
-  }
+  return fetchRangeBytes(url, offset, length, {
+    timeout: WAYBACK_REQUEST_TIMEOUT,
+    initialBackoff: WAYBACK_INITIAL_BACKOFF,
+    maxBackoff: WAYBACK_MAX_BACKOFF,
+  });
 }
 
-async function fetchWarcGlobalHeader(filename: string): Promise<Buffer> {
-  const url = generateDownloadUrl(filename);
-  let attempt = 0;
-  let backoff = WAYBACK_INITIAL_BACKOFF;
-  while (true) {
-    try {
-      console.log(`Fetching WARC global header for ${filename} (attempt ${attempt})...`);
-      const response = await axios.get(url, {
-        headers: { Range: "bytes=0-" },
-        responseType: "stream",
-        timeout: WAYBACK_REQUEST_TIMEOUT,
-      });
-      return await new Promise<Buffer>((resolve, reject) => {
-        const chunks: Buffer[] = [];
-        let totalLength = 0;
-        let recordTotalSize: number | null = null;
-        const gunzip = zlib.createGunzip();
-        let settled = false;
-
-        function settle(result: Buffer | Error) {
-          if (settled) {
-            return;
-          }
-          settled = true;
-          response.data.destroy();
-          gunzip.destroy();
-          if (result instanceof Error) {
-            reject(result);
-          } else {
-            resolve(result);
-          }
-        }
-
-        gunzip.on("data", (chunk: Buffer) => {
-          chunks.push(chunk);
-          totalLength += chunk.length;
-
-          if (recordTotalSize === null) {
-            const soFar = Buffer.concat(chunks);
-            const headerEnd = soFar.indexOf("\r\n\r\n");
-            if (headerEnd !== -1) {
-              const headerText = soFar.subarray(0, headerEnd).toString("ascii");
-              const contentLengthMatch = headerText.match(/^Content-Length:\s*(\d+)$/im);
-              if (contentLengthMatch) {
-                const contentLength = parseInt(contentLengthMatch[1], 10);
-                // WARC record = headers + \r\n\r\n + payload + \r\n\r\n (trailing)
-                recordTotalSize = headerEnd + 4 + contentLength + 4;
-              }
-            }
-          }
-
-          if (recordTotalSize !== null && totalLength >= recordTotalSize) {
-            settle(Buffer.concat(chunks).subarray(0, recordTotalSize));
-          }
-        });
-        gunzip.on("end", () => {
-          // Stream ended before full record received — return what we have
-          settle(Buffer.concat(chunks));
-        });
-        gunzip.on("error", (err) => settle(err));
-        response.data.on("error", (err: unknown) =>
-          settle(err instanceof Error ? err : new Error(String(err))),
-        );
-        response.data.pipe(gunzip);
-      });
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(
-        `Error fetching WARC global header for ${url} (${errorMessage}), retrying in ${backoff / 1000}s...`,
-      );
-      await new Promise((resolve) => setTimeout(resolve, backoff));
-      backoff = Math.min(backoff * 2, WAYBACK_MAX_BACKOFF);
-      attempt++;
-    }
-  }
+async function fetchWarcGlobalHeaderForFilename(filename: string): Promise<Buffer> {
+  return fetchWarcGlobalHeader(generateDownloadUrl(filename), {
+    timeout: WAYBACK_REQUEST_TIMEOUT,
+    initialBackoff: WAYBACK_INITIAL_BACKOFF,
+    maxBackoff: WAYBACK_MAX_BACKOFF,
+  });
 }
 
 function getCdxFilenameFromEntry(entry: CaptureEntry): string {
@@ -271,7 +184,7 @@ export async function fetchArchiveRecord(entry: CaptureEntry): Promise<ArchiveRe
   if (filename.endsWith(".arc.gz")) {
     return [{ type: "arc", content }];
   } else if (filename.endsWith(".warc.gz")) {
-    const globalHeader = await fetchWarcGlobalHeader(filename);
+    const globalHeader = await fetchWarcGlobalHeaderForFilename(filename);
     return [
       { type: "warcinfo", content: globalHeader },
       { type: "warc", content },

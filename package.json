@@ -8,9 +8,9 @@
     "etag": "tsx src/utils/iis-etag-tool.ts",
     "tsc": "tsc --noEmit --skipLibCheck",
     "lint:check": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
-    "format:fix": "prettier --write src/**/*.ts",
-    "format:check": "prettier --check src/**/*.ts"
+    "lint": "eslint src/**/*.ts --fix",
+    "format:check": "prettier --check src/**/*.ts",
+    "format": "prettier --write src/**/*.ts"
   },
   "author": "",
   "license": "ISC",

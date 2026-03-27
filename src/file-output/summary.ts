@@ -16,12 +16,13 @@ interface SummaryRow {
   statuscode?: number;
   classification: string;
   mimetype: string;
-  wayback_digest?: string;
+  archive_source?: string;
+  additional_sources?: string;
+  archive_digest?: string;
   actual_digest?: string;
   archive_filename?: string;
-  archive_length?: number;
   archive_offset?: number;
-  archive_source?: string;
+  archive_length?: number;
 }
 
 export async function writeCsvSummary(
@@ -29,29 +30,32 @@ export async function writeCsvSummary(
   filename: Filename,
   outputDirectory: string,
 ) {
-  const summaryRows: SummaryRow[] = captureEntries.map((entry) => ({
-    capture_ts: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
-    capture_index: entry.captureIndex ?? 0,
-    modification_ts: entry.lastModified
-      ? entry.lastModified.toISO({ suppressMilliseconds: true })
-      : "",
-    capture_sha256: entry.originalSha256 ?? entry.sha256,
-    output_sha256: entry.sha256,
-    output_index: entry.contentIndex === null ? undefined : entry.contentIndex,
-    url: entry.url,
-    statuscode: entry.statusCode,
-    classification: entry.classification.type,
-    mimetype: entry.mimetype,
-    archive_source: entry.cdxEntry.source,
-    additional_sources: entry.additionalSources
-      ? entry.additionalSources.map((source) => source.source).join(";")
-      : undefined,
-    archive_digest: entry.cdxEntry.digest,
-    actual_digest: entry.actualDigest,
-    archive_filename: entry.cdxEntry.filename,
-    archive_offset: entry.cdxEntry.offset,
-    archive_length: entry.cdxEntry.length,
-  }));
+  const summaryRows: SummaryRow[] = captureEntries.map(
+    (entry) =>
+      ({
+        capture_ts: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
+        capture_index: entry.captureIndex ?? 0,
+        modification_ts: entry.lastModified
+          ? entry.lastModified.toISO({ suppressMilliseconds: true })
+          : "",
+        capture_sha256: entry.originalSha256 ?? entry.sha256,
+        output_sha256: entry.sha256,
+        output_index: entry.contentIndex === null ? undefined : entry.contentIndex,
+        url: entry.url,
+        statuscode: entry.statusCode,
+        classification: entry.classification.type,
+        mimetype: entry.mimetype,
+        archive_source: entry.cdxEntry.source,
+        additional_sources: entry.additionalSources
+          ? entry.additionalSources.map((source) => source.source).join(";")
+          : undefined,
+        archive_digest: entry.cdxEntry.digest,
+        actual_digest: entry.actualDigest,
+        archive_filename: entry.cdxEntry.filename,
+        archive_offset: entry.cdxEntry.offset,
+        archive_length: entry.cdxEntry.length,
+      }) satisfies SummaryRow,
+  );
 
   // Output sha256 column is only written if any files were post-processed/modified
   if (summaryRows.every((row) => !row.output_sha256)) {

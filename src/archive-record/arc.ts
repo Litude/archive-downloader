@@ -2,9 +2,14 @@ import { DateTime } from "luxon";
 import { parseArchiveRecordHeadersToPairs, RawHeader } from "../utils/raw-header-parser.js";
 import { dechunkChunkedResponse } from "./dechunk.js";
 
+export interface ArcParsingOptions {
+  metadataPrefix?: string;
+  contentLengthIncludesTrailingNewline?: boolean;
+}
+
 export function parseArcFile(
   buffer: Buffer,
-  metadataPrefix?: string,
+  parsingOptions?: ArcParsingOptions,
 ): {
   url: string;
   ip: string;
@@ -23,9 +28,13 @@ export function parseArcFile(
 
   const header = content.slice(0, headerEnd).trim();
   const [url, ip, timestamp, _mimetype, lengthStr] = header.split(" ");
-  const length = parseInt(lengthStr, 10);
+  let length = parseInt(lengthStr, 10);
   if (isNaN(length)) {
     throw new Error("Invalid ARC file: length is not a number");
+  }
+
+  if (parsingOptions?.contentLengthIncludesTrailingNewline) {
+    length -= 1;
   }
 
   const contentStart = headerEnd + 1;
@@ -60,6 +69,8 @@ export function parseArcFile(
   if (isChunked) {
     payloadBuffer = dechunkChunkedResponse(payloadBuffer);
   }
+
+  const metadataPrefix = parsingOptions?.metadataPrefix;
 
   return {
     url,

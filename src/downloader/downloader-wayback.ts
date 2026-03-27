@@ -59,7 +59,8 @@ function classifyDigestFiles(
     const classification = classifyEntry(
       file.url,
       hashes.sha256,
-      extractMimeTypeFromContentType(file.responseHeaders["content-type"]) || file.responseHeaders["content-type"],
+      extractMimeTypeFromContentType(file.responseHeaders["content-type"]) ||
+        file.responseHeaders["content-type"],
       file.content,
       file.classification,
       file.metadata,
@@ -96,6 +97,13 @@ function getArchivedRecord(entry: CaptureEntry) {
 }
 
 export async function downloadWaybackEntries(input: DownloadFileInput, context: Context) {
+  // return {
+  //   baseEntries: [] as CaptureEntry[],
+  //   unavailableEntries: [] as CaptureEntry[],
+  //   skippedEntries: [] as CaptureEntry[],
+  //   metadata: undefined as { crawler?: string; crawljob?: string; description?: string; publisher?: string; operator?: string } | undefined,
+  // }
+
   const { validCdxEntries, invalidCdxEntries, metadata } = await getSnapshotsForWebsiteFile(
     input,
     context,
@@ -154,13 +162,13 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
         const timestamps = headers
           ? parseHeaderTimestamps(entry.url, headers, entry.timestamp, true)
           : {
-            captureDate: DateTime.fromFormat(entry.timestamp, "yyyyLLddHHmmss", {
-              zone: "utc",
-            }) as DateTime<true>,
-            lastModified: null,
-            mementoDate: null,
-            serverDate: null,
-          };
+              captureDate: DateTime.fromFormat(entry.timestamp, "yyyyLLddHHmmss", {
+                zone: "utc",
+              }) as DateTime<true>,
+              lastModified: null,
+              mementoDate: null,
+              serverDate: null,
+            };
         const waybackFilename =
           fetchAllHeaders && headers ? getWaybackFilename(headers) : undefined;
         const lastModified = timestamps.lastModified;
@@ -174,9 +182,9 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
             filename: waybackFilename ?? entry.filename,
             revisitEntry: entry.revisitEntry
               ? {
-                ...entry.revisitEntry,
-                filename: waybackFilename ?? entry.revisitEntry.filename,
-              }
+                  ...entry.revisitEntry,
+                  filename: waybackFilename ?? entry.revisitEntry.filename,
+                }
               : undefined,
           },
           lastModified,
@@ -217,7 +225,8 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
         url: entry.url,
         statusCode: entry.statusCode,
         classification: entry.classification,
-        mimetype: extractMimeTypeFromContentType(entry.responseHeaders?.["content-type"]) || entry.mimetype,
+        mimetype:
+          extractMimeTypeFromContentType(entry.responseHeaders?.["content-type"]) || entry.mimetype,
         actualDigest: "",
         sha256: "",
         originalSha256: undefined,
@@ -277,7 +286,9 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
       if (!existingEntry) {
         throw new Error(`Existing entry for ${entry.url} at ${entry.timestamp} not found?!`);
       }
-      existingEntry.mimetype = extractMimeTypeFromContentType(response.responseHeaders["content-type"]) || existingEntry.mimetype;
+      existingEntry.mimetype =
+        extractMimeTypeFromContentType(response.responseHeaders["content-type"]) ||
+        existingEntry.mimetype;
       existingEntry.mementoDateTime = timestamps.mementoDate ?? undefined;
       existingEntry.lastModified = timestamps.lastModified;
       existingEntry.responseHeaders = response.responseHeaders;
@@ -317,6 +328,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
           }
 
           const parsedData: CaptureWaybackMetadata = {
+            mementoDateTime: entry.mementoDateTime?.toISO({ suppressMilliseconds: true }),
             item: {
               id: metadata.identifier,
               title: metadata.title,

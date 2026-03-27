@@ -16,6 +16,57 @@ import { WithRequired } from "./utils/ts-utils.js";
 import { downloadWaybackEntries } from "./downloader/downloader-wayback.js";
 import { writeCaptureData } from "./file-output/capture-data.js";
 import { assignOutputIndices } from "./file-output/output-indices.js";
+import { downloadCommonCrawlEntries } from "./downloader/downloader-commoncrawl.js";
+
+function mergeWaybackAndCommonCrawlEntries(
+  waybackEntries: CaptureEntry[],
+  ccEntries: CaptureEntry[],
+): CaptureEntry[] {
+  const waybackCommonCrawlEntries = waybackEntries.filter((entry) =>
+    entry.metadata?.wayback?.item.collections.some((collection) => collection.id === "commoncrawl"),
+  );
+
+  for (const waybackEntry of waybackCommonCrawlEntries) {
+    const matchingCcEntry = ccEntries.find(
+      (ccEntry) =>
+        ccEntry.timestamp === waybackEntry.timestamp &&
+        ccEntry.url === waybackEntry.url &&
+        ccEntry.statusCode === waybackEntry.statusCode &&
+        ccEntry.cdxEntry.digest === waybackEntry.cdxEntry.digest &&
+        ccEntry.cdxEntry.length === waybackEntry.cdxEntry.length,
+    );
+    if (matchingCcEntry) {
+      if (!matchingCcEntry.metadata) {
+        matchingCcEntry.metadata = {};
+      }
+      const waybackCdx = waybackEntry.cdxEntry.revisitEntry ?? waybackEntry.cdxEntry;
+      waybackCdx.offset = matchingCcEntry.cdxEntry.offset;
+      matchingCcEntry.additionalSources = [
+        {
+          source: "wayback",
+          cdxEntry: waybackEntry.cdxEntry.revisitEntry ?? waybackEntry.cdxEntry,
+        },
+      ];
+      matchingCcEntry.metadata.wayback = waybackEntry.metadata?.wayback;
+    } else {
+      throw new Error(
+        `Expected to find matching Common Crawl entry for wayback entry with timestamp ${waybackEntry.timestamp} and url ${waybackEntry.url}, but did not find one.`,
+      );
+    }
+  }
+
+  const mergedEntries = [
+    ...waybackEntries.filter(
+      (entry) =>
+        !entry.metadata?.wayback?.item.collections.some(
+          (collection) => collection.id === "commoncrawl",
+        ),
+    ),
+    ...ccEntries,
+  ];
+
+  return mergedEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+}
 
 // High level logic of app:
 // 1. Read input JSON file to get list of DownloadFileInput
@@ -51,8 +102,16 @@ async function processWebsiteDownloads(
     context.fileContext = {};
     resetLog();
 
-    const { baseEntries, unavailableEntries, skippedEntries, metadata } =
-      await downloadWaybackEntries(input, context);
+    const {
+      baseEntries: waybackEntries,
+      unavailableEntries,
+      skippedEntries,
+      metadata,
+    } = await downloadWaybackEntries(input, context);
+
+    const ccEntries = await downloadCommonCrawlEntries(input);
+
+    const baseEntries = mergeWaybackAndCommonCrawlEntries(waybackEntries, ccEntries);
     const anyValidEntries = baseEntries.some((entry) => entry.classification.type === "ok");
 
     input.filename.queryHashParameters = input.queryHashParameters;
