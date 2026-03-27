@@ -1,18 +1,18 @@
 export const commonCrawlCleanupData: Record<
   string,
   {
-    metadataHeaderPrefix: string;
+    metadataHeaderPrefixes: string[];
     contentLengthIncludesTrailingNewline?: boolean;
   }
 > = {
   "CC-MAIN-2008-2009": {
-    metadataHeaderPrefix: "x_commoncrawl_",
+    metadataHeaderPrefixes: ["x_commoncrawl_", "x-commoncrawl-"],
   },
   "CC-MAIN-2009-2010": {
-    metadataHeaderPrefix: "x_commoncrawl_",
+    metadataHeaderPrefixes: ["x_commoncrawl_", "x-commoncrawl-"],
   },
   "CC-MAIN-2012": {
-    metadataHeaderPrefix: "x-commoncrawl-",
+    metadataHeaderPrefixes: ["x_commoncrawl_", "x-commoncrawl-"],
     contentLengthIncludesTrailingNewline: true,
   },
 };

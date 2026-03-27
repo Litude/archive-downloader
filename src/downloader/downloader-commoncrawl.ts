@@ -92,7 +92,7 @@ function buildCaptureEntry(entry: ExtendedCdxEntry, file: CommonCrawlDownloadedF
     mimetype,
     file.content,
     file.classification,
-    undefined,
+    file.contentTruncationDetails,
     file.statusCode || entry.status || 0,
   );
 

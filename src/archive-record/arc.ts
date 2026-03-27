@@ -3,7 +3,7 @@ import { parseArchiveRecordHeadersToPairs, RawHeader } from "../utils/raw-header
 import { dechunkChunkedResponse } from "./dechunk.js";
 
 export interface ArcParsingOptions {
-  metadataPrefix?: string;
+  metadataPrefixes?: string[];
   contentLengthIncludesTrailingNewline?: boolean;
 }
 
@@ -70,7 +70,7 @@ export function parseArcFile(
     payloadBuffer = dechunkChunkedResponse(payloadBuffer);
   }
 
-  const metadataPrefix = parsingOptions?.metadataPrefix;
+  const metadataPrefixes = parsingOptions?.metadataPrefixes;
 
   return {
     url,
@@ -81,12 +81,12 @@ export function parseArcFile(
       DateTime.fromFormat(timestamp, "yyyyLLddHHmmss", { zone: "utc" }).toISO({
         suppressMilliseconds: true,
       }) || timestamp,
-    metadata: metadataPrefix
-      ? parsedHeaders.filter(([name]) => name.startsWith(metadataPrefix))
+    metadata: metadataPrefixes
+      ? parsedHeaders.filter(([name]) => metadataPrefixes.some(prefix => name.startsWith(prefix)))
       : [],
     content: payloadBuffer,
-    headers: metadataPrefix
-      ? parsedHeaders.filter(([name]) => !name.startsWith(metadataPrefix))
+    headers: metadataPrefixes
+      ? parsedHeaders.filter(([name]) => !metadataPrefixes.some(prefix => name.startsWith(prefix)))
       : parsedHeaders,
   };
 }

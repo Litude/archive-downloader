@@ -39,6 +39,13 @@ export interface CommonCrawlDownloadedFile {
   metadata?: RawHeader[];
   /** Raw decompressed record bytes. For WARC files includes the warcinfo record first. */
   records: ArchiveRecord[];
+  contentTruncationDetails?: {
+    downloadErrorDetails: {
+      reason: string;
+      downloadedSize: number;
+      actualSize: number | null;
+    };
+  };
 }
 
 export interface CommonCrawlDownloaderOptions {

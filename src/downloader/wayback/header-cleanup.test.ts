@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { cleanupWaybackHeaders } from "./header-output.js";
-import { RawHeader } from "../utils/raw-header-parser.js";
+import { cleanupWaybackHeaders } from "./header-cleanup.js";
+import { RawHeader } from "../../utils/raw-header-parser.js";
 
 describe("cleanupHeaders", () => {
   it("should keep only recognized headers and strip wayback prefix from location", () => {

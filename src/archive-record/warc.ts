@@ -1,7 +1,11 @@
 import { parseArchiveRecordHeadersToPairs, RawHeader } from "../utils/raw-header-parser.js";
 import { dechunkChunkedResponse } from "./dechunk.js";
 
-export function parseWarcFile(buffer: Buffer): {
+interface WarcParsingOptions {
+  undoCommonCrawlHeaderNaming?: boolean;
+}
+
+export function parseWarcFile(buffer: Buffer, options?: WarcParsingOptions): {
   url: string;
   ip: string;
   status: number;
@@ -65,6 +69,43 @@ export function parseWarcFile(buffer: Buffer): {
   );
   if (isChunked) {
     payloadBuffer = dechunkChunkedResponse(payloadBuffer);
+  }
+
+  // Common crawl removes or replaces some headers, and the originals have the "X-Crawler-" prefix.
+  // We need to undo this, and if a replacement header existed we move it to metadata instead
+  if (options?.undoCommonCrawlHeaderNaming) {
+    const crawlerPrefixLower = "x-crawler-";
+
+    // Map originalNameLower -> index of the X-Crawler-* header
+    const crawlerHeaderIndices = new Map<string, number>();
+    for (let i = 0; i < httpHeaders.length; i++) {
+      const nameLower = httpHeaders[i][0].toLowerCase();
+      if (nameLower.startsWith(crawlerPrefixLower)) {
+        crawlerHeaderIndices.set(nameLower.slice(crawlerPrefixLower.length), i);
+      }
+    }
+
+    // Find replacement headers: non-X-Crawler- headers that have an X-Crawler- counterpart
+    const replacementIndices: number[] = [];
+    for (let i = 0; i < httpHeaders.length; i++) {
+      const nameLower = httpHeaders[i][0].toLowerCase();
+      if (!nameLower.startsWith(crawlerPrefixLower) && crawlerHeaderIndices.has(nameLower)) {
+        replacementIndices.push(i);
+      }
+    }
+
+    // Restore X-Crawler-* header names in place (preserves their position)
+    for (const [, idx] of crawlerHeaderIndices) {
+      const [name, value] = httpHeaders[idx];
+      httpHeaders[idx] = [name.slice("X-Crawler-".length), value];
+    }
+
+    // Move replacement headers to metadata and remove them (back-to-front to keep indices valid)
+    for (let i = replacementIndices.length - 1; i >= 0; i--) {
+      const idx = replacementIndices[i];
+      warcHeaders.push(httpHeaders[idx].map((v, j) => (j === 0 ? `X-Crawler-${v}` : v)) as RawHeader);
+      httpHeaders.splice(idx, 1);
+    }
   }
 
   return {

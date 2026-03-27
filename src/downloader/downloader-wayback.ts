@@ -28,9 +28,9 @@ import {
 } from "./wayback/archive-record.js";
 import { parseArcFile } from "../archive-record/arc.js";
 import { parseWarcFile } from "../archive-record/warc.js";
-import { cleanupWaybackHeaders } from "../file-output/header-output.js";
 import { parseWarcinfoFile } from "../archive-record/warcinfo.js";
 import { getHeaderValue } from "../headers/headers.js";
+import { cleanupWaybackHeaders } from "./wayback/header-cleanup.js";
 import { tryToCompleteMissingCdxFields } from "./wayback/cdx-completion/cdx-completion.js";
 import { cleanUpCorruptCommonCrawlEntries } from "./wayback/wayback-commoncrawl-cleanup.js";
 import { extractMimeTypeFromContentType } from "../utils/mimetype.js";
@@ -60,7 +60,7 @@ function classifyDigestFiles(
       file.url,
       hashes.sha256,
       extractMimeTypeFromContentType(file.responseHeaders["content-type"]) ||
-        file.responseHeaders["content-type"],
+      file.responseHeaders["content-type"],
       file.content,
       file.classification,
       file.metadata,
@@ -162,13 +162,13 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
         const timestamps = headers
           ? parseHeaderTimestamps(entry.url, headers, entry.timestamp, true)
           : {
-              captureDate: DateTime.fromFormat(entry.timestamp, "yyyyLLddHHmmss", {
-                zone: "utc",
-              }) as DateTime<true>,
-              lastModified: null,
-              mementoDate: null,
-              serverDate: null,
-            };
+            captureDate: DateTime.fromFormat(entry.timestamp, "yyyyLLddHHmmss", {
+              zone: "utc",
+            }) as DateTime<true>,
+            lastModified: null,
+            mementoDate: null,
+            serverDate: null,
+          };
         const waybackFilename =
           fetchAllHeaders && headers ? getWaybackFilename(headers) : undefined;
         const lastModified = timestamps.lastModified;
@@ -182,9 +182,9 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
             filename: waybackFilename ?? entry.filename,
             revisitEntry: entry.revisitEntry
               ? {
-                  ...entry.revisitEntry,
-                  filename: waybackFilename ?? entry.revisitEntry.filename,
-                }
+                ...entry.revisitEntry,
+                filename: waybackFilename ?? entry.revisitEntry.filename,
+              }
               : undefined,
           },
           lastModified,
