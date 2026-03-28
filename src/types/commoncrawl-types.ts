@@ -1,4 +1,4 @@
-import { RawHeader } from "../utils/raw-header-parser.js";
+import { RawHeader } from "../headers/raw-header-parser.js";
 import { ArchiveRecord } from "./capture-types.js";
 
 export interface CommonCrawlCollection {

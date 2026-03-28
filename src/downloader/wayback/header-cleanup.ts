@@ -1,7 +1,7 @@
 import { filenameToString } from "../../file-name/file-name.js";
 import { Filename } from "../../types/download-input-types.js";
 import { isIisDefaultMimetype } from "../../utils/iis-mimetypes.js";
-import { RawHeader } from "../../utils/raw-header-parser.js";
+import { RawHeader } from "../../headers/raw-header-parser.js";
 
 const ARCHIVED_COMMON_HEADERS = [
   "content-type",

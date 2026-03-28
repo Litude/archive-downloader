@@ -1,4 +1,4 @@
-import { parseArchiveRecordHeadersToPairs, RawHeader } from "../utils/raw-header-parser.js";
+import { parseArchiveRecordHeadersToPairs, RawHeader } from "../headers/raw-header-parser.js";
 
 export function parseWarcinfoFile(buffer: Buffer): {
   timestamp: string;

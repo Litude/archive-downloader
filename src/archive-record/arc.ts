@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import { parseArchiveRecordHeadersToPairs, RawHeader } from "../utils/raw-header-parser.js";
+import { parseArchiveRecordHeadersToPairs, RawHeader } from "../headers/raw-header-parser.js";
 import { dechunkChunkedResponse } from "./dechunk.js";
 
 export interface ArcParsingOptions {

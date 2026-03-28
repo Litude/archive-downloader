@@ -9,7 +9,7 @@ import { cleanupAxiosResponseHeaders, preventAxiosRedirects } from "../../utils/
 import { getWaybackCaptureBaseUrl } from "../../utils/address.js";
 import { CdxEntry } from "../../types/wayback-types.js";
 import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common.js";
-import { parseRawHeadersToPairs } from "../../utils/raw-header-parser.js";
+import { parseRawHeadersToPairs } from "../../headers/raw-header-parser.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

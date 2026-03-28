@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import { CdxEntry, ExtendedCdxEntry } from "./wayback-types.js";
-import { RawHeader } from "../utils/raw-header-parser.js";
+import { RawHeader } from "../headers/raw-header-parser.js";
 
 export interface CaptureWaybackMetadata {
   mementoDateTime?: string;
@@ -63,9 +63,12 @@ export type CaptureClassification = Classification["type"];
 export interface CaptureEntry {
   timestamp: string; // same as captureTimestamp but as string YYYYMMDDHHmmss
   captureTimestamp: DateTime<true>;
+  captureTimestampPrecise?: string;
   mementoDateTime?: DateTime<true>;
   cdxEntry: ExtendedCdxEntry;
   lastModified: DateTime<true> | null;
+  lastModifiedPrecise?: string;
+  lastModifiedPreciseCandidates?: string[];
   url: string;
   statusCode?: number;
   classification: Classification;

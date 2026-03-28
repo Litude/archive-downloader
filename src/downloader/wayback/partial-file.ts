@@ -1,6 +1,6 @@
 import axios from "axios";
 import { cleanupAxiosResponseHeaders, preventAxiosRedirects } from "../../utils/axios-utils.js";
-import { parseRawHeadersToPairs, RawHeader } from "../../utils/raw-header-parser.js";
+import { parseRawHeadersToPairs, RawHeader } from "../../headers/raw-header-parser.js";
 
 async function downloadToBufferWithRetry(
   url: string,

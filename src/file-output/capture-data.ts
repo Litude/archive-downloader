@@ -3,108 +3,8 @@ import fs from "fs";
 import { CaptureEntry } from "../types/capture-types.js";
 import { Filename } from "../types/download-input-types.js";
 import { filenameToString } from "../file-name/file-name.js";
-import { getMostLikelyEtagDate, parseIisEtagDate } from "../utils/iis-etag-parser.js";
-import { DateTime } from "luxon";
-import { logWarning } from "../utils/log-context.js";
 import { CdxEntry } from "../types/wayback-types.js";
 import { CaptureDataJson, CdxEntryJson } from "../types/capture-data-json.js";
-
-function getCaptureHeaderValue(captureEntry: CaptureEntry, headerName: string): string | undefined {
-  const header = captureEntry.headerOutput?.original?.find(
-    (h) => h[0].toLowerCase() === headerName.toLowerCase(),
-  );
-  if (header) {
-    return header[1];
-  }
-  const reconstructedHeader = captureEntry.headerOutput?.reconstructed?.find(
-    (h) => h[0].toLowerCase() === headerName.toLowerCase(),
-  );
-  if (reconstructedHeader) {
-    return reconstructedHeader[1];
-  }
-  return undefined;
-}
-
-function getExactModificationDate(
-  captureEntry: CaptureEntry,
-): { modificationTimePrecise?: string; plausiblePreciseModificationDates?: string[] } | null {
-  const likelyIisServer = getCaptureHeaderValue(captureEntry, "server")
-    ?.toLowerCase()
-    .includes("microsoft-iis");
-  try {
-    const etagHeader = getCaptureHeaderValue(captureEntry, "etag");
-    if (etagHeader && captureEntry.lastModified) {
-      const etagDates = getMostLikelyEtagDate(
-        etagHeader,
-        captureEntry.captureTimestamp,
-        captureEntry.lastModified,
-      );
-      if (etagDates) {
-        if (etagDates.length === 1) {
-          return { modificationTimePrecise: etagDates[0] };
-        } else if (etagDates.length > 1) {
-          return { plausiblePreciseModificationDates: etagDates };
-        }
-      }
-    } else if (etagHeader && likelyIisServer) {
-      const etagDates = parseIisEtagDate(etagHeader, captureEntry.captureTimestamp);
-      if (etagDates) {
-        if (etagDates.length === 1) {
-          logWarning(
-            `Capture ${captureEntry.captureTimestamp.toISO({ suppressMilliseconds: true })}-${captureEntry.url} has ETag header but no last-modified header. Found 1 plausible match.`,
-            "iis-etag-parser",
-          );
-          return { modificationTimePrecise: etagDates[0] };
-        } else if (etagDates.length > 1) {
-          if (etagDates[0].endsWith("0000000000Z")) {
-            logWarning(
-              `Capture ${captureEntry.captureTimestamp.toISO({ suppressMilliseconds: true })}-${captureEntry.url} has ETag header but no last-modified header. Found multiple plausible matches, one with apparent sub-second precision: ${etagDates.join(", ")}.`,
-              "iis-etag-parser",
-            );
-            console.warn(
-              `Capture ${captureEntry.captureTimestamp.toISO({ suppressMilliseconds: true })}-${captureEntry.url} has ETag header but no last-modified header. Found multiple plausible matches, one with apparent sub-second precision: ${etagDates.join(", ")}.`,
-            );
-            return {
-              modificationTimePrecise: etagDates[0],
-              plausiblePreciseModificationDates: etagDates,
-            };
-          } else {
-            logWarning(
-              `Capture ${captureEntry.captureTimestamp.toISO({ suppressMilliseconds: true })}-${captureEntry.url} has ETag header but no last-modified header, multiple plausible dates found: ${etagDates.join(", ")} but unable to pick.`,
-              "iis-etag-parser",
-            );
-            console.warn(
-              `Capture ${captureEntry.captureTimestamp.toISO({ suppressMilliseconds: true })}-${captureEntry.url} has ETag header but no last-modified header, multiple plausible dates found: ${etagDates.join(", ")}.`,
-            );
-            return { plausiblePreciseModificationDates: etagDates };
-          }
-        }
-      }
-    }
-    return null;
-  } catch (e) {
-    if (likelyIisServer) {
-      logWarning(
-        `Parsing IIS ETag header for ${captureEntry.url} captured at ${captureEntry.captureTimestamp.toISO({ suppressMilliseconds: true })} failed.`,
-        "iis-etag-parser",
-      );
-    }
-    console.error(
-      `Error parsing ETag for ${captureEntry.url} captured at ${captureEntry.captureTimestamp.toISO()}:`,
-      e,
-    );
-    return null;
-  }
-}
-
-function getExactCaptureDate(captureEntry: CaptureEntry): string | null {
-  if (captureEntry.metadata?.commoncrawl?.fetchTimestamp) {
-    return DateTime.fromJSDate(new Date(captureEntry.metadata.commoncrawl.fetchTimestamp)).toFormat(
-      "yyyy-MM-dd'T'HH:mm:ss.SSS'000000Z'",
-    );
-  }
-  return null;
-}
 
 function cdxToOutputData(entry: CdxEntry): CdxEntryJson {
   return {
@@ -172,14 +72,6 @@ export function writeCaptureData(
       entry.captureIndex ? entry.captureIndex : undefined,
     );
 
-    const exactModificationDate = getExactModificationDate(entry);
-    if (!exactModificationDate && getCaptureHeaderValue(entry, "etag") && entry.lastModified) {
-      console.log(
-        `Could not determine exact modification date for ${entry.url} captured at ${entry.captureTimestamp.toISO({ suppressMilliseconds: true })}`,
-      );
-    }
-    const exactCaptureDate = getExactCaptureDate(entry);
-
     const mainCdxEntry = entry.cdxEntry.revisitEntry ?? entry.cdxEntry;
     const resolvedRevisitCdxEntry = entry.cdxEntry.revisitEntry ? entry.cdxEntry : undefined;
 
@@ -210,15 +102,14 @@ export function writeCaptureData(
     const captureData: CaptureDataJson = {
       url: entry.url,
       captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
-      captureTimePrecise: exactCaptureDate ?? undefined,
+      captureTimePrecise: entry.captureTimestampPrecise ?? undefined,
       status: entry.statusCode,
       mimeType: entry.mimetype,
       modificationTime: entry.lastModified
         ? entry.lastModified.toISO({ suppressMilliseconds: true })
         : undefined,
-      modificationTimePrecise: exactModificationDate?.modificationTimePrecise ?? undefined,
-      modificationTimePreciseCandidates:
-        exactModificationDate?.plausiblePreciseModificationDates ?? undefined,
+      modificationTimePrecise: entry.lastModifiedPrecise ?? undefined,
+      modificationTimePreciseCandidates: entry.lastModifiedPreciseCandidates ?? undefined,
       headers: headersResult,
       captureData: {
         source: entry.cdxEntry.source,

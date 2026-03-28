@@ -15,7 +15,7 @@ import {
 } from "./commoncrawl-common.js";
 import { commonCrawlCleanupData } from "./commoncrawl-cleanup.js";
 import { getCommonCrawlCollection } from "./collections.js";
-import { RawHeader } from "../../utils/raw-header-parser.js";
+import { RawHeader } from "../../headers/raw-header-parser.js";
 
 function checkIfTruncated(
   content: Buffer,

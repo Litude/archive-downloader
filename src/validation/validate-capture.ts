@@ -20,13 +20,6 @@ export function validateCaptureEntries(entries: CaptureEntry[]) {
 }
 
 export function validateCaptureEntry(entry: CaptureEntry) {
-  if (entry.lastModified && entry.lastModified.diff(entry.captureTimestamp).as("hours") > 1) {
-    addValidationError(entry, "last-modified-timestamp-future", {
-      lastModified: entry.lastModified.toISO({ suppressMilliseconds: true }),
-      captureTimestamp: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
-    });
-  }
-
   if (entry.headerOutput?.original?.find(([k]) => k.toLowerCase() === "date")) {
     const serverDateHeader = entry.headerOutput.original.find(
       ([k]) => k.toLowerCase() === "date",
@@ -35,9 +28,58 @@ export function validateCaptureEntry(entry: CaptureEntry) {
       ? DateTime.fromHTTP(serverDateHeader, { zone: "utc" })
       : null;
     if (serverDate?.isValid && Math.abs(serverDate.diff(entry.captureTimestamp).as("months")) > 1) {
-      addValidationError(entry, "server-date-timestamp-mismatch", {
+      addValidationError(entry, "server-date-time-mismatch", {
         serverDate: serverDate.toISO({ suppressMilliseconds: true }),
-        captureTimestamp: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
+        captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
+      });
+    }
+  }
+
+  if (entry.captureTimestampPrecise) {
+    const preciseCaptureTimestamp = DateTime.fromISO(entry.captureTimestampPrecise, {
+      zone: "utc",
+    });
+    if (preciseCaptureTimestamp.isValid) {
+      if (Math.abs(preciseCaptureTimestamp.diff(entry.captureTimestamp).as("seconds")) > 1) {
+        addValidationError(entry, "capture-time-precise-mismatch", {
+          captureTimePrecise: entry.captureTimestampPrecise,
+          captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
+        });
+      }
+    }
+  }
+
+  if (entry.lastModified && entry.lastModified.diff(entry.captureTimestamp).as("hours") > 1) {
+    addValidationError(entry, "modification-time-future", {
+      modificationTime: entry.lastModified.toISO({ suppressMilliseconds: true }),
+      captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
+    });
+  }
+
+  if (entry.lastModifiedPrecise && entry.lastModified) {
+    const preciseLastModified = DateTime.fromISO(entry.lastModifiedPrecise, { zone: "utc" });
+    if (preciseLastModified.isValid) {
+      if (Math.abs(preciseLastModified.diff(entry.lastModified).as("seconds")) > 1) {
+        addValidationError(entry, "modification-time-precise-mismatch", {
+          modificationTimePrecise: entry.lastModifiedPrecise,
+          modificationTime: entry.lastModified.toISO({ suppressMilliseconds: true }),
+        });
+      }
+    }
+  }
+
+  if (entry.lastModifiedPreciseCandidates?.length && entry.lastModified) {
+    const candidateDates = entry.lastModifiedPreciseCandidates.map((d) =>
+      DateTime.fromISO(d, { zone: "utc" }),
+    );
+    if (candidateDates) {
+      candidateDates.forEach((candidate, index) => {
+        if (candidate.isValid && Math.abs(candidate.diff(entry.lastModified!).as("seconds")) > 1) {
+          addValidationError(entry, "modification-time-precise-candidate-mismatch", {
+            modificationTimePreciseCandidate: entry.lastModifiedPreciseCandidates?.[index],
+            modificationTime: entry.lastModified?.toISO({ suppressMilliseconds: true }),
+          });
+        }
       });
     }
   }
