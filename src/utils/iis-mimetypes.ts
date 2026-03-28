@@ -26,9 +26,6 @@ export function isIisDefaultMimetype(
   }
 
   const extension = filename.split(".").pop()?.toLowerCase() || "";
-  if (extension === "asp" || extension === "aspx") {
-    return mimetype === "text/html";
-  }
 
   switch (iisVersion) {
     case "2.0": {

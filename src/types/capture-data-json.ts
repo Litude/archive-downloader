@@ -4,6 +4,7 @@ import {
   CaptureCommonCrawlMetadata,
 } from "./capture-types.js";
 import { RawHeader } from "../headers/raw-header-parser.js";
+import { DataCorrection } from "../data-corrections/data-correction.js";
 
 /** CdxEntry as written to capture JSON files — optional fields are serialized as null rather than omitted */
 export interface CdxEntryJson {
@@ -36,12 +37,7 @@ export interface CaptureDataJson {
     original?: RawHeader[];
     reconstructed?: RawHeader[];
   };
-  corrections?: {
-    field: string;
-    originalValue: string;
-    correctedValue: string;
-    reason: string;
-  }[];
+  corrections?: DataCorrection[];
   captureData: {
     source: string;
     contentSize?: number;

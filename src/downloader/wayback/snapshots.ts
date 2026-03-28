@@ -509,6 +509,7 @@ async function fetchWaybackCdxIndex(
         filename: row[7] ?? undefined,
         offset: row[8] ? parseInt(row[8], 10) : undefined,
         source: "wayback",
+        requestUrl: url,
       }));
       return snapshots;
     } catch (e) {

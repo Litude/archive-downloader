@@ -1,8 +1,3 @@
-TODO CommmonCrawl:
-
-- Capture errata handling (fixing capture_ts and url), url fixing needed for
-  some non-common crawl stuff as well (http://\ urls)
-
 output filenames for incremental handling:
 
 1. capture data stored for all captures --> can be found with index from .csv

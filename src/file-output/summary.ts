@@ -5,6 +5,8 @@ import { createObjectCsvWriter } from "csv-writer";
 import { Filename } from "../types/download-input-types.js";
 import { filenameToString } from "../file-name/file-name.js";
 
+const ARRAY_SEPARATOR = "|";
+
 interface SummaryRow {
   capture_ts: string;
   capture_index?: number;
@@ -14,6 +16,7 @@ interface SummaryRow {
   output_index?: number;
   url: string;
   statuscode?: number;
+  corrections?: string;
   classification: string;
   mimetype: string;
   archive_source?: string;
@@ -23,6 +26,17 @@ interface SummaryRow {
   archive_filename?: string;
   archive_offset?: number;
   archive_length?: number;
+}
+
+function mapCorrectionFieldName(field: string): string {
+  switch (field) {
+    case "captureTime":
+      return "capture_ts";
+    case "url":
+      return "url";
+    default:
+      return field;
+  }
 }
 
 export async function writeCsvSummary(
@@ -43,11 +57,19 @@ export async function writeCsvSummary(
         output_index: entry.contentIndex === null ? undefined : entry.contentIndex,
         url: entry.url,
         statuscode: entry.statusCode,
+        corrections:
+          entry.corrections
+            ?.map((correction) => mapCorrectionFieldName(correction.field))
+            .sort()
+            .join(ARRAY_SEPARATOR) ?? "",
         classification: entry.classification.type,
         mimetype: entry.mimetype,
         archive_source: entry.cdxEntry.source,
         additional_sources: entry.additionalSources
-          ? entry.additionalSources.map((source) => source.source).join(";")
+          ? entry.additionalSources
+              .map((source) => source.source)
+              .sort()
+              .join(ARRAY_SEPARATOR)
           : undefined,
         archive_digest: entry.cdxEntry.digest,
         actual_digest: entry.actualDigest,
@@ -56,20 +78,6 @@ export async function writeCsvSummary(
         archive_length: entry.cdxEntry.length,
       }) satisfies SummaryRow,
   );
-
-  // Output sha256 column is only written if any files were post-processed/modified
-  if (summaryRows.every((row) => !row.output_sha256)) {
-    summaryRows.forEach((row) => {
-      delete row.output_sha256;
-    });
-  }
-
-  // Only write separate column for output sha256 if any captures have been modified
-  if (summaryRows.every((row) => row.capture_sha256 === row.output_sha256)) {
-    summaryRows.forEach((row) => {
-      delete row.output_sha256;
-    });
-  }
 
   if (summaryRows.length > 0) {
     const archivalDir = path.join(outputDirectory, ".archivaldata");

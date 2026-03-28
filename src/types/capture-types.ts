@@ -1,6 +1,7 @@
 import { DateTime } from "luxon";
 import { CdxEntry, ExtendedCdxEntry } from "./wayback-types.js";
 import { RawHeader } from "../headers/raw-header-parser.js";
+import { DataCorrection } from "../data-corrections/data-correction.js";
 
 export interface CaptureWaybackMetadata {
   mementoDateTime?: string;
@@ -93,6 +94,7 @@ export interface CaptureEntry {
     source: string;
     cdxEntry: CdxEntry;
   }[];
+  corrections?: DataCorrection[];
   metadata?: {
     wayback?: CaptureWaybackMetadata;
     commoncrawl?: CaptureCommonCrawlMetadata;

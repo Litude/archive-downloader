@@ -19,6 +19,7 @@ import { assignOutputIndices } from "./file-output/output-indices.js";
 import { downloadCommonCrawlEntries } from "./downloader/downloader-commoncrawl.js";
 import { validateCaptureEntries } from "./validation/validate-capture.js";
 import { enrichCaptureEntryWithExactTimestamps } from "./utils/timestamp.js";
+import { applyDataCorrectionsToEntry } from "./data-corrections/data-correction.js";
 
 function mergeWaybackAndCommonCrawlEntries(
   waybackEntries: CaptureEntry[],
@@ -120,6 +121,10 @@ async function processWebsiteDownloads(
     }
 
     validateCaptureEntries(baseEntries);
+
+    for (const entry of baseEntries) {
+      applyDataCorrectionsToEntry(entry);
+    }
 
     const anyValidEntries = baseEntries.some((entry) => entry.classification.type === "ok");
 

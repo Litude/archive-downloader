@@ -15,6 +15,8 @@ export interface CdxEntry {
 export interface ExtendedCdxEntry extends CdxEntry {
   /** e.g. wayback, commoncrawl */
   source: string;
+  /** url used when querying the cdx index */
+  requestUrl: string;
   /** common crawl collection */
   collection?: string;
   /** For entries that were originally warc/revisit and are resolved, this contains the original entry with the warc/revisit content type */

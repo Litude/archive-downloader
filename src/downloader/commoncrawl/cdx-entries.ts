@@ -75,7 +75,11 @@ async function fetchCdx(
   return entries;
 }
 
-function mapToExtendedCdxEntry(raw: CommonCrawlCdxEntry, collectionId: string): ExtendedCdxEntry {
+function mapToExtendedCdxEntry(
+  raw: CommonCrawlCdxEntry,
+  collectionId: string,
+  requestUrl: string,
+): ExtendedCdxEntry {
   const statusParsed = parseInt(raw.status, 10);
   const lengthParsed = parseInt(raw.length, 10);
   const offsetParsed = parseInt(raw.offset, 10);
@@ -91,6 +95,7 @@ function mapToExtendedCdxEntry(raw: CommonCrawlCdxEntry, collectionId: string): 
     length: isNaN(lengthParsed) ? undefined : lengthParsed,
     offset: isNaN(offsetParsed) ? undefined : offsetParsed,
     source: "commoncrawl",
+    requestUrl,
     collection: collectionId,
   };
 }
@@ -106,5 +111,5 @@ export async function fetchCdxEntriesForCollection(
   const rawEntries = await fetchCdx(cdxApiUrl, urlEntry.url, options);
   await new Promise((res) => setTimeout(res, options.requestDelayMs));
 
-  return rawEntries.map((raw) => mapToExtendedCdxEntry(raw, collection.id));
+  return rawEntries.map((raw) => mapToExtendedCdxEntry(raw, collection.id, urlEntry.url));
 }

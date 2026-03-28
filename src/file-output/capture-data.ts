@@ -111,6 +111,7 @@ export function writeCaptureData(
       modificationTimePrecise: entry.lastModifiedPrecise ?? undefined,
       modificationTimePreciseCandidates: entry.lastModifiedPreciseCandidates ?? undefined,
       headers: headersResult,
+      corrections: entry.corrections,
       captureData: {
         source: entry.cdxEntry.source,
         contentSize: entry.content?.length,
