@@ -42,15 +42,15 @@ function getEntryUrls(
     return entry.urls.map((u) =>
       typeof u === "string"
         ? {
-          url: u,
-          maxTimestamp: entry.maxTimestamp ?? maxTimestamp,
-          minTimestamp: entry.minTimestamp ?? minTimestamp,
-        }
+            url: u,
+            maxTimestamp: entry.maxTimestamp ?? maxTimestamp,
+            minTimestamp: entry.minTimestamp ?? minTimestamp,
+          }
         : {
-          url: u.url,
-          maxTimestamp: u.maxTimestamp ?? entry.maxTimestamp ?? maxTimestamp,
-          minTimestamp: u.minTimestamp ?? entry.minTimestamp ?? minTimestamp,
-        },
+            url: u.url,
+            maxTimestamp: u.maxTimestamp ?? entry.maxTimestamp ?? maxTimestamp,
+            minTimestamp: u.minTimestamp ?? entry.minTimestamp ?? minTimestamp,
+          },
     );
   } else if (entry.url) {
     return [
@@ -82,10 +82,10 @@ function createAllMirrorUrls(
   const mirrorUrls = createMirrorUrls(urls, mirrors);
   const additionalUrls = file.additionalUrls
     ? createAdditionalUrls(
-      file.additionalUrls,
-      file.maxTimestamp ?? maxTimestamp,
-      file.minTimestamp ?? minTimestamp,
-    )
+        file.additionalUrls,
+        file.maxTimestamp ?? maxTimestamp,
+        file.minTimestamp ?? minTimestamp,
+      )
     : [];
   return [...mirrorUrls, ...additionalUrls];
 }

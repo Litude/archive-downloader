@@ -3,6 +3,5 @@
     "*.json": "jsonc"
   },
   "editor.tabSize": 2,
-  "editor.insertSpaces": true,
-  "editor.formatOnSave": true
+  "editor.insertSpaces": true
 }

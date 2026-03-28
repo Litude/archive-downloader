@@ -101,6 +101,7 @@ export async function downloadCommonCrawlFile(
       ? parseArcFile(buffer, arcCleanupData)
       : parseWarcFile(buffer, {
           undoCommonCrawlHeaderNaming: true,
+          extraBlankLineAfterHeaders: collectionCleanupData?.extraBlankLineAfterHeaders,
         });
     const responseHeaders = Object.fromEntries(
       parsed.headers.map(([k, v]) => [k.toLowerCase(), v]),

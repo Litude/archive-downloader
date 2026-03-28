@@ -3,6 +3,7 @@ import { dechunkChunkedResponse } from "./dechunk.js";
 
 interface WarcParsingOptions {
   undoCommonCrawlHeaderNaming?: boolean;
+  extraBlankLineAfterHeaders?: boolean; // CC-MAIN-2018-34 has an extra blank line after HTTP headers
 }
 
 export function parseWarcFile(
@@ -64,7 +65,8 @@ export function parseWarcFile(
   }
 
   const httpHeaders = parseArchiveRecordHeadersToPairs(httpHeaderLines.slice(1));
-  let payloadBuffer = httpBlock.subarray(httpHeaderEnd + 4);
+  const dividerSize = options?.extraBlankLineAfterHeaders ? 6 : 4;
+  let payloadBuffer = httpBlock.subarray(httpHeaderEnd + dividerSize);
 
   const isChunked = httpHeaders.some(
     ([name, value]) =>

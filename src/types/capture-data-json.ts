@@ -1,4 +1,8 @@
-import { Classification, CaptureWaybackMetadata, CaptureCommonCrawlMetadata } from "./capture-types.js";
+import {
+  Classification,
+  CaptureWaybackMetadata,
+  CaptureCommonCrawlMetadata,
+} from "./capture-types.js";
 import { RawHeader } from "../utils/raw-header-parser.js";
 
 /** CdxEntry as written to capture JSON files — optional fields are serialized as null rather than omitted */
