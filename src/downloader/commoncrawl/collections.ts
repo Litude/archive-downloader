@@ -89,13 +89,21 @@ export function filterCollectionsByTimestamp(
 export async function getFilteredCollections(
   urlEntry: UrlEntry,
   options?: CommonCrawlDownloaderOptions,
+  commonCrawlCollections?: string[],
 ): Promise<{ collections: CommonCrawlCollection[]; wasFetched: boolean }> {
   const wasCached = cachedCollections !== null;
   const allCollections = await fetchAllCollections(options);
-  const collections = filterCollectionsByTimestamp(
+  let collections = filterCollectionsByTimestamp(
     allCollections,
     urlEntry.minTimestamp,
     urlEntry.maxTimestamp,
   );
+
+  if (commonCrawlCollections && commonCrawlCollections.length > 0) {
+    collections = collections.filter((collection) =>
+      commonCrawlCollections.includes(collection.id),
+    );
+  }
+
   return { collections, wasFetched: !wasCached };
 }

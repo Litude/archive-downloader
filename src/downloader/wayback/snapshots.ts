@@ -158,7 +158,7 @@ export async function getSnapshotsForWebsiteFile(
     validCdxEntries: validCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
     invalidCdxEntries: invalidCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
     metadata: {
-      duplicateTimestampsRemoved: duplicateFiltered,
+      duplicateTimestampsRemoved: duplicateFiltered ? duplicateFiltered : undefined,
       limitedCaptureRanges: limitedCaptureFiltered
         ? {
             configs: limitedCaptureConfigs,

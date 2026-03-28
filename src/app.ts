@@ -237,6 +237,7 @@ async function processWebsiteDownloads(
         writeUniqueFileEntries(rawFiles, rawFilename, input.outputDirectory);
         writeCaptureData(updatedEntries, filename, input.outputDirectory);
         writeUrlMetadata(
+          input,
           [...updatedEntries, ...invalidEntries],
           unavailableEntries,
           downloadMetadata,
@@ -261,6 +262,7 @@ async function processWebsiteDownloads(
       writeCaptureData(baseEntries, input.filename, input.outputDirectory);
 
       writeUrlMetadata(
+        input,
         baseEntries,
         unavailableEntries,
         downloadMetadata,

@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { Filename, LimitedCaptureRange } from "../types/download-input-types.js";
+import { DownloadFileInput, Filename, LimitedCaptureRange } from "../types/download-input-types.js";
 import { filenameToString } from "../file-name/file-name.js";
 import { CaptureEntry } from "../types/capture-types.js";
 
@@ -36,6 +36,8 @@ interface UrlMetadataArchivalRun {
 }
 
 export interface UrlMetadata {
+  maxTimestamp?: string;
+  minTimestamp?: string;
   totalCaptures: number;
   validCaptures: number;
   invalidCaptures: number;
@@ -51,14 +53,42 @@ export interface UrlMetadata {
   archivalRuns: UrlMetadataArchivalRun[];
 }
 
+function getTimestampsFromFile(file: DownloadFileInput): {
+  maxTimestamp?: string;
+  minTimestamp?: string;
+} {
+  const timestamps: { maxTimestamp?: string; minTimestamp?: string } = {};
+  const mainUrls = file.urls.filter((u) => !u.mirrorUrl);
+  if (mainUrls.length > 0) {
+    if (!mainUrls.some((u) => !u.maxTimestamp)) {
+      timestamps.maxTimestamp = mainUrls.reduce(
+        (max, u) => (u.maxTimestamp! > max ? u.maxTimestamp! : max),
+        mainUrls[0].maxTimestamp!,
+      );
+    }
+    if (!mainUrls.some((u) => !u.minTimestamp)) {
+      timestamps.minTimestamp = mainUrls.reduce(
+        (min, u) => (u.minTimestamp! < min ? u.minTimestamp! : min),
+        mainUrls[0].minTimestamp!,
+      );
+    }
+  }
+
+  return timestamps;
+}
+
 export function writeUrlMetadata(
+  fileInput: DownloadFileInput,
   captureEntries: CaptureEntry[],
   unavailableEntries: CaptureEntry[],
   metadata: Record<"wayback" | "commonCrawl", UrlMetadataFilteredEntries>,
   filename: Filename,
   outputDirectory: string,
 ) {
+  const timestamps = getTimestampsFromFile(fileInput);
   const urlMetadata: UrlMetadata = {
+    maxTimestamp: timestamps.maxTimestamp,
+    minTimestamp: timestamps.minTimestamp,
     totalCaptures: captureEntries.length,
     validCaptures: captureEntries.filter((entry) => entry.classification.type === "ok").length,
     invalidCaptures: captureEntries.filter((entry) => entry.classification.type !== "ok").length,

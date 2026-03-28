@@ -22,6 +22,7 @@ export interface WebsiteFileEntryJson {
   additionalUrls?: (string | MirrorUrlData)[];
   classifications?: Record<string, CaptureClassification>;
   commonCrawlEnabled?: boolean;
+  commonCrawlCollections?: string[];
   skippedCaptures?: {
     url: string; // must match CDX index url exactly
     timestamp: string;

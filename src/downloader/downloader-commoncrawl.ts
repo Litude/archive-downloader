@@ -24,6 +24,7 @@ import { UrlMetadataFilteredEntries } from "../file-output/url-metadata.js";
 async function fetchCommonCrawlCdxEntries(
   urlEntry: UrlEntry,
   options?: CommonCrawlDownloaderOptions,
+  commonCrawlCollections?: string[],
 ): Promise<ExtendedCdxEntry[]> {
   const resolvedOptions = {
     requestDelayMs: options?.requestDelayMs ?? COMMONCRAWL_REQUEST_DELAY_MS,
@@ -32,7 +33,11 @@ async function fetchCommonCrawlCdxEntries(
 
   console.log(`Fetching Common Crawl CDX entries for ${urlEntry.url}...`);
 
-  const { collections, wasFetched } = await getFilteredCollections(urlEntry, resolvedOptions);
+  const { collections, wasFetched } = await getFilteredCollections(
+    urlEntry,
+    resolvedOptions,
+    commonCrawlCollections,
+  );
 
   if (wasFetched) {
     await new Promise((res) => setTimeout(res, resolvedOptions.requestDelayMs));
@@ -177,8 +182,9 @@ function filterNonTrailingSlashRedirects(
 async function downloadUrlCommonCrawlEntries(
   urlEntry: UrlEntry,
   options?: CommonCrawlDownloaderOptions,
+  commonCrawlCollections?: string[],
 ): Promise<{ filteredEntries: CaptureEntry[]; redirectNonSlashFiltered: number }> {
-  const cdxEntries = await fetchCommonCrawlCdxEntries(urlEntry, options);
+  const cdxEntries = await fetchCommonCrawlCdxEntries(urlEntry, options, commonCrawlCollections);
 
   const files: { file: CommonCrawlDownloadedFile; entry: ExtendedCdxEntry }[] = [];
   const captureEntries: CaptureEntry[] = [];
@@ -217,7 +223,11 @@ export async function downloadCommonCrawlEntries(
 
   let redirectNonSlashTotal = 0;
   for (const urlEntry of input.urls) {
-    const result = await downloadUrlCommonCrawlEntries(urlEntry, options);
+    const result = await downloadUrlCommonCrawlEntries(
+      urlEntry,
+      options,
+      input.commonCrawlCollections,
+    );
     redirectNonSlashTotal += result.redirectNonSlashFiltered;
     captureEntries.push(...result.filteredEntries);
   }
@@ -226,7 +236,7 @@ export async function downloadCommonCrawlEntries(
   return {
     filteredEntries: captureEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
     metadata: {
-      nonTrailingSlashUrlRedirects: redirectNonSlashTotal,
+      nonTrailingSlashUrlRedirects: redirectNonSlashTotal ? redirectNonSlashTotal : undefined,
     },
   };
 }
