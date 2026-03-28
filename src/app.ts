@@ -110,12 +110,20 @@ async function processWebsiteDownloads(
       baseEntries: waybackEntries,
       unavailableEntries,
       skippedEntries,
-      metadata,
+      metadata: waybackDownloadMetadata,
     } = await downloadWaybackEntries(input, context);
 
-    const ccEntries = input.commonCrawlEnabled ? await downloadCommonCrawlEntries(input) : [];
+    const { filteredEntries: commonCrawlEntries, metadata: commonCrawlDownloadMetadata } =
+      input.commonCrawlEnabled
+        ? await downloadCommonCrawlEntries(input)
+        : { filteredEntries: [], metadata: {} };
 
-    const baseEntries = mergeWaybackAndCommonCrawlEntries(waybackEntries, ccEntries);
+    const downloadMetadata = {
+      wayback: waybackDownloadMetadata,
+      commonCrawl: commonCrawlDownloadMetadata,
+    };
+
+    const baseEntries = mergeWaybackAndCommonCrawlEntries(waybackEntries, commonCrawlEntries);
 
     for (const entry of baseEntries) {
       enrichCaptureEntryWithExactTimestamps(entry);
@@ -213,8 +221,8 @@ async function processWebsiteDownloads(
         }
         assignContentIndices(updatedEntries);
         writeUniqueFileEntries(updatedEntries, filename, input.outputDirectory);
-        const summaryEntries = [...updatedEntries, ...invalidEntries].sort((a, b) =>
-          a.timestamp.localeCompare(b.timestamp),
+        const summaryEntries = [...updatedEntries, ...invalidEntries, ...unavailableEntries].sort(
+          (a, b) => a.timestamp.localeCompare(b.timestamp),
         );
         await writeCsvSummary(summaryEntries, filename, input.outputDirectory);
         // This actually includes the raw and all invalid files
@@ -228,6 +236,13 @@ async function processWebsiteDownloads(
         rawFilename.flags = "raw";
         writeUniqueFileEntries(rawFiles, rawFilename, input.outputDirectory);
         writeCaptureData(updatedEntries, filename, input.outputDirectory);
+        writeUrlMetadata(
+          [...updatedEntries, ...invalidEntries],
+          unavailableEntries,
+          downloadMetadata,
+          filename,
+          input.outputDirectory,
+        );
       }
     } else {
       if (!anyValidEntries) {
@@ -244,10 +259,14 @@ async function processWebsiteDownloads(
       );
       await writeCsvSummary(summaryEntries, input.filename, input.outputDirectory);
       writeCaptureData(baseEntries, input.filename, input.outputDirectory);
-    }
 
-    if (metadata) {
-      writeUrlMetadata(metadata, input.filename, input.outputDirectory);
+      writeUrlMetadata(
+        baseEntries,
+        unavailableEntries,
+        downloadMetadata,
+        input.filename,
+        input.outputDirectory,
+      );
     }
 
     console.log("\n----------------------------------------\n");

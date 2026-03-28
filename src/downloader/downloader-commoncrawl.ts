@@ -19,6 +19,7 @@ import { parseWarcinfoFile } from "../archive-record/warcinfo.js";
 import { resolveCommonCrawlRevisitRecords } from "./commoncrawl/commoncrawl-revisit.js";
 import { parseCommonCrawlTimestamps } from "./commoncrawl/commoncrawl-timestamps.js";
 import { sanityCheckTimestamps } from "../utils/timestamp.js";
+import { UrlMetadataFilteredEntries } from "../file-output/url-metadata.js";
 
 async function fetchCommonCrawlCdxEntries(
   urlEntry: UrlEntry,
@@ -151,10 +152,32 @@ function buildCaptureEntry(entry: ExtendedCdxEntry, file: CommonCrawlDownloadedF
   };
 }
 
+function filterNonTrailingSlashRedirects(
+  entries: CaptureEntry[],
+  requestUrl: string,
+): {
+  filteredEntries: CaptureEntry[];
+  redirectNonSlashFiltered: number;
+} {
+  let redirectNonSlashFiltered = 0;
+  entries.filter((snapshot) => {
+    if ([301, 302].includes(snapshot.statusCode ?? 0)) {
+      const originalUrl = snapshot.url;
+      if (requestUrl.endsWith("/") && !originalUrl.endsWith("/")) {
+        redirectNonSlashFiltered++;
+        return false;
+      }
+    }
+    return true;
+  });
+
+  return { filteredEntries: entries, redirectNonSlashFiltered };
+}
+
 async function downloadUrlCommonCrawlEntries(
   urlEntry: UrlEntry,
   options?: CommonCrawlDownloaderOptions,
-): Promise<CaptureEntry[]> {
+): Promise<{ filteredEntries: CaptureEntry[]; redirectNonSlashFiltered: number }> {
   const cdxEntries = await fetchCommonCrawlCdxEntries(urlEntry, options);
 
   const files: { file: CommonCrawlDownloadedFile; entry: ExtendedCdxEntry }[] = [];
@@ -172,19 +195,38 @@ async function downloadUrlCommonCrawlEntries(
     captureEntries.push(buildCaptureEntry(entry, file));
   });
 
-  return captureEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const { filteredEntries, redirectNonSlashFiltered } = filterNonTrailingSlashRedirects(
+    captureEntries,
+    urlEntry.url,
+  );
+  console.log(
+    `Filtered ${redirectNonSlashFiltered} non-trailing-slash redirects for ${urlEntry.url}.`,
+  );
+
+  return {
+    filteredEntries: filteredEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
+    redirectNonSlashFiltered,
+  };
 }
 
 export async function downloadCommonCrawlEntries(
   input: DownloadFileInput,
   options?: CommonCrawlDownloaderOptions,
-): Promise<CaptureEntry[]> {
+): Promise<{ filteredEntries: CaptureEntry[]; metadata: UrlMetadataFilteredEntries }> {
   const captureEntries: CaptureEntry[] = [];
 
+  let redirectNonSlashTotal = 0;
   for (const urlEntry of input.urls) {
-    const entries = await downloadUrlCommonCrawlEntries(urlEntry, options);
-    captureEntries.push(...entries);
+    const result = await downloadUrlCommonCrawlEntries(urlEntry, options);
+    redirectNonSlashTotal += result.redirectNonSlashFiltered;
+    captureEntries.push(...result.filteredEntries);
   }
 
-  return captureEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  console.log(`Total filtered non-trailing-slash redirects: ${redirectNonSlashTotal}`);
+  return {
+    filteredEntries: captureEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
+    metadata: {
+      nonTrailingSlashUrlRedirects: redirectNonSlashTotal,
+    },
+  };
 }

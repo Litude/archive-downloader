@@ -13,6 +13,7 @@ function makeCdx(timestamp: string): ExtendedCdxEntry {
     mimetype: "text/html",
     length: 100,
     source: "superarchive",
+    requestUrl: "http://example.com/",
   };
 }
 

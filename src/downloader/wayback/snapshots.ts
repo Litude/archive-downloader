@@ -15,6 +15,7 @@ import {
 import { Context } from "../../types/context.js";
 import { isDefined } from "../../utils/ts-utils.js";
 import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common.js";
+import { UrlMetadataFilteredEntries } from "../../file-output/url-metadata.js";
 
 const WAYBACK_CDX_API_URL = "http://web.archive.org/cdx/search/cdx";
 const REQUEST_TIMEOUT = 60000; // 60 seconds
@@ -25,7 +26,14 @@ const MAX_BACKOFF = 600_000; // 10 minutes
 // Redirects and not found are the most likely codes when a page no longer exists
 const INVALID_ALLOWED_STATUS_CODES = [301, 302, 303, 304, 307, 308, 403, 404];
 
-export async function getSnapshotsForWebsiteFile(input: DownloadFileInput, context: Context) {
+export async function getSnapshotsForWebsiteFile(
+  input: DownloadFileInput,
+  context: Context,
+): Promise<{
+  validCdxEntries: ExtendedCdxEntry[];
+  invalidCdxEntries: ExtendedCdxEntry[];
+  metadata: UrlMetadataFilteredEntries;
+}> {
   const includeInvalid = context.settings.includeInvalid ?? false;
   console.log(
     `Processing ${filenameToString(input.filename, "simple")} with output directory: ${input.outputDirectory}`,
@@ -72,17 +80,28 @@ export async function getSnapshotsForWebsiteFile(input: DownloadFileInput, conte
   }
 
   let limitedCaptureFiltered = 0;
+  let redirectNonSlashTotal = 0;
+  let duplicateFiltered = 0;
 
   for (const { snapshots, url } of preliminaryResults) {
     console.log(`Postprocessing ${url.url}`);
-    const { uniqueSnapshots, filteredValidSnapshots, filteredInvalidSnapshots } =
-      await filterDuplicateSnapshots(
-        url.url,
-        includeInvalid && !url.excludeInvalid,
-        snapshots,
-        limitedCaptureConfigs,
-        context,
-      );
+    const {
+      uniqueSnapshots,
+      filteredValidSnapshots,
+      filteredInvalidSnapshots,
+      redirectNonSlashFiltered,
+      limitedCaptureFiltered: dupeLimitCapture,
+      duplicateFiltered: dupeFiltered,
+    } = await filterDuplicateSnapshots(
+      url.url,
+      includeInvalid && !url.excludeInvalid,
+      snapshots,
+      limitedCaptureConfigs,
+      context,
+    );
+    redirectNonSlashTotal += redirectNonSlashFiltered;
+    limitedCaptureFiltered += dupeLimitCapture;
+    duplicateFiltered += dupeFiltered;
     let validSnapShots = uniqueSnapshots.filter((snapshot) =>
       snapshot.status?.toString().startsWith("2"),
     );
@@ -139,16 +158,19 @@ export async function getSnapshotsForWebsiteFile(input: DownloadFileInput, conte
     validCdxEntries: validCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
     invalidCdxEntries: invalidCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
     metadata: {
-      limitedCapture: limitedCaptureFiltered
+      duplicateTimestampsRemoved: duplicateFiltered,
+      limitedCaptureRanges: limitedCaptureFiltered
         ? {
-            limitedCaptureConfigs,
-            filteredEntries: limitedCaptureFiltered,
+            configs: limitedCaptureConfigs,
+            count: limitedCaptureFiltered,
           }
         : undefined,
-      unresolveableRevisits:
+      nonTrailingSlashUrlRedirects: redirectNonSlashTotal ? redirectNonSlashTotal : undefined,
+      unresolvableRevisits:
         unresolveableRevisits.length > 0
           ? {
               entries: unresolveableRevisits,
+              count: unresolveableRevisits.reduce((sum, item) => sum + item.timestamps.length, 0),
             }
           : undefined,
     },
@@ -221,7 +243,11 @@ async function resolveDuplicateSnapshots(
   snapshots: ExtendedCdxEntry[],
   limitedCaptures: LimitedCaptureRange[],
   context: Context,
-): Promise<ExtendedCdxEntry[]> {
+): Promise<{
+  uniqueSnapshots: ExtendedCdxEntry[];
+  limitedCaptureFiltered: number;
+  filteredSnapshots: number;
+}> {
   // Group snapshots by timestamp to handle duplicates
   const snapshotsByTimestamp = new Map<string, ExtendedCdxEntry[]>();
   let filteredSnapshots = 0;
@@ -340,7 +366,7 @@ async function resolveDuplicateSnapshots(
   if (filteredSnapshots > 0) {
     console.log(`Filtered out ${filteredSnapshots} total duplicate snapshots based on timestamp.`);
   }
-  return uniqueSnapshots;
+  return { uniqueSnapshots, limitedCaptureFiltered, filteredSnapshots };
 }
 
 // In some cases, the CDX index may contain multiple snapshots with the same timestamp for the same URL.
@@ -360,13 +386,17 @@ async function filterDuplicateSnapshots(
   filteredValidSnapshots: number;
   filteredInvalidSnapshots: number;
   filteredUnwantedSnapshots: number;
+  redirectNonSlashFiltered: number;
+  limitedCaptureFiltered: number;
+  duplicateFiltered: number;
 }> {
   const filteredValidSnapshots = 0;
   let filteredUnwantedSnapshots = 0; // these entries are quietly discarded
   const filteredInvalidSnapshots = 0; // these are logged as removed
 
   // As a very first step, we need to find all duplicate entries and resolve them by fetching the headers to see which one is actually the one that can be fetched
-  let filteredSnapshots = await resolveDuplicateSnapshots(snapshots, limitedCaptures, context);
+  const result = await resolveDuplicateSnapshots(snapshots, limitedCaptures, context);
+  let filteredSnapshots = result.uniqueSnapshots;
 
   // First we filter snapshots down to the statuscodes we might want to keep (2xx, 301, 302, 404)
   filteredSnapshots = filteredSnapshots.filter((snapshot) => {
@@ -384,11 +414,13 @@ async function filterDuplicateSnapshots(
   // if the code is a 301/302 and the request URL ended with / but the archive url does not, we will filter it out
   // Such cases are most likely redirects to the URL with the trailing slash, which we don't care about (since the primary
   // purpose is to see when the page was removed)
+  let redirectNonSlashFiltered = 0;
   filteredSnapshots = filteredSnapshots.filter((snapshot) => {
     if ([301, 302].includes(snapshot.status ?? 0)) {
       const originalUrl = snapshot.url;
       if (requestUrl.endsWith("/") && !originalUrl.endsWith("/")) {
         filteredUnwantedSnapshots++;
+        redirectNonSlashFiltered++;
         return false;
       }
     }
@@ -400,6 +432,9 @@ async function filterDuplicateSnapshots(
     filteredValidSnapshots,
     filteredInvalidSnapshots,
     filteredUnwantedSnapshots,
+    redirectNonSlashFiltered,
+    limitedCaptureFiltered: result.limitedCaptureFiltered,
+    duplicateFiltered: result.filteredSnapshots - result.limitedCaptureFiltered,
   };
 }
 
