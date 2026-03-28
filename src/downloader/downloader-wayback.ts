@@ -1,8 +1,7 @@
 import { getSnapshotsForWebsiteFile } from "./wayback/snapshots.js";
-import { computeSha256, computeWaybackDigest } from "../utils/hash.js";
+import { computeSha256, computeBase32EncodedSha1 } from "../utils/hash.js";
 import { classifyEntry } from "../classification/classifier.js";
 import { DownloadedFile } from "../types/download-types.js";
-import { parseHeaderTimestamps } from "../utils/timestamp.js";
 import {
   downloadUniqueDigestsForSnapshots,
   fetchWaybackFileHeaders,
@@ -13,7 +12,7 @@ import {
   CaptureWaybackMetadata,
   Classification,
 } from "../types/capture-types.js";
-import { getWaybackFilename } from "../utils/wayback-filename.js";
+import { getWaybackFilename } from "./wayback/wayback-filename.js";
 import { filenameToString } from "../file-name/file-name.js";
 import { DateTime } from "luxon";
 import { CdxEntry } from "../types/wayback-types.js";
@@ -32,13 +31,15 @@ import { tryToCompleteMissingCdxFields } from "./wayback/cdx-completion/cdx-comp
 import { cleanUpCorruptCommonCrawlEntries } from "./wayback/wayback-commoncrawl-cleanup.js";
 import { extractMimeTypeFromContentType } from "../utils/mimetype.js";
 import { getArchivedRecord } from "../archive-record/archive-record.js";
+import { parseWaybackHeaderTimestamps } from "./wayback/wayback-timestamps.js";
+import { sanityCheckTimestamps } from "../utils/timestamp.js";
 
 function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
   const digestHashes = new Map<string, { sha256: string; actualDigest: string }>();
 
   [...uniqueDigestFiles.entries()].forEach(([digest, file]) => {
     const sha256 = computeSha256(file.content);
-    const actualDigest = computeWaybackDigest(file.content);
+    const actualDigest = computeBase32EncodedSha1(file.content);
     digestHashes.set(digest, { sha256, actualDigest });
   });
 
@@ -144,7 +145,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
           ? downloadedFile.rawResponseHeaders
           : entry.metadata?.rawHeaders;
         const timestamps = headers
-          ? parseHeaderTimestamps(entry.url, headers, entry.timestamp, true)
+          ? parseWaybackHeaderTimestamps(headers, entry.timestamp)
           : {
               captureDate: DateTime.fromFormat(entry.timestamp, "yyyyLLddHHmmss", {
                 zone: "utc",
@@ -153,6 +154,14 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
               mementoDate: null,
               serverDate: null,
             };
+        sanityCheckTimestamps({
+          url: entry.url,
+          lastModified: timestamps.lastModified,
+          mementoDate: timestamps.mementoDate,
+          serverDate: timestamps.serverDate,
+          captureDate: timestamps.captureDate,
+        });
+
         const waybackFilename =
           fetchAllHeaders && headers ? getWaybackFilename(headers) : undefined;
         const lastModified = timestamps.lastModified;
@@ -257,12 +266,17 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
         entry.url,
         entry.statusCode ? [entry.statusCode] : undefined,
       );
-      const timestamps = parseHeaderTimestamps(
-        entry.url,
+      const timestamps = parseWaybackHeaderTimestamps(
         response.responseHeaders,
         entry.timestamp,
-        true,
       );
+      sanityCheckTimestamps({
+        url: entry.url,
+        lastModified: timestamps.lastModified,
+        mementoDate: timestamps.mementoDate,
+        serverDate: timestamps.serverDate,
+        captureDate: timestamps.captureDate,
+      });
       const waybackFilename = getWaybackFilename(response.responseHeaders);
       const existingEntry = baseEntries.find(
         (e) => e.url === entry.url && e.timestamp === entry.timestamp,

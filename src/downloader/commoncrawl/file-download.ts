@@ -1,7 +1,7 @@
 import { ArcParsingOptions, parseArcFile } from "../../archive-record/arc.js";
 import { parseWarcFile } from "../../archive-record/warc.js";
-import { fetchRangeBytes } from "../../utils/fetch-range-bytes.js";
-import { fetchWarcGlobalHeader } from "../../utils/fetch-warc-global-header.js";
+import { fetchRangeBytes } from "../../archive-record/fetch-range-bytes.js";
+import { fetchWarcGlobalHeader } from "../../archive-record/fetch-warc-global-header.js";
 import { ExtendedCdxEntry } from "../../types/wayback-types.js";
 import {
   CommonCrawlDownloadedFile,
@@ -103,8 +103,17 @@ export async function downloadCommonCrawlFile(
           undoCommonCrawlHeaderNaming: true,
           extraBlankLineAfterHeaders: collectionCleanupData?.extraBlankLineAfterHeaders,
         });
+
+    const responseHeadersArray = parsed.headers.reduce((acc, [k, v]) => {
+      if (!acc[k.toLowerCase()]) {
+        acc[k.toLowerCase()] = [];
+      }
+      acc[k.toLowerCase()].push(v);
+      return acc;
+    }, {} as Record<string, string[]>);
+
     const responseHeaders = Object.fromEntries(
-      parsed.headers.map(([k, v]) => [k.toLowerCase(), v]),
+      Object.entries(responseHeadersArray).map(([k, v]) => [k, v.join(", ")]),
     );
 
     const contentTruncationDetails = checkIfTruncated(

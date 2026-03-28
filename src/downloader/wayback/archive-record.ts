@@ -5,8 +5,8 @@ import {
   WAYBACK_MAX_BACKOFF,
   WAYBACK_REQUEST_TIMEOUT,
 } from "./wayback-common.js";
-import { fetchRangeBytes } from "../../utils/fetch-range-bytes.js";
-import { fetchWarcGlobalHeader } from "../../utils/fetch-warc-global-header.js";
+import { fetchRangeBytes } from "../../archive-record/fetch-range-bytes.js";
+import { fetchWarcGlobalHeader } from "../../archive-record/fetch-warc-global-header.js";
 import { ArchiveRecord, CaptureEntry } from "../../types/capture-types.js";
 import { parseCdx } from "../../cdx/cdx-parser.js";
 import { CdxEntry } from "../../types/wayback-types.js";

@@ -12,12 +12,13 @@ import {
 import { getFilteredCollections } from "./commoncrawl/collections.js";
 import { fetchCdxEntriesForCollection } from "./commoncrawl/cdx-entries.js";
 import { downloadCommonCrawlFile } from "./commoncrawl/file-download.js";
-import { computeSha256, computeWaybackDigest } from "../utils/hash.js";
-import { parseHeaderTimestamps } from "../utils/timestamp.js";
+import { computeSha256, computeBase32EncodedSha1 } from "../utils/hash.js";
 import { classifyEntry } from "../classification/classifier.js";
 import { extractMimeTypeFromContentType } from "../utils/mimetype.js";
 import { parseWarcinfoFile } from "../archive-record/warcinfo.js";
 import { resolveCommonCrawlRevisitRecords } from "./commoncrawl/commoncrawl-revisit.js";
+import { parseCommonCrawlTimestamps } from "./commoncrawl/commoncrawl-timestamps.js";
+import { sanityCheckTimestamps } from "../utils/timestamp.js";
 
 async function fetchCommonCrawlCdxEntries(
   urlEntry: UrlEntry,
@@ -80,9 +81,15 @@ function extractCrawlData(file: CommonCrawlDownloadedFile) {
 
 function buildCaptureEntry(entry: ExtendedCdxEntry, file: CommonCrawlDownloadedFile): CaptureEntry {
   const sha256 = computeSha256(file.content);
-  const actualDigest = computeWaybackDigest(file.content);
+  const actualDigest = computeBase32EncodedSha1(file.content);
 
-  const timestamps = parseHeaderTimestamps(entry.url, file.responseHeaders, entry.timestamp, false);
+  const timestamps = parseCommonCrawlTimestamps(file.responseHeaders, entry.timestamp);
+  sanityCheckTimestamps({
+    url: entry.url,
+    lastModified: timestamps.lastModified,
+    serverDate: timestamps.serverDate,
+    captureDate: timestamps.captureDate,
+  });
 
   const mimetype =
     extractMimeTypeFromContentType(file.responseHeaders["content-type"]) || entry.mimetype;

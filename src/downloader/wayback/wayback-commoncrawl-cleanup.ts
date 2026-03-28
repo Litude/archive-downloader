@@ -1,6 +1,6 @@
 import { classifyEntry } from "../../classification/classifier.js";
 import { CaptureClassification, CaptureEntry } from "../../types/capture-types.js";
-import { computeSha256, computeWaybackDigest } from "../../utils/hash.js";
+import { computeSha256, computeBase32EncodedSha1 } from "../../utils/hash.js";
 import { fetchWaybackFile } from "./file-download.js";
 
 /** It seems that ALL gzipped common crawl entries served by wayback are corrupt.
@@ -54,7 +54,7 @@ export async function cleanUpCorruptCommonCrawlEntries(
             firstEntry.statusCode ?? 0,
           );
           const sha256 = computeSha256(fileContent.content);
-          const actualDigest = computeWaybackDigest(fileContent.content);
+          const actualDigest = computeBase32EncodedSha1(fileContent.content);
           const classification = classifyEntry(
             fileContent.url,
             sha256,
@@ -94,7 +94,7 @@ export async function cleanUpCorruptCommonCrawlEntries(
           entry.statusCode ?? 0,
         );
         const sha256 = computeSha256(fileContent.content);
-        const actualDigest = computeWaybackDigest(fileContent.content);
+        const actualDigest = computeBase32EncodedSha1(fileContent.content);
         const classification = classifyEntry(
           fileContent.url,
           sha256,

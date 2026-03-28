@@ -24,7 +24,7 @@ export function timestampMax(...timestamps: (string | undefined)[]): string | un
   return validTimestamps.reduce((max, ts) => (ts > max ? ts : max));
 }
 
-function sanityCheckTimestamps({
+export function sanityCheckTimestamps({
   url,
   lastModified,
   mementoDate,
@@ -33,7 +33,7 @@ function sanityCheckTimestamps({
 }: {
   url: string;
   lastModified: DateTime<true> | null;
-  mementoDate: DateTime<true> | null;
+  mementoDate?: DateTime<true> | null;
   serverDate: DateTime<true> | null;
   captureDate: DateTime<true>;
 }) {
@@ -60,42 +60,6 @@ function sanityCheckTimestamps({
       `Capture ${captureDate.toISO({ suppressMilliseconds: true })}-${url} Sanity check failed: server date ${serverDate.toISO()} is more than 1 month different from capture date ${captureDate.toISO()}`,
     );
   }
-}
-
-export function parseHeaderTimestamps(
-  url: string,
-  headers: Record<string, string>,
-  captureTimestamp: string,
-  validateTimestamps: boolean,
-): {
-  lastModified: DateTime<true> | null;
-  mementoDate: DateTime<true> | null;
-  serverDate: DateTime<true> | null;
-  captureDate: DateTime<true>;
-} {
-  const parseDate = (val: string | undefined): DateTime | null => {
-    if (!val) {
-      return null;
-    }
-    const dt = DateTime.fromHTTP(val, { zone: "utc" });
-    return dt.isValid ? dt : null;
-  };
-  let lastModified = parseDate(headers["x-archive-orig-last-modified"] || headers["last-modified"]);
-  const serverDate = parseDate(headers["x-archive-orig-date"]);
-  const mementoDate = parseDate(headers["memento-datetime"]);
-  const captureDate = DateTime.fromFormat(captureTimestamp, "yyyyLLddHHmmss", { zone: "utc" });
-  if (!captureDate.isValid) {
-    throw new Error(`Invalid capture timestamp format: ${captureTimestamp}`);
-  }
-  // Sometimes, it seems servers might return last-modified which is the same as date, so it is not a true
-  // last-modified. If last-modified is exactly the same as server date, treat it as missing.
-  if (lastModified && serverDate && lastModified.toMillis() === serverDate.toMillis()) {
-    lastModified = null;
-  }
-  if (validateTimestamps) {
-    sanityCheckTimestamps({ url, lastModified, mementoDate, serverDate, captureDate });
-  }
-  return { lastModified, mementoDate, serverDate, captureDate };
 }
 
 export function getExactModificationDate(

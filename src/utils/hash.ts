@@ -9,7 +9,7 @@ export function computeSha256(data: Buffer): string {
 // Wayback digest is base32-encoded SHA1 hash
 // The CDX index actually has wrong digests for many captures, so we calculate
 // it manually and store both in the resulting capture data
-export function computeWaybackDigest(data: Buffer): string {
+export function computeBase32EncodedSha1(data: Buffer): string {
   const hash = createHash("sha1");
   hash.update(data);
   const digest = hash.digest();

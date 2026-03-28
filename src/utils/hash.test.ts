@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeWaybackDigest } from "./hash.js";
+import { computeBase32EncodedSha1 } from "./hash.js";
 
 describe("computeWaybackDigest", () => {
   it("should compute correct digest for white.gif", () => {
@@ -10,7 +10,7 @@ describe("computeWaybackDigest", () => {
     01 00 3B
     `.replace(/\s+/g, "");
     const data = Buffer.from(hexData, "hex");
-    const result = computeWaybackDigest(data);
+    const result = computeBase32EncodedSha1(data);
 
     // digest of white.gif taken from wayback CDX entry
     expect(result).toBe("L66UOIRC724KELHVXCVF3RNY4E5PRDRL");
@@ -24,7 +24,7 @@ describe("computeWaybackDigest", () => {
     01 00 01 00 40 02 02 84 51 00 3B 00
     `.replace(/\s+/g, "");
     const data = Buffer.from(hexData, "hex");
-    const result = computeWaybackDigest(data);
+    const result = computeBase32EncodedSha1(data);
 
     // digest of 1ptrans.gif taken from wayback CDX entry
     expect(result).toBe("EANFTOHNSBWIJSM6TPRSHU6F3UFAVUGU");
