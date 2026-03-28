@@ -1,37 +1,25 @@
-import { filenameToString } from "../file-name/file-name.js";
 import { CaptureEntry } from "../types/capture-types.js";
-import { Filename } from "../types/download-input-types.js";
 
-export function assignOutputIndices(captureEntries: CaptureEntry[], filename: Filename): void {
-  assignCaptureIndices(captureEntries, filename);
-  assignContentIndices(captureEntries, filename);
-}
-
-function assignCaptureIndices(captureEntries: CaptureEntry[], filename: Filename): void {
-  const headerFilename = structuredClone(filename);
+export function assignCaptureIndices(captureEntries: CaptureEntry[]): void {
   const encounteredFilenames = new Set<string>();
+  captureEntries = captureEntries.toSorted((a, b) => a.timestamp.localeCompare(b.timestamp));
   captureEntries.forEach((entry) => {
-    const entryFilename = structuredClone(headerFilename);
-    if (entry.classification.type !== "ok") {
-      entryFilename.flags = "invalid";
-    }
-    entryFilename.timestamp = entry.captureTimestamp.toFormat("yyyyLLddHHmmss");
-    let outputFilename = filenameToString(entryFilename, "full");
+    const timestamp = entry.timestamp;
+    let outputFilename = `${timestamp}`;
     let counter = 0;
     while (encounteredFilenames.has(outputFilename)) {
       counter++;
-      outputFilename = filenameToString(entryFilename, "full", counter);
+      outputFilename = `${timestamp}_${counter}`;
     }
     encounteredFilenames.add(outputFilename);
     entry.captureIndex = counter;
   });
 }
 
-// Index used for actual output. Since only valid entries will have an "actual" output entry,
-// this will be undefined for other entries
-function assignContentIndices(captureEntries: CaptureEntry[], filename: Filename): void {
+export function assignContentIndices(captureEntries: CaptureEntry[]): void {
   const uniqueEntries = new Map<string, CaptureEntry>();
   const shaHasModified = new Set<string>();
+  captureEntries = captureEntries.toSorted((a, b) => a.timestamp.localeCompare(b.timestamp));
 
   // First pass: identify which sha256 have modified timestamps
   captureEntries.forEach((entry) => {
@@ -58,18 +46,14 @@ function assignContentIndices(captureEntries: CaptureEntry[], filename: Filename
   const outputIndexMap = new Map<string, number>();
 
   uniqueEntries.forEach((entry, key) => {
-    const entryFilename = structuredClone(filename);
-
     const filenameTimestamp = entry.lastModified ?? entry.captureTimestamp;
-    entryFilename.timestamp = filenameTimestamp.toFormat("yyyyLLddHHmmss");
+    const timestamp = filenameTimestamp.toFormat("yyyyLLddHHmmss");
 
-    let outputFilename = filenameToString(entryFilename, "full");
-
-    // Ensure uniqueness (this should not really happen so the filenames will look ugly)
+    let outputFilename = `${timestamp}`;
     let counter = 0;
     while (encounteredFilenames.has(outputFilename)) {
       counter++;
-      outputFilename = filenameToString(entryFilename, "full", counter);
+      outputFilename = `${timestamp}_${counter}`;
     }
     encounteredFilenames.add(outputFilename);
     outputIndexMap.set(key, counter);

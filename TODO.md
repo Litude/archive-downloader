@@ -1,31 +1,45 @@
-output filenames for incremental handling:
-
-1. capture data stored for all captures --> can be found with index from .csv
-2. raw file stored only if transformed and unique, if stored should use same
-   name prefix as capture data (it should ignore last modified) -- deduplicated,
-   so finding the raw capture means looking up the first entry (earliest capture
-   date) with the same sha256 value
-3. actual output file is deduplicated but has special modification time
-   handling: -- for each unique modification date, duplicates are saved -- if a
-   capture is missing a modificaiton date but some capture with the same sha256
-   value has a modification date, no output for this one --- so two different
-   lookup cases:
-   1. has modification time -> lookup based on modification time
-   2. no modification time -> lookup earliest capture date with same sha256
-      ...but what if there are two outputs with the same name? do we need an
-      output data index column in the csv??? ...usually a duplicate timestamp
-      output is probably an error (data is supposed to get normalized to avoid
-      this), so the downloader could just throw an error in these cases? however
-      it is possible that some servers return e.g. randomized data on the same
-      timestamp? so the best choice is to add another index field to the csv
-
 - Add some error context to handlers and these will be logged to the final
   capture data?
+
+- Add lam/mex alt image urls
 
 - For file level capture metadata need to add info about (these will be
   approximate since getting the exact amounts would require additional queries):
   - Filtered capture amount due to duplicate captures
   - Filtered capture amount due to non trailing slash to trailing slash redirect
+
+  url metadata
+
+captures
+validCaptures
+invalidCaptures
+sources: {
+   wayback: [capturecount]
+   commoncrawl: [capturecount]
+}
+
+filteredEntries: {
+   wayback: {
+      limitedCaptureRamge: [captureAmount]
+      duplicateTimestamp: [captureAmount]
+      nonTrailingSlash: [captureCount]
+      // timestamp is exlucded
+   }
+  commoncrawl: {
+    ...same stuff
+  }
+}
+executions: [
+  {
+    "timestamp": isostring,
+    "type": full | incremental
+    "capturecounts": {
+      total: number
+      valid: number
+      invalid: number
+    }
+  }
+]
 
 Skip these ideas for now:
 

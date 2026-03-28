@@ -103,25 +103,29 @@ export function writeCaptureData(
       url: entry.url,
       captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
       captureTimePrecise: entry.captureTimestampPrecise ?? undefined,
+      mementoTime: entry.mementoDateTime
+        ? entry.mementoDateTime.toISO({ suppressMilliseconds: true })
+        : undefined,
+      hostIp: entry.hostIp,
+      protocol: entry.protocol,
       status: entry.statusCode,
       mimeType: entry.mimetype,
+      contentSize: entry.content?.length,
+      contentSha256: entry.originalSha256 ?? entry.sha256,
+      contentDigest: entry.actualDigest,
       modificationTime: entry.lastModified
         ? entry.lastModified.toISO({ suppressMilliseconds: true })
         : undefined,
       modificationTimePrecise: entry.lastModifiedPrecise ?? undefined,
       modificationTimePreciseCandidates: entry.lastModifiedPreciseCandidates ?? undefined,
       headers: headersResult,
+      classification: entry.classification,
       corrections: entry.corrections,
+      validationErrors: entry.metadata?.validationErrors,
       captureData: {
         source: entry.cdxEntry.source,
-        contentSize: entry.content?.length,
-        contentSha256: entry.originalSha256 ?? entry.sha256,
-        contentDigest: entry.actualDigest,
-        hostIp: entry.hostIp,
-        protocol: entry.protocol,
         archiveRecordFormat,
         archiveRecordAvailable,
-        classification: entry.classification,
         cdxEntry: cdxToOutputData(mainCdxEntry),
         cdxEntryRevisitResolved: resolvedRevisitCdxEntry
           ? cdxToOutputData(resolvedRevisitCdxEntry)
@@ -133,7 +137,6 @@ export function writeCaptureData(
         crawlData: entry.metadata?.crawlData,
         wayback: entry.metadata?.wayback,
         commoncrawl: entry.metadata?.commoncrawl,
-        validationErrors: entry.metadata?.validationErrors,
       },
     };
     fs.writeFileSync(captureDataPath, stringifyWithInlineTuples(captureData, inlineElementsOf));

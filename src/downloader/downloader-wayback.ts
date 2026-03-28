@@ -266,10 +266,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
         entry.url,
         entry.statusCode ? [entry.statusCode] : undefined,
       );
-      const timestamps = parseWaybackHeaderTimestamps(
-        response.responseHeaders,
-        entry.timestamp,
-      );
+      const timestamps = parseWaybackHeaderTimestamps(response.responseHeaders, entry.timestamp);
       sanityCheckTimestamps({
         url: entry.url,
         lastModified: timestamps.lastModified,
@@ -326,7 +323,6 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
           }
 
           const parsedData: CaptureWaybackMetadata = {
-            mementoDateTime: entry.mementoDateTime?.toISO({ suppressMilliseconds: true }),
             item: {
               id: metadata.identifier,
               title: metadata.title,

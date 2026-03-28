@@ -4,7 +4,6 @@ import { RawHeader } from "../headers/raw-header-parser.js";
 import { DataCorrection } from "../data-corrections/data-correction.js";
 
 export interface CaptureWaybackMetadata {
-  mementoDateTime?: string;
   item: {
     id: string;
     title: string;

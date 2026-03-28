@@ -148,6 +148,7 @@ export function readWebsiteJsonConfig(
     const mirrors = [...new Set([...(commonMirrors || []), ...(file.additionalMirrors || [])])];
     const filename = determineFilenameFromUrls(file, urls, file.queryParams);
     filename.queryParams = file.queryParams;
+    filename.queryHashParameters = file.queryHashParameters;
     const outputDir = determineOutputSubdirectoryFromUrls(
       urls,
       baseDirectory,

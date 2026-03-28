@@ -28,8 +28,8 @@ export function validateCaptureEntry(entry: CaptureEntry) {
       ? DateTime.fromHTTP(serverDateHeader, { zone: "utc" })
       : null;
     if (serverDate?.isValid && Math.abs(serverDate.diff(entry.captureTimestamp).as("months")) > 1) {
-      addValidationError(entry, "server-date-time-mismatch", {
-        serverDate: serverDate.toISO({ suppressMilliseconds: true }),
+      addValidationError(entry, "server-time-mismatch", {
+        serverTime: serverDate.toISO({ suppressMilliseconds: true }),
         captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
       });
     }
@@ -88,37 +88,48 @@ export function validateCaptureEntry(entry: CaptureEntry) {
     entry.mementoDateTime &&
     entry.mementoDateTime.toMillis() !== entry.captureTimestamp.toMillis()
   ) {
-    addValidationError(entry, "memento-timestamp-mismatch", {
-      mementoDateTime: entry.mementoDateTime.toISO({ suppressMilliseconds: true }),
-      captureTimestamp: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
+    addValidationError(entry, "memento-time-mismatch", {
+      mementoTime: entry.mementoDateTime.toISO({ suppressMilliseconds: true }),
+      captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
     });
   }
 
+  // This validation is meant to validate that the ARC/WARC matches what the CDX record indicated,
+  // so we disregard any corrections to capture time or url for this validation
   const record = getArchivedRecord(entry);
   if (record) {
-    const recordSha256 = computeSha256(record.content);
-    if (entry.sha256 && recordSha256 !== entry.sha256) {
-      addValidationError(entry, "record-content-mismatch", {
-        recordSha256,
-        entrySha256: entry.sha256,
-      });
+    // We can't validate the content for revisit records since they don't contain the full content,
+    // and the status could be e.g. 304 instead of 200, so we skip these checks when there is a revisit entry
+    if (!entry.cdxEntry?.revisitEntry) {
+      const recordSha256 = computeSha256(record.content);
+      if (entry.sha256 && recordSha256 !== entry.sha256) {
+        addValidationError(entry, "record-content-mismatch", {
+          recordSha256,
+          entrySha256: entry.sha256,
+        });
+      }
+      if (record.status !== entry.statusCode) {
+        addValidationError(entry, "record-status-mismatch", {
+          recordStatus: record.status,
+          entryStatus: entry.statusCode,
+        });
+      }
     }
-    if (record.status !== entry.statusCode) {
-      addValidationError(entry, "record-status-mismatch", {
-        recordStatus: record.status,
-        entryStatus: entry.statusCode,
-      });
-    }
-    if (record.timestamp !== entry.captureTimestamp.toISO({ suppressMilliseconds: true })) {
+
+    const cdxTimestamp = DateTime.fromFormat(entry.cdxEntry.timestamp, "yyyyLLddHHmmss", {
+      zone: "utc",
+    }).toISO({ suppressMilliseconds: true });
+    if (record.timestamp !== cdxTimestamp) {
       addValidationError(entry, "record-timestamp-mismatch", {
         recordTimestamp: record.timestamp,
-        entryTimestamp: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
+        entryTimestamp: cdxTimestamp,
       });
     }
-    if (record.url !== entry.url) {
+
+    if (record.url !== entry.cdxEntry.url) {
       addValidationError(entry, "record-url-mismatch", {
         recordUrl: record.url,
-        entryUrl: entry.url,
+        entryUrl: entry.cdxEntry.url,
       });
     }
   }

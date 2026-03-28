@@ -25,8 +25,14 @@ export interface CaptureDataJson {
   captureTime: string;
   /** ISO 8601 datetime with nanosecond precision, only available for early Common Crawl captures */
   captureTimePrecise?: string;
+  mementoTime?: string;
+  hostIp?: string;
+  protocol?: string;
   status?: number;
   mimeType: string;
+  contentSize?: number;
+  contentSha256?: string;
+  contentDigest?: string;
   /** ISO 8601 datetime from Last-Modified header */
   modificationTime?: string;
   /** ISO 8601 datetime with nanosecond precision derived from IIS ETag */
@@ -37,17 +43,16 @@ export interface CaptureDataJson {
     original?: RawHeader[];
     reconstructed?: RawHeader[];
   };
+  classification: Classification;
   corrections?: DataCorrection[];
+  validationErrors?: {
+    type: string;
+    details?: unknown;
+  }[];
   captureData: {
     source: string;
-    contentSize?: number;
-    contentSha256?: string;
-    contentDigest?: string;
-    hostIp?: string;
-    protocol?: string;
     archiveRecordFormat?: "warc" | "arc";
     archiveRecordAvailable: boolean;
-    classification: Classification;
     cdxEntry: CdxEntryJson;
     cdxEntryRevisitResolved?: CdxEntryJson;
     additionalSources?: {
@@ -63,9 +68,5 @@ export interface CaptureDataJson {
     };
     wayback?: CaptureWaybackMetadata;
     commoncrawl?: CaptureCommonCrawlMetadata;
-    validationErrors?: {
-      type: string;
-      details?: unknown;
-    }[];
   };
 }

@@ -3,7 +3,7 @@ import { commonCrawlCleanupData } from "../downloader/commoncrawl/commoncrawl-cl
 import { CaptureEntry } from "../types/capture-types.js";
 
 export interface DataCorrection {
-  field: "captureTime" | "url";
+  field: "captureTime" | "mementoTime" | "url";
   originalValue: string;
   correctedValue: string;
   reason: string;
@@ -38,6 +38,25 @@ export function applyDataCorrectionsToEntry(entry: CaptureEntry) {
           throw new Error(
             `Invalid timestamp format for entry ${entry.url} (${entry.timestamp}) in collection ${commonCrawlCollection.id}. Expected format: yyyyMMddHHmmss`,
           );
+        }
+
+        if (entry.mementoDateTime) {
+          const mementoDateTimestamp = entry.mementoDateTime.toFormat("yyyyMMddHHmmss");
+          const mementoDateTime = DateTime.fromFormat(mementoDateTimestamp, "yyyyMMddHHmmss", {
+            zone: "America/Los_Angeles",
+          }).toUTC();
+          if (!mementoDateTime.isValid) {
+            throw new Error(
+              `Invalid memento datetime format for entry ${entry.url} (${entry.mementoDateTime.toISO()}) in collection ${commonCrawlCollection.id}. Expected format: ISO 8601 datetime.`,
+            );
+          }
+          addCorrection(entry, {
+            field: "mementoTime",
+            originalValue: entry.mementoDateTime.toISO({ suppressMilliseconds: true }),
+            correctedValue: mementoDateTime.toISO({ suppressMilliseconds: true }),
+            reason: `${commonCrawlCollection.id}: Memento time stored as local time`,
+          });
+          entry.mementoDateTime = mementoDateTime;
         }
       }
       if (collectionCleanupData.implicitRedirects) {

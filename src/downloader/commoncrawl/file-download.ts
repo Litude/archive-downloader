@@ -104,13 +104,16 @@ export async function downloadCommonCrawlFile(
           extraBlankLineAfterHeaders: collectionCleanupData?.extraBlankLineAfterHeaders,
         });
 
-    const responseHeadersArray = parsed.headers.reduce((acc, [k, v]) => {
-      if (!acc[k.toLowerCase()]) {
-        acc[k.toLowerCase()] = [];
-      }
-      acc[k.toLowerCase()].push(v);
-      return acc;
-    }, {} as Record<string, string[]>);
+    const responseHeadersArray = parsed.headers.reduce(
+      (acc, [k, v]) => {
+        if (!acc[k.toLowerCase()]) {
+          acc[k.toLowerCase()] = [];
+        }
+        acc[k.toLowerCase()].push(v);
+        return acc;
+      },
+      {} as Record<string, string[]>,
+    );
 
     const responseHeaders = Object.fromEntries(
       Object.entries(responseHeadersArray).map(([k, v]) => [k, v.join(", ")]),

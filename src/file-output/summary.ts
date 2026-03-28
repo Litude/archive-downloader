@@ -4,6 +4,7 @@ import { CaptureEntry } from "../types/capture-types.js";
 import { createObjectCsvWriter } from "csv-writer";
 import { Filename } from "../types/download-input-types.js";
 import { filenameToString } from "../file-name/file-name.js";
+import { isDefined } from "../utils/ts-utils.js";
 
 const ARRAY_SEPARATOR = "|";
 
@@ -28,14 +29,14 @@ interface SummaryRow {
   archive_length?: number;
 }
 
-function mapCorrectionFieldName(field: string): string {
+function mapCorrectionFieldName(field: string): string | undefined {
   switch (field) {
     case "captureTime":
       return "capture_ts";
     case "url":
       return "url";
     default:
-      return field;
+      return undefined;
   }
 }
 
@@ -60,6 +61,7 @@ export async function writeCsvSummary(
         corrections:
           entry.corrections
             ?.map((correction) => mapCorrectionFieldName(correction.field))
+            ?.filter(isDefined)
             .sort()
             .join(ARRAY_SEPARATOR) ?? "",
         classification: entry.classification.type,

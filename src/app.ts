@@ -15,7 +15,7 @@ import { Context } from "./types/context.js";
 import { WithRequired } from "./utils/ts-utils.js";
 import { downloadWaybackEntries } from "./downloader/downloader-wayback.js";
 import { writeCaptureData } from "./file-output/capture-data.js";
-import { assignOutputIndices } from "./file-output/output-indices.js";
+import { assignCaptureIndices, assignContentIndices } from "./file-output/output-indices.js";
 import { downloadCommonCrawlEntries } from "./downloader/downloader-commoncrawl.js";
 import { validateCaptureEntries } from "./validation/validate-capture.js";
 import { enrichCaptureEntryWithExactTimestamps } from "./utils/timestamp.js";
@@ -47,10 +47,11 @@ function mergeWaybackAndCommonCrawlEntries(
       matchingCcEntry.additionalSources = [
         {
           source: "wayback",
-          cdxEntry: waybackEntry.cdxEntry.revisitEntry ?? waybackEntry.cdxEntry,
+          cdxEntry: waybackCdx,
         },
       ];
       matchingCcEntry.metadata.wayback = waybackEntry.metadata?.wayback;
+      matchingCcEntry.mementoDateTime = waybackEntry.mementoDateTime;
     } else {
       throw new Error(
         `Expected to find matching Common Crawl entry for wayback entry with timestamp ${waybackEntry.timestamp} and url ${waybackEntry.url}, but did not find one.`,
@@ -120,15 +121,16 @@ async function processWebsiteDownloads(
       enrichCaptureEntryWithExactTimestamps(entry);
     }
 
-    validateCaptureEntries(baseEntries);
-
     for (const entry of baseEntries) {
       applyDataCorrectionsToEntry(entry);
     }
 
+    validateCaptureEntries(baseEntries);
+
+    assignCaptureIndices([...baseEntries, ...unavailableEntries, ...skippedEntries]);
+
     const anyValidEntries = baseEntries.some((entry) => entry.classification.type === "ok");
 
-    input.filename.queryHashParameters = input.queryHashParameters;
     if (anyValidEntries && input.transformations.length > 0) {
       // First find all unique sha256 buffers
       const seenSha256Values = new Set<string>();
@@ -209,24 +211,23 @@ async function processWebsiteDownloads(
             }
           }
         }
-        assignOutputIndices(updatedEntries, filename);
+        assignContentIndices(updatedEntries);
         writeUniqueFileEntries(updatedEntries, filename, input.outputDirectory);
         const summaryEntries = [...updatedEntries, ...invalidEntries].sort((a, b) =>
           a.timestamp.localeCompare(b.timestamp),
         );
         await writeCsvSummary(summaryEntries, filename, input.outputDirectory);
+        // This actually includes the raw and all invalid files
         const rawFiles = baseEntries.filter(
           (entry) =>
             entry.sha256 &&
             (entry.classification.type !== "ok" || !outputSha256Set.has(entry.sha256)),
         );
         const rawFilename = structuredClone(filename);
+        // Invalid files get their flag set during write
         rawFilename.flags = "raw";
         writeUniqueFileEntries(rawFiles, rawFilename, input.outputDirectory);
-        // Invalid entries are only written once for the "base" file later
-        if (writeHeaders) {
-          writeCaptureData(updatedEntries, filename, input.outputDirectory);
-        }
+        writeCaptureData(updatedEntries, filename, input.outputDirectory);
       }
     } else {
       if (!anyValidEntries) {
@@ -236,15 +237,13 @@ async function processWebsiteDownloads(
         );
         writeUnavailablePlaceholder(input.filename, input.outputDirectory);
       }
-      assignOutputIndices(baseEntries, input.filename);
+      assignContentIndices(baseEntries);
       writeUniqueFileEntries(baseEntries, input.filename, input.outputDirectory);
       const summaryEntries = [...baseEntries, ...unavailableEntries, ...skippedEntries].sort(
         (a, b) => a.timestamp.localeCompare(b.timestamp),
       );
       await writeCsvSummary(summaryEntries, input.filename, input.outputDirectory);
-      if (writeHeaders) {
-        writeCaptureData(baseEntries, input.filename, input.outputDirectory);
-      }
+      writeCaptureData(baseEntries, input.filename, input.outputDirectory);
     }
 
     if (metadata) {
