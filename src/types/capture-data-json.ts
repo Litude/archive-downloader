@@ -22,7 +22,7 @@ export interface CaptureDataJson {
   url: string;
   /** ISO 8601 datetime with seconds precision, e.g. "1999-04-22T15:37:00Z" */
   captureTime: string;
-  /** ISO 8601 datetime with nanosecond precision, only available for Common Crawl captures */
+  /** ISO 8601 datetime with nanosecond precision, only available for early Common Crawl captures */
   captureTimePrecise?: string;
   status?: number;
   mimeType: string;
@@ -36,6 +36,12 @@ export interface CaptureDataJson {
     original?: RawHeader[];
     reconstructed?: RawHeader[];
   };
+  corrections?: {
+    field: string;
+    originalValue: string;
+    correctedValue: string;
+    reason: string;
+  }[];
   captureData: {
     source: string;
     contentSize?: number;

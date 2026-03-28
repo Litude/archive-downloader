@@ -8,7 +8,6 @@ import {
   fetchWaybackFileHeaders,
 } from "./wayback/file-download.js";
 import {
-  addValidationError,
   CaptureClassification,
   CaptureEntry,
   CaptureWaybackMetadata,
@@ -26,14 +25,13 @@ import {
   fetchArchiveCdx,
   fetchArchiveRecord,
 } from "./wayback/archive-record.js";
-import { parseArcFile } from "../archive-record/arc.js";
-import { parseWarcFile } from "../archive-record/warc.js";
 import { parseWarcinfoFile } from "../archive-record/warcinfo.js";
 import { getHeaderValue } from "../headers/headers.js";
 import { cleanupWaybackHeaders } from "./wayback/header-cleanup.js";
 import { tryToCompleteMissingCdxFields } from "./wayback/cdx-completion/cdx-completion.js";
 import { cleanUpCorruptCommonCrawlEntries } from "./wayback/wayback-commoncrawl-cleanup.js";
 import { extractMimeTypeFromContentType } from "../utils/mimetype.js";
+import { getArchivedRecord } from "../archive-record/archive-record.js";
 
 function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
   const digestHashes = new Map<string, { sha256: string; actualDigest: string }>();
@@ -80,20 +78,6 @@ function isEntrySkipped(entry: CdxEntry, skippedCaptures?: { url: string; timest
   return skippedCaptures.some(
     (skipped) => skipped.url === entry.url && skipped.timestamp === entry.timestamp,
   );
-}
-
-function getArchivedRecord(entry: CaptureEntry) {
-  if (entry.records) {
-    const arcRecord = entry.records.find((record) => record.type === "arc");
-    if (arcRecord) {
-      return parseArcFile(arcRecord.content);
-    }
-    const warcRecord = entry.records.find((record) => record.type === "warc");
-    if (warcRecord) {
-      return parseWarcFile(warcRecord.content);
-    }
-  }
-  return null;
 }
 
 export async function downloadWaybackEntries(input: DownloadFileInput, context: Context) {
@@ -390,31 +374,6 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
       entry.headerOutput = {
         original: record.headers,
       };
-      const recordSha256 = computeSha256(record.content);
-      if (entry.sha256 && recordSha256 !== entry.sha256) {
-        addValidationError(entry, "record-content-mismatch", {
-          recordSha256,
-          entrySha256: entry.sha256,
-        });
-      }
-      if (record.status !== entry.statusCode) {
-        addValidationError(entry, "record-status-mismatch", {
-          recordStatus: record.status,
-          entryStatus: entry.statusCode,
-        });
-      }
-      if (record.timestamp !== entry.captureTimestamp.toISO({ suppressMilliseconds: true })) {
-        addValidationError(entry, "record-timestamp-mismatch", {
-          recordTimestamp: record.timestamp,
-          entryTimestamp: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
-        });
-      }
-      if (record.url !== entry.url) {
-        addValidationError(entry, "record-url-mismatch", {
-          recordUrl: record.url,
-          entryUrl: entry.url,
-        });
-      }
     } else if (entry.responseHeaders && entry.rawResponseHeaders) {
       entry.headerOutput = cleanupWaybackHeaders(
         entry.url,
@@ -422,16 +381,6 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
         entry.rawResponseHeaders,
         input.filename,
       );
-    }
-
-    if (
-      entry.mementoDateTime &&
-      entry.mementoDateTime.toMillis() !== entry.captureTimestamp.toMillis()
-    ) {
-      addValidationError(entry, "memento-timestamp-mismatch", {
-        mementoDateTime: entry.mementoDateTime.toISO({ suppressMilliseconds: true }),
-        captureTimestamp: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
-      });
     }
 
     const warcInfo = entry.records

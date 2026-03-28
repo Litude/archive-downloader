@@ -69,7 +69,7 @@ export interface CaptureEntry {
   url: string;
   statusCode?: number;
   classification: Classification;
-  mimetype: string; // TODO: Should this be populated from the actual headers when available instead, the CDX index has some pretty bad values here sometimes?
+  mimetype: string;
   actualDigest?: string;
   sha256?: string; // always the sha256 of the file as saved
   originalSha256?: string; // if file is somehow post-processed, this is the sha256 of the original downloaded file
@@ -105,14 +105,4 @@ export interface CaptureEntry {
       details?: any;
     }[];
   };
-}
-
-export function addValidationError(entry: CaptureEntry, error: string, details?: any) {
-  if (!entry.metadata) {
-    entry.metadata = {};
-  }
-  if (!entry.metadata.validationErrors) {
-    entry.metadata.validationErrors = [];
-  }
-  entry.metadata.validationErrors.push({ type: error, details });
 }

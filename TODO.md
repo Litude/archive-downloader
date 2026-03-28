@@ -2,7 +2,6 @@ TODO CommmonCrawl:
 
 - Capture errata handling (fixing capture_ts and url), url fixing needed for
   some non-common crawl stuff as well (http://\ urls)
-- Fix extra line break in 2018 captures
 
 output filenames for incremental handling:
 

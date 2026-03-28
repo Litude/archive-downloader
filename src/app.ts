@@ -17,6 +17,7 @@ import { downloadWaybackEntries } from "./downloader/downloader-wayback.js";
 import { writeCaptureData } from "./file-output/capture-data.js";
 import { assignOutputIndices } from "./file-output/output-indices.js";
 import { downloadCommonCrawlEntries } from "./downloader/downloader-commoncrawl.js";
+import { validateCaptureEntries } from "./validation/validate-capture.js";
 
 function mergeWaybackAndCommonCrawlEntries(
   waybackEntries: CaptureEntry[],
@@ -112,6 +113,8 @@ async function processWebsiteDownloads(
     const ccEntries = input.commonCrawlEnabled ? await downloadCommonCrawlEntries(input) : [];
 
     const baseEntries = mergeWaybackAndCommonCrawlEntries(waybackEntries, ccEntries);
+    validateCaptureEntries(baseEntries);
+
     const anyValidEntries = baseEntries.some((entry) => entry.classification.type === "ok");
 
     input.filename.queryHashParameters = input.queryHashParameters;
