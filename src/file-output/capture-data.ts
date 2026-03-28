@@ -7,6 +7,7 @@ import { getMostLikelyEtagDate, parseIisEtagDate } from "../utils/iis-etag-parse
 import { DateTime } from "luxon";
 import { logWarning } from "../utils/log-context.js";
 import { CdxEntry } from "../types/wayback-types.js";
+import { CaptureDataJson, CdxEntryJson } from "../types/capture-data-json.js";
 
 function getCaptureHeaderValue(captureEntry: CaptureEntry, headerName: string): string | undefined {
   const header = captureEntry.headerOutput?.original?.find(
@@ -105,7 +106,7 @@ function getExactCaptureDate(captureEntry: CaptureEntry): string | null {
   return null;
 }
 
-function cdxToOutputData(entry: CdxEntry) {
+function cdxToOutputData(entry: CdxEntry): CdxEntryJson {
   return {
     urlkey: entry.urlkey,
     timestamp: entry.timestamp,
@@ -206,7 +207,7 @@ export function writeCaptureData(
         : undefined;
 
     const captureDataPath = path.join(archivalDir, `${outputFilename}.capture.json`);
-    const captureData = {
+    const captureData: CaptureDataJson = {
       url: entry.url,
       captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
       captureTimePrecise: exactCaptureDate ?? undefined,
