@@ -87,9 +87,16 @@ function getTimestampsFromFile(file: DownloadFileInput): {
   return timestamps;
 }
 
-function calculateSourceCaptureCounts(captureEntries: CaptureEntry[], unavailableEntries: CaptureEntry[], skippedEntries: CaptureEntry[], source: "wayback" | "commonCrawl"): SourceCaptureCounts {
+function calculateSourceCaptureCounts(
+  captureEntries: CaptureEntry[],
+  unavailableEntries: CaptureEntry[],
+  skippedEntries: CaptureEntry[],
+  source: "wayback" | "commonCrawl",
+): SourceCaptureCounts {
   const sourceEntries = captureEntries.filter((entry) => entry.cdxEntry.source === source);
-  const sourceUnavailableEntries = unavailableEntries.filter((entry) => entry.cdxEntry.source === source);
+  const sourceUnavailableEntries = unavailableEntries.filter(
+    (entry) => entry.cdxEntry.source === source,
+  );
   const sourceSkippedEntries = skippedEntries.filter((entry) => entry.cdxEntry.source === source);
 
   return {
@@ -121,8 +128,18 @@ export function writeUrlMetadata(
     unavailableCaptures: unavailableEntries.length,
     skippedCaptures: skippedEntries.length ? skippedEntries.length : undefined,
     sources: {
-      wayback: calculateSourceCaptureCounts(captureEntries, unavailableEntries, skippedEntries, "wayback"),
-      commonCrawl: calculateSourceCaptureCounts(captureEntries, unavailableEntries, skippedEntries, "commonCrawl"),
+      wayback: calculateSourceCaptureCounts(
+        captureEntries,
+        unavailableEntries,
+        skippedEntries,
+        "wayback",
+      ),
+      commonCrawl: calculateSourceCaptureCounts(
+        captureEntries,
+        unavailableEntries,
+        skippedEntries,
+        "commonCrawl",
+      ),
     },
     filteredEntries: metadata,
     archivalRuns: [

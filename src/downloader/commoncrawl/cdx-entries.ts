@@ -125,8 +125,14 @@ export async function fetchCdxEntriesForCollectionByPrefix(
   const cdxApiUrl = collection["cdx-api"];
   console.log(`Fetching CDX entries for prefix ${prefix} from collection ${collection.id}...`);
 
-  const rawEntries = await fetchCdx(cdxApiUrl, prefix, options, { matchType: "prefix" });
+  // If the prefix ends with a /, we need to strip it to get all results, otherwise results that exactly match the prefix won't be returned
+  let queryPrefix = prefix;
+  if (queryPrefix.endsWith("/")) {
+    queryPrefix = queryPrefix.slice(0, -1);
+  }
+
+  const rawEntries = await fetchCdx(cdxApiUrl, queryPrefix, options, { matchType: "prefix" });
   await new Promise((res) => setTimeout(res, options.requestDelayMs));
 
-  return rawEntries.map((raw) => mapToExtendedCdxEntry(raw, collection.id, prefix));
+  return rawEntries.map((raw) => mapToExtendedCdxEntry(raw, collection.id, queryPrefix));
 }

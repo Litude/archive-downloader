@@ -1,5 +1,3 @@
-- Add lam/mex alt image urls
-
 Skip these ideas for now:
 
 - Add info if file is from main url or mirror?

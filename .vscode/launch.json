@@ -26,7 +26,7 @@
         "internalConsoleOptions": "neverOpen",
         "args": [
             "--json",
-            ".\\data\\inputs\\test-input.json",
+            ".\\data\\inputs\\test-input-aoe1x.json",
             "--no-mirrors",
             // "--no-include-invalid",
             // "--no-headers",
