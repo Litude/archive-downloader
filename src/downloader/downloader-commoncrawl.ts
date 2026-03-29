@@ -281,7 +281,9 @@ export async function downloadCommonCrawlEntries(
     }
   }
 
-  console.log(`Total filtered non-trailing-slash redirects: ${redirectNonSlashTotal}`);
+  if (redirectNonSlashTotal > 0) {
+    console.log(`Total filtered non-trailing-slash redirects: ${redirectNonSlashTotal}`);
+  }
   return {
     filteredEntries: captureEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
     metadata: {

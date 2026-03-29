@@ -388,6 +388,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
         entry.responseHeaders,
         entry.rawResponseHeaders,
         input.filename,
+        entry.captureTimestamp
       );
     }
 
