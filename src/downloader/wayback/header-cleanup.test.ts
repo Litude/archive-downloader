@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { cleanupWaybackHeaders } from "./header-cleanup.js";
 import { RawHeader, UNCONFIRMED_HEADER_MARKER } from "../../headers/raw-header-parser.js";
+import { DateTime } from "luxon";
 
 describe("cleanupHeaders", () => {
   it("should keep only recognized headers and strip wayback prefix from location", () => {
@@ -18,10 +19,16 @@ describe("cleanupHeaders", () => {
     ];
     const url = "http://example.com/page";
 
-    const result = cleanupWaybackHeaders(url, headers, rawHeaders, {
-      base: "defalt",
-      ext: ".html",
-    });
+    const result = cleanupWaybackHeaders(
+      url,
+      headers,
+      rawHeaders,
+      {
+        base: "defalt",
+        ext: ".html",
+      },
+      DateTime.fromISO("2020-11-15T10:00:00Z"),
+    );
 
     expect(result).toEqual([
       ["content-type", "text/html", UNCONFIRMED_HEADER_MARKER],
@@ -44,10 +51,16 @@ describe("cleanupHeaders", () => {
     ];
     const url = "http://example.com/page";
 
-    const result = cleanupWaybackHeaders(url, headers, rawHeaders, {
-      base: "defalt",
-      ext: ".html",
-    });
+    const result = cleanupWaybackHeaders(
+      url,
+      headers,
+      rawHeaders,
+      {
+        base: "defalt",
+        ext: ".html",
+      },
+      DateTime.fromISO("2020-11-15T10:00:00Z"),
+    );
 
     expect(result).toEqual([
       ["content-encoding", "gzip"],
@@ -71,7 +84,13 @@ describe("cleanupHeaders", () => {
     ];
     const url = "http://www.microsoft.com:80/japan/games/empires/default.asp";
 
-    const result = cleanupWaybackHeaders(url, headers, rawHeaders, { base: "defalt", ext: ".asp" });
+    const result = cleanupWaybackHeaders(
+      url,
+      headers,
+      rawHeaders,
+      { base: "defalt", ext: ".asp" },
+      DateTime.fromISO("2020-11-15T10:00:00Z"),
+    );
 
     expect(result).toEqual([
       ["content-type", "text/html", UNCONFIRMED_HEADER_MARKER],
@@ -98,7 +117,13 @@ describe("cleanupHeaders", () => {
     ];
     const url = "http://www.microsoft.com:80/japan/games/empires/download/up10a.htm";
 
-    const result = cleanupWaybackHeaders(url, headers, rawHeaders, { base: "defalt", ext: ".asp" });
+    const result = cleanupWaybackHeaders(
+      url,
+      headers,
+      rawHeaders,
+      { base: "defalt", ext: ".asp" },
+      DateTime.fromISO("2020-11-15T10:00:00Z"),
+    );
 
     expect(result).toEqual([
       ["content-type", "text/html", UNCONFIRMED_HEADER_MARKER],
