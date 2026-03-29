@@ -25,6 +25,7 @@ interface SummaryRow {
   archive_digest?: string;
   actual_digest?: string;
   archive_filename?: string;
+  archive_available?: boolean;
   archive_offset?: number;
   archive_length?: number;
 }
@@ -76,6 +77,9 @@ export async function writeCsvSummary(
         archive_digest: entry.cdxEntry.digest,
         actual_digest: entry.actualDigest,
         archive_filename: entry.cdxEntry.filename,
+        archive_available: Boolean(
+          entry.records?.find((r) => ["warc", "arc"].includes(r.type))?.type ?? undefined,
+        ),
         archive_offset: entry.cdxEntry.offset,
         archive_length: entry.cdxEntry.length,
       }) satisfies SummaryRow,
