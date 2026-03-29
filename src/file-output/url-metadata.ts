@@ -32,7 +32,16 @@ interface UrlMetadataArchivalRun {
     validCaptures: number;
     invalidCaptures: number;
     unavailableCaptures: number;
+    skippedCaptures?: number;
   };
+}
+
+interface SourceCaptureCounts {
+  totalCaptures: number;
+  validCaptures: number;
+  invalidCaptures: number;
+  unavailableCaptures?: number;
+  skippedCaptures?: number;
 }
 
 export interface UrlMetadata {
@@ -42,9 +51,10 @@ export interface UrlMetadata {
   validCaptures: number;
   invalidCaptures: number;
   unavailableCaptures: number;
+  skippedCaptures?: number;
   sources: {
-    wayback?: number;
-    commonCrawl?: number;
+    wayback?: SourceCaptureCounts;
+    commonCrawl?: SourceCaptureCounts;
   };
   filteredEntries: {
     wayback?: UrlMetadataFilteredEntries;
@@ -77,25 +87,42 @@ function getTimestampsFromFile(file: DownloadFileInput): {
   return timestamps;
 }
 
+function calculateSourceCaptureCounts(captureEntries: CaptureEntry[], unavailableEntries: CaptureEntry[], skippedEntries: CaptureEntry[], source: "wayback" | "commonCrawl"): SourceCaptureCounts {
+  const sourceEntries = captureEntries.filter((entry) => entry.cdxEntry.source === source);
+  const sourceUnavailableEntries = unavailableEntries.filter((entry) => entry.cdxEntry.source === source);
+  const sourceSkippedEntries = skippedEntries.filter((entry) => entry.cdxEntry.source === source);
+
+  return {
+    totalCaptures: sourceEntries.length + sourceUnavailableEntries.length,
+    validCaptures: sourceEntries.filter((entry) => entry.classification.type === "ok").length,
+    invalidCaptures: sourceEntries.filter((entry) => entry.classification.type !== "ok").length,
+    unavailableCaptures: sourceUnavailableEntries.length,
+    skippedCaptures: sourceSkippedEntries.length ? sourceSkippedEntries.length : undefined,
+  };
+}
+
 export function writeUrlMetadata(
   fileInput: DownloadFileInput,
   captureEntries: CaptureEntry[],
   unavailableEntries: CaptureEntry[],
+  skippedEntries: CaptureEntry[],
   metadata: Record<"wayback" | "commonCrawl", UrlMetadataFilteredEntries>,
   filename: Filename,
   outputDirectory: string,
 ) {
   const timestamps = getTimestampsFromFile(fileInput);
+  const totalCaptures = captureEntries.length + unavailableEntries.length;
   const urlMetadata: UrlMetadata = {
     maxTimestamp: timestamps.maxTimestamp,
     minTimestamp: timestamps.minTimestamp,
-    totalCaptures: captureEntries.length,
+    totalCaptures,
     validCaptures: captureEntries.filter((entry) => entry.classification.type === "ok").length,
     invalidCaptures: captureEntries.filter((entry) => entry.classification.type !== "ok").length,
     unavailableCaptures: unavailableEntries.length,
+    skippedCaptures: skippedEntries.length ? skippedEntries.length : undefined,
     sources: {
-      wayback: captureEntries.filter((entry) => entry.cdxEntry.source === "wayback").length,
-      commonCrawl: captureEntries.filter((entry) => entry.cdxEntry.source === "commoncrawl").length,
+      wayback: calculateSourceCaptureCounts(captureEntries, unavailableEntries, skippedEntries, "wayback"),
+      commonCrawl: calculateSourceCaptureCounts(captureEntries, unavailableEntries, skippedEntries, "commonCrawl"),
     },
     filteredEntries: metadata,
     archivalRuns: [
@@ -103,12 +130,13 @@ export function writeUrlMetadata(
         timestamp: new Date().toISOString(),
         type: "full",
         captureCounts: {
-          totalCaptures: captureEntries.length,
+          totalCaptures,
           validCaptures: captureEntries.filter((entry) => entry.classification.type === "ok")
             .length,
           invalidCaptures: captureEntries.filter((entry) => entry.classification.type !== "ok")
             .length,
           unavailableCaptures: unavailableEntries.length,
+          skippedCaptures: skippedEntries.length ? skippedEntries.length : undefined,
         },
       },
     ],

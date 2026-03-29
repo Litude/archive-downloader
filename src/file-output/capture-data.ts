@@ -206,7 +206,7 @@ export function writeCaptureData(
     };
     fs.writeFileSync(captureDataPath, stringifyWithInlineTuples(captureData, inlineElementsOf));
     const mtime = new Date(entry.captureTimestamp.toJSDate());
-    // fs.utimesSync(captureDataPath, mtime, mtime);
+    fs.utimesSync(captureDataPath, mtime, mtime);
 
     if (entry.records) {
       for (const record of entry.records) {

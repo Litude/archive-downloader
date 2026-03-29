@@ -245,11 +245,12 @@ async function processWebsiteDownloads(
         // Invalid files get their flag set during write
         rawFilename.flags = "raw";
         writeUniqueFileEntries(rawFiles, rawFilename, input.outputDirectory);
-        writeCaptureData(updatedEntries, filename, input.outputDirectory);
+        writeCaptureData(baseEntries, filename, input.outputDirectory);
         writeUrlMetadata(
           input,
-          [...updatedEntries, ...invalidEntries],
+          baseEntries,
           unavailableEntries,
+          skippedEntries,
           downloadMetadata,
           filename,
           input.outputDirectory,
@@ -275,6 +276,7 @@ async function processWebsiteDownloads(
         input,
         baseEntries,
         unavailableEntries,
+        skippedEntries,
         downloadMetadata,
         input.filename,
         input.outputDirectory,
