@@ -3,6 +3,7 @@ import fs from "fs";
 import path, { dirname } from "path";
 import { fileURLToPath } from "url";
 import { DownloadFileInput, UrlEntry } from "../types/download-input-types.js";
+import { CommonCrawlIndexQuery } from "../types/commoncrawl-types.js";
 import {
   determineFilenameFromUrls,
   determineOutputSubdirectoryFromUrls,
@@ -130,7 +131,7 @@ export function readWebsiteJsonConfig(
   jsonPath: string,
   baseDirectory: string,
   { noMirrors = false },
-): DownloadFileInput[] {
+): { downloadInputs: DownloadFileInput[]; commonCrawlIndexQueries: CommonCrawlIndexQuery[] } {
   let config = readFileAsJson5(jsonPath);
   const variables = readVariables();
   config = replaceJsonConfigVariables(config, variables);
@@ -139,6 +140,8 @@ export function readWebsiteJsonConfig(
   const maxTimestamp: string | undefined = config.commonSettings?.maxTimestamp;
   const minTimestamp: string | undefined = config.commonSettings?.minTimestamp;
   const commonClassifications = config.commonSettings?.classifications || {};
+  const commonCrawlIndexQueries: CommonCrawlIndexQuery[] =
+    config.commonSettings?.commonCrawlIndexQueries || [];
 
   const files: WebsiteFileEntryJson[] = config.files;
 
@@ -193,5 +196,5 @@ export function readWebsiteJsonConfig(
     } satisfies DownloadFileInput;
   });
 
-  return result;
+  return { downloadInputs: result, commonCrawlIndexQueries };
 }

@@ -20,16 +20,50 @@ import { resolveCommonCrawlRevisitRecords } from "./commoncrawl/commoncrawl-revi
 import { parseCommonCrawlTimestamps } from "./commoncrawl/commoncrawl-timestamps.js";
 import { sanityCheckTimestamps } from "../utils/timestamp.js";
 import { UrlMetadataFilteredEntries } from "../file-output/url-metadata.js";
+import { CommonCrawlPrefetchedIndex } from "./commoncrawl/cdx-prefetch.js";
+import { urlToUrlkey } from "../utils/urlkey.js";
+
+function filterPrefetchedEntries(
+  cachedEntries: ExtendedCdxEntry[],
+  urlEntry: UrlEntry,
+  commonCrawlCollections?: string[],
+): ExtendedCdxEntry[] {
+  const targetUrlkey = urlToUrlkey(urlEntry.url);
+  return cachedEntries
+    .filter((entry) => {
+      if (entry.urlkey !== targetUrlkey) return false;
+      if (urlEntry.maxTimestamp && entry.timestamp > urlEntry.maxTimestamp) return false;
+      if (urlEntry.minTimestamp && entry.timestamp < urlEntry.minTimestamp) return false;
+      if (commonCrawlCollections && !commonCrawlCollections.includes(entry.collection!))
+        return false;
+      return true;
+    })
+    .map((entry) => ({ ...entry, requestUrl: urlEntry.url }))
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+}
 
 async function fetchCommonCrawlCdxEntries(
   urlEntry: UrlEntry,
   options?: CommonCrawlDownloaderOptions,
   commonCrawlCollections?: string[],
+  prefetchedIndex?: CommonCrawlPrefetchedIndex,
 ): Promise<ExtendedCdxEntry[]> {
   const resolvedOptions = {
     requestDelayMs: options?.requestDelayMs ?? COMMONCRAWL_REQUEST_DELAY_MS,
     requestTimeoutMs: options?.requestTimeoutMs ?? COMMONCRAWL_REQUEST_TIMEOUT,
   };
+
+  if (prefetchedIndex) {
+    for (const [prefix, cachedEntries] of prefetchedIndex) {
+      if (urlEntry.url.startsWith(prefix)) {
+        const entries = filterPrefetchedEntries(cachedEntries, urlEntry, commonCrawlCollections);
+        console.log(
+          `Using pre-fetched CDX index for ${urlEntry.url} (prefix: ${prefix}), found ${entries.length} entries.`,
+        );
+        return entries;
+      }
+    }
+  }
 
   console.log(`Fetching Common Crawl CDX entries for ${urlEntry.url}...`);
 
@@ -183,8 +217,14 @@ async function downloadUrlCommonCrawlEntries(
   urlEntry: UrlEntry,
   options?: CommonCrawlDownloaderOptions,
   commonCrawlCollections?: string[],
+  prefetchedIndex?: CommonCrawlPrefetchedIndex,
 ): Promise<{ filteredEntries: CaptureEntry[]; redirectNonSlashFiltered: number }> {
-  const cdxEntries = await fetchCommonCrawlCdxEntries(urlEntry, options, commonCrawlCollections);
+  const cdxEntries = await fetchCommonCrawlCdxEntries(
+    urlEntry,
+    options,
+    commonCrawlCollections,
+    prefetchedIndex,
+  );
 
   const files: { file: CommonCrawlDownloadedFile; entry: ExtendedCdxEntry }[] = [];
   const captureEntries: CaptureEntry[] = [];
@@ -218,6 +258,7 @@ async function downloadUrlCommonCrawlEntries(
 export async function downloadCommonCrawlEntries(
   input: DownloadFileInput,
   options?: CommonCrawlDownloaderOptions,
+  prefetchedIndex?: CommonCrawlPrefetchedIndex,
 ): Promise<{ filteredEntries: CaptureEntry[]; metadata: UrlMetadataFilteredEntries }> {
   const captureEntries: CaptureEntry[] = [];
 
@@ -227,6 +268,7 @@ export async function downloadCommonCrawlEntries(
       urlEntry,
       options,
       input.commonCrawlCollections,
+      prefetchedIndex,
     );
     redirectNonSlashTotal += result.redirectNonSlashFiltered;
     captureEntries.push(...result.filteredEntries);

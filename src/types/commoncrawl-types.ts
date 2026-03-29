@@ -48,6 +48,12 @@ export interface CommonCrawlDownloadedFile {
   };
 }
 
+export interface CommonCrawlIndexQuery {
+  prefix: string;
+  maxTimestamp?: string;
+  minTimestamp?: string;
+}
+
 export interface CommonCrawlDownloaderOptions {
   /** Milliseconds to wait between each API request. Default: COMMONCRAWL_REQUEST_DELAY_MS */
   requestDelayMs?: number;

@@ -12,6 +12,7 @@ async function fetchCdxWithRetry(
   cdxApiUrl: string,
   url: string,
   options: Required<CommonCrawlDownloaderOptions>,
+  extraParams?: Record<string, string>,
 ) {
   let attempt = 0;
   let backoff = COMMONCRAWL_INITIAL_BACKOFF;
@@ -23,6 +24,7 @@ async function fetchCdxWithRetry(
         params: {
           url,
           output: "json",
+          ...extraParams,
         },
       });
       return response.data;
@@ -53,8 +55,9 @@ async function fetchCdx(
   cdxApiUrl: string,
   url: string,
   options: Required<CommonCrawlDownloaderOptions>,
+  extraParams?: Record<string, string>,
 ): Promise<CommonCrawlCdxEntry[]> {
-  const response = await fetchCdxWithRetry(cdxApiUrl, url, options);
+  const response = await fetchCdxWithRetry(cdxApiUrl, url, options, extraParams);
 
   const lines = (response ?? "").split("\n");
   const entries: CommonCrawlCdxEntry[] = [];
@@ -112,4 +115,18 @@ export async function fetchCdxEntriesForCollection(
   await new Promise((res) => setTimeout(res, options.requestDelayMs));
 
   return rawEntries.map((raw) => mapToExtendedCdxEntry(raw, collection.id, urlEntry.url));
+}
+
+export async function fetchCdxEntriesForCollectionByPrefix(
+  prefix: string,
+  collection: CommonCrawlCollection,
+  options: Required<CommonCrawlDownloaderOptions>,
+): Promise<ExtendedCdxEntry[]> {
+  const cdxApiUrl = collection["cdx-api"];
+  console.log(`Fetching CDX entries for prefix ${prefix} from collection ${collection.id}...`);
+
+  const rawEntries = await fetchCdx(cdxApiUrl, prefix, options, { matchType: "prefix" });
+  await new Promise((res) => setTimeout(res, options.requestDelayMs));
+
+  return rawEntries.map((raw) => mapToExtendedCdxEntry(raw, collection.id, prefix));
 }

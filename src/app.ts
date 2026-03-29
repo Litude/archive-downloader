@@ -17,6 +17,14 @@ import { downloadWaybackEntries } from "./downloader/downloader-wayback.js";
 import { writeCaptureData } from "./file-output/capture-data.js";
 import { assignCaptureIndices, assignContentIndices } from "./file-output/output-indices.js";
 import { downloadCommonCrawlEntries } from "./downloader/downloader-commoncrawl.js";
+import {
+  CommonCrawlPrefetchedIndex,
+  prefetchCdxIndex,
+} from "./downloader/commoncrawl/cdx-prefetch.js";
+import {
+  COMMONCRAWL_REQUEST_DELAY_MS,
+  COMMONCRAWL_REQUEST_TIMEOUT,
+} from "./downloader/commoncrawl/commoncrawl-common.js";
 import { validateCaptureEntries } from "./validation/validate-capture.js";
 import { enrichCaptureEntryWithExactTimestamps } from "./utils/timestamp.js";
 import { applyDataCorrectionsToEntry } from "./data-corrections/data-correction.js";
@@ -85,10 +93,12 @@ async function processWebsiteDownloads(
     includeInvalid = false,
     peekAllFiles = false,
     writeHeaders = false,
+    prefetchedIndex,
   }: {
     includeInvalid?: boolean;
     peekAllFiles?: boolean;
     writeHeaders?: boolean;
+    prefetchedIndex?: CommonCrawlPrefetchedIndex;
   },
 ) {
   const context: Context = {
@@ -115,7 +125,7 @@ async function processWebsiteDownloads(
 
     const { filteredEntries: commonCrawlEntries, metadata: commonCrawlDownloadMetadata } =
       input.commonCrawlEnabled
-        ? await downloadCommonCrawlEntries(input)
+        ? await downloadCommonCrawlEntries(input, undefined, prefetchedIndex)
         : { filteredEntries: [], metadata: {} };
 
     const downloadMetadata = {
@@ -338,13 +348,23 @@ async function main() {
     console.log(`Max timestamp: ${argv["max-timestamp"] || "None"}`);
     console.log(`Min timestamp: ${argv["min-timestamp"] || "None"}`);
     console.log("================\n");
-    const downloadInputs = readWebsiteJsonConfig(argv.json, argv["output-dir"], {
-      noMirrors: !argv["mirrors"],
-    });
+    const { downloadInputs, commonCrawlIndexQueries } = readWebsiteJsonConfig(
+      argv.json,
+      argv["output-dir"],
+      { noMirrors: !argv["mirrors"] },
+    );
+    const prefetchedIndex =
+      commonCrawlIndexQueries.length > 0
+        ? await prefetchCdxIndex(commonCrawlIndexQueries, {
+            requestDelayMs: COMMONCRAWL_REQUEST_DELAY_MS,
+            requestTimeoutMs: COMMONCRAWL_REQUEST_TIMEOUT,
+          })
+        : undefined;
     await processWebsiteDownloads(downloadInputs, {
       includeInvalid: argv["include-invalid"],
       peekAllFiles: argv["peek-all"],
       writeHeaders: argv["headers"],
+      prefetchedIndex,
     });
     return;
   } else {
