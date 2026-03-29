@@ -31,11 +31,18 @@ function filterPrefetchedEntries(
   const targetUrlkey = urlToUrlkey(urlEntry.url);
   return cachedEntries
     .filter((entry) => {
-      if (entry.urlkey !== targetUrlkey) return false;
-      if (urlEntry.maxTimestamp && entry.timestamp > urlEntry.maxTimestamp) return false;
-      if (urlEntry.minTimestamp && entry.timestamp < urlEntry.minTimestamp) return false;
-      if (commonCrawlCollections && !commonCrawlCollections.includes(entry.collection!))
+      if (entry.urlkey !== targetUrlkey) {
         return false;
+      }
+      if (urlEntry.maxTimestamp && entry.timestamp > urlEntry.maxTimestamp) {
+        return false;
+      }
+      if (urlEntry.minTimestamp && entry.timestamp < urlEntry.minTimestamp) {
+        return false;
+      }
+      if (commonCrawlCollections && !commonCrawlCollections.includes(entry.collection!)) {
+        return false;
+      }
       return true;
     })
     .map((entry) => ({ ...entry, requestUrl: urlEntry.url }))
@@ -178,9 +185,7 @@ function buildCaptureEntry(entry: ExtendedCdxEntry, file: CommonCrawlDownloadedF
     downloadStatus: "downloaded",
     responseHeaders: file.responseHeaders,
     rawResponseHeaders: file.rawResponseHeaders,
-    headerOutput: {
-      original: file.rawResponseHeaders,
-    },
+    headerOutput: file.rawResponseHeaders,
     hostIp: file.hostIp,
     protocol: file.protocol,
     records: file.records,

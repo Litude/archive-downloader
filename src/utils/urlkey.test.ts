@@ -49,7 +49,8 @@ describe("urlToUrlkey", () => {
   });
 
   it("handles empty query string", () => {
-    expect(urlToUrlkey("http://microsoft.com:80/games/empires/?")).toBe("com,microsoft)/games/empires");
+    expect(urlToUrlkey("http://microsoft.com:80/games/empires/?")).toBe(
+      "com,microsoft)/games/empires",
+    );
   });
-
 });

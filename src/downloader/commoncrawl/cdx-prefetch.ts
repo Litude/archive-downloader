@@ -1,4 +1,7 @@
-import { CommonCrawlDownloaderOptions, CommonCrawlIndexQuery } from "../../types/commoncrawl-types.js";
+import {
+  CommonCrawlDownloaderOptions,
+  CommonCrawlIndexQuery,
+} from "../../types/commoncrawl-types.js";
 import { ExtendedCdxEntry } from "../../types/wayback-types.js";
 import { COMMONCRAWL_REQUEST_DELAY_MS, COMMONCRAWL_REQUEST_TIMEOUT } from "./commoncrawl-common.js";
 import { fetchAllCollections, filterCollectionsByTimestamp } from "./collections.js";
@@ -47,7 +50,9 @@ export async function prefetchCdxIndex(
     }
 
     prefixEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-    console.log(`Total pre-fetched CDX entries for prefix ${query.prefix}: ${prefixEntries.length}`);
+    console.log(
+      `Total pre-fetched CDX entries for prefix ${query.prefix}: ${prefixEntries.length}`,
+    );
     index.set(query.prefix, prefixEntries);
   }
 

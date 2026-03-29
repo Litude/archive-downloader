@@ -381,9 +381,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
     if (record) {
       entry.hostIp = record.ip;
       entry.protocol = record.protocol;
-      entry.headerOutput = {
-        original: record.headers,
-      };
+      entry.headerOutput = record.headers;
     } else if (entry.responseHeaders && entry.rawResponseHeaders) {
       entry.headerOutput = cleanupWaybackHeaders(
         entry.url,

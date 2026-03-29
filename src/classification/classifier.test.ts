@@ -20,7 +20,7 @@ describe("Classifier", () => {
       undefined,
       testConfig,
     );
-    expect(result).toBe("transient_retry");
+    expect(result).toEqual({ type: "transient_retry" });
   });
 
   it("should classify not found page by content", () => {
@@ -35,7 +35,7 @@ describe("Classifier", () => {
       undefined,
       testConfig,
     );
-    expect(result).toBe("not_found");
+    expect(result).toEqual({ type: "not_found", details: { reason: "not_found_string_detected" } });
   });
 
   it("should classify page not matching any criteria as ok", () => {
@@ -50,6 +50,6 @@ describe("Classifier", () => {
       undefined,
       testConfig,
     );
-    expect(result).toBe("ok");
+    expect(result).toEqual({ type: "ok" });
   });
 });

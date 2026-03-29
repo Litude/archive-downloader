@@ -45,10 +45,7 @@ export interface CaptureDataJson {
   modificationTimePrecise?: string;
   /** Multiple candidate modification times when ETag parsing is ambiguous */
   modificationTimePreciseCandidates?: string[];
-  headers?: {
-    original?: RawHeader[];
-    reconstructed?: RawHeader[];
-  };
+  headers?: RawHeader[];
   classification: Classification;
   corrections?: DataCorrection[];
   validationErrors?: {
@@ -149,11 +146,8 @@ export function writeCaptureData(
     const headersResult = entry.headerOutput;
 
     const inlineElementsOf = new Set<unknown[]>();
-    if (headersResult?.original) {
-      inlineElementsOf.add(headersResult.original);
-    }
-    if (headersResult?.reconstructed) {
-      inlineElementsOf.add(headersResult.reconstructed);
+    if (headersResult) {
+      inlineElementsOf.add(headersResult);
     }
 
     const archiveRecordAvailable = Boolean(

@@ -1,4 +1,6 @@
-export type RawHeader = [string, string];
+export type RawHeader = [string, string] | [string, string, "?"];
+
+export const UNCONFIRMED_HEADER_MARKER = "?";
 
 export function parseRawHeadersToPairs(rawHeaders: string | string[]): RawHeader[] {
   const headerPairs: RawHeader[] = [];

@@ -6,15 +6,15 @@ import { iis60rc1ExtToMime } from "./iis-mimemaps/iis6.0rc1.js";
 import { iis60RtmExtToMime } from "./iis-mimemaps/iis6.0rtm.js";
 import { iis60sp2ExtToMime } from "./iis-mimemaps/iis6.0sp2.js";
 
-function detectIisVersionFromServerHeader(serverHeader: string): string | null {
-  const match = serverHeader.match(/Microsoft-IIS\/(\d+\.\d+)/);
+function detectIisVersionFromServerHeader(serverHeader?: string): string | null {
+  const match = serverHeader?.match(/Microsoft-IIS\/(\d+\.\d+)/);
   return match ? match[1] : null;
 }
 
 export function isIisDefaultMimetype(
   filename: string,
   mimetype: string,
-  serverHeader: string,
+  serverHeader?: string,
 ): boolean {
   const iisVersion = detectIisVersionFromServerHeader(serverHeader);
   if (!iisVersion) {

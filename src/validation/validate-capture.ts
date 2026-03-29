@@ -20,10 +20,8 @@ export function validateCaptureEntries(entries: CaptureEntry[]) {
 }
 
 export function validateCaptureEntry(entry: CaptureEntry) {
-  if (entry.headerOutput?.original?.find(([k]) => k.toLowerCase() === "date")) {
-    const serverDateHeader = entry.headerOutput.original.find(
-      ([k]) => k.toLowerCase() === "date",
-    )?.[1];
+  if (entry.headerOutput?.find(([k]) => k.toLowerCase() === "date")) {
+    const serverDateHeader = entry.headerOutput.find(([k]) => k.toLowerCase() === "date")?.[1];
     const serverDate = serverDateHeader
       ? DateTime.fromHTTP(serverDateHeader, { zone: "utc" })
       : null;

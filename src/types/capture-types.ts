@@ -82,10 +82,7 @@ export interface CaptureEntry {
   rawResponseHeaders?: RawHeader[];
   hostIp?: string;
   protocol?: string;
-  headerOutput?: {
-    original?: RawHeader[];
-    reconstructed?: RawHeader[];
-  };
+  headerOutput?: RawHeader[];
   captureIndex?: number; // set when filename has _N suffix due to duplicate timestamp+flags
   contentIndex?: number | null; // set when multiple captures have same content and timestamp, so only one file is saved but all get an index to indicate they are part of the same group
   records?: ArchiveRecord[];

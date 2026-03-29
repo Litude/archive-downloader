@@ -1,18 +1,16 @@
 import { filenameToString } from "../../file-name/file-name.js";
 import { Filename } from "../../types/download-input-types.js";
 import { isIisDefaultMimetype } from "../../utils/iis-mimetypes.js";
-import { RawHeader } from "../../headers/raw-header-parser.js";
+import { RawHeader, UNCONFIRMED_HEADER_MARKER } from "../../headers/raw-header-parser.js";
+import { DateTime } from "luxon";
 
-const ARCHIVED_COMMON_HEADERS = [
-  "content-type",
-  "location",
-  "content-location",
-  "content-base",
-  "content-disposition",
-];
 const WAYBACK_ORIGINAL_HEADER_PREFIX = "x-archive-orig-";
-const COMMONCRAWL_ADDED_HEADER = "x-archive-orig-x_commoncrawl_";
+const COMMONCRAWL_ADDED_HEADER1 = "x-archive-orig-x_commoncrawl_";
+const COMMONCRAWL_ADDED_HEADER2 = "x-archive-orig-x-commoncrawl-";
 const ADDRESS_HEADERS = ["location", "content-location", "content-base"];
+
+// Headers presumambly always returned unmodified by wayback and not prefixed with x-archive-orig
+const UNMOFIDIED_HEADERS = ["content-encoding", "content-disposition"];
 
 const IisServerHeaderNames: Record<string, string> = {
   etag: "ETag",
@@ -26,30 +24,40 @@ const IisServerHeaderNames: Record<string, string> = {
   "x-cid": "X-CID",
 };
 
-function getFixedHeaderName(header: string, server?: string): string {
+function headerToSentenceCase(header: string): string {
+  const parts = header.toLowerCase().split("-");
+  parts.forEach((part, index) => {
+    parts[index] = part.charAt(0).toUpperCase() + part.slice(1);
+  });
+  return parts.join("-");
+}
+
+function getFixedHeaderName(header: string, server?: string, date?: string): string {
   if (
     server &&
     (server.toLowerCase().startsWith("microsoft-iis") || server.toLowerCase().startsWith("apache"))
   ) {
     const fixedName = IisServerHeaderNames[header.toLowerCase()];
     if (!fixedName) {
-      const parts = header.toLowerCase().split("-");
-      parts.forEach((part, index) => {
-        parts[index] = part.charAt(0).toUpperCase() + part.slice(1);
-      });
-      return parts.join("-");
+      return headerToSentenceCase(header);
     } else {
       return fixedName;
     }
-  } else {
-    return header;
+  } else if (date) {
+    // For captures before 2015, we assume headers were always in sentence case
+    const datetime = DateTime.fromHTTP(date);
+    if (datetime.year < 2015) {
+      return headerToSentenceCase(header);
+    }
   }
+  return header;
 }
 
 function isOriginalCaptureHeader(header: string): boolean {
   return (
     header.toLowerCase().startsWith(WAYBACK_ORIGINAL_HEADER_PREFIX) &&
-    !header.toLowerCase().startsWith(COMMONCRAWL_ADDED_HEADER)
+    !header.toLowerCase().startsWith(COMMONCRAWL_ADDED_HEADER1) &&
+    !header.toLowerCase().startsWith(COMMONCRAWL_ADDED_HEADER2)
   );
 }
 
@@ -92,59 +100,44 @@ export function cleanupWaybackHeaders(
   headers: Record<string, string>,
   rawHeaders: RawHeader[],
   filename: Filename,
-): {
-  original?: RawHeader[];
-  reconstructed?: RawHeader[];
-} {
-  const originalHeaders: RawHeader[] = [];
-  const reconstructedHeaders: RawHeader[] = [];
-  const encounteredOriginalKeys = new Set<string>();
+): RawHeader[] {
+  const headerOutput: RawHeader[] = [];
   const server = headers["x-archive-orig-server"];
+  const date = headers["x-archive-orig-date"];
 
   for (const [key, value] of rawHeaders) {
     if (isOriginalCaptureHeader(key)) {
       const originalKey = key.substring(WAYBACK_ORIGINAL_HEADER_PREFIX.length);
-      encounteredOriginalKeys.add(originalKey.toLowerCase());
-      const fixedOriginalKey = getFixedHeaderName(originalKey, server);
-      originalHeaders.push([fixedOriginalKey, value]);
-    }
-    // Wayback seems to return content-encoding unmodified as long as the request is without gzip encoding
-    else if (
-      key.toLowerCase() === "content-encoding" &&
-      !rawHeaders.some(
-        ([k]) => k.toLowerCase() === `${WAYBACK_ORIGINAL_HEADER_PREFIX}content-encoding`,
-      )
-    ) {
-      const fixedOriginalKey = getFixedHeaderName("content-encoding", server);
-      encounteredOriginalKeys.add("content-encoding");
-      originalHeaders.push([fixedOriginalKey, value]);
-    }
-    // wayback does content-type rewriting but the exact logic is not open source...
-    else if (
+      const fixedOriginalKey = getFixedHeaderName(originalKey, server, date);
+      headerOutput.push([fixedOriginalKey, value]);
+    } else if (
       key.toLowerCase() === "content-type" &&
       !rawHeaders.some(([k]) => k.toLowerCase() === `${WAYBACK_ORIGINAL_HEADER_PREFIX}content-type`)
     ) {
-      const fixedOriginalKey = getFixedHeaderName("content-type", server);
+      const fixedOriginalKey = getFixedHeaderName("content-type", server, date);
       if (value.includes(";") || isIisDefaultMimetype(filenameToString(filename), value, server)) {
-        encounteredOriginalKeys.add("content-type");
-        originalHeaders.push([fixedOriginalKey, value]);
+        headerOutput.push([fixedOriginalKey, value]);
+      } else {
+        headerOutput.push([fixedOriginalKey, value, UNCONFIRMED_HEADER_MARKER]);
       }
+    } else if (
+      UNMOFIDIED_HEADERS.includes(key.toLowerCase()) &&
+      !rawHeaders.some(
+        ([k]) => k.toLowerCase() === `${WAYBACK_ORIGINAL_HEADER_PREFIX}${key.toLowerCase()}`,
+      )
+    ) {
+      const fixedOriginalKey = getFixedHeaderName(key, server, date);
+      headerOutput.push([fixedOriginalKey, value]);
+    } else if (
+      ADDRESS_HEADERS.includes(key.toLowerCase()) &&
+      !rawHeaders.some(
+        ([k]) => k.toLowerCase() === `${WAYBACK_ORIGINAL_HEADER_PREFIX}${key.toLowerCase()}`,
+      )
+    ) {
+      const fixedOriginalKey = getFixedHeaderName(key, server, date);
+      const cleanedValue = cleanupUrlHeader(url, value);
+      headerOutput.push([fixedOriginalKey, cleanedValue, UNCONFIRMED_HEADER_MARKER]);
     }
   }
-
-  for (const [key, value] of rawHeaders) {
-    const lowerKey = key.toLowerCase();
-    const fixedKey = getFixedHeaderName(lowerKey, server);
-    if (ARCHIVED_COMMON_HEADERS.includes(lowerKey) && !encounteredOriginalKeys.has(lowerKey)) {
-      reconstructedHeaders.push([
-        fixedKey,
-        ADDRESS_HEADERS.includes(lowerKey) ? cleanupUrlHeader(url, value) : value,
-      ]);
-    }
-  }
-
-  return {
-    original: originalHeaders.length ? originalHeaders : undefined,
-    reconstructed: reconstructedHeaders.length ? reconstructedHeaders : undefined,
-  };
+  return headerOutput;
 }

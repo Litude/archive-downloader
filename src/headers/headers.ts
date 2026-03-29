@@ -10,17 +10,11 @@ export function getCaptureHeaderValue(
   captureEntry: CaptureEntry,
   headerName: string,
 ): string | undefined {
-  const header = captureEntry.headerOutput?.original?.find(
+  const header = captureEntry.headerOutput?.find(
     (h) => h[0].toLowerCase() === headerName.toLowerCase(),
   );
   if (header) {
     return header[1];
-  }
-  const reconstructedHeader = captureEntry.headerOutput?.reconstructed?.find(
-    (h) => h[0].toLowerCase() === headerName.toLowerCase(),
-  );
-  if (reconstructedHeader) {
-    return reconstructedHeader[1];
   }
   return undefined;
 }

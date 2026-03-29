@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { cleanupWaybackHeaders } from "./header-cleanup.js";
-import { RawHeader } from "../../headers/raw-header-parser.js";
+import { RawHeader, UNCONFIRMED_HEADER_MARKER } from "../../headers/raw-header-parser.js";
 
 describe("cleanupHeaders", () => {
   it("should keep only recognized headers and strip wayback prefix from location", () => {
@@ -23,26 +23,24 @@ describe("cleanupHeaders", () => {
       ext: ".html",
     });
 
-    expect(result).toEqual({
-      reconstructed: [
-        ["content-type", "text/html"],
-        ["location", "http://example.com/page"],
-      ],
-    });
+    expect(result).toEqual([
+      ["content-type", "text/html", UNCONFIRMED_HEADER_MARKER],
+      ["location", "http://example.com/page", UNCONFIRMED_HEADER_MARKER],
+    ]);
   });
 
   it("should preserve x-archive-orig- prefixed headers", () => {
     const headers: Record<string, string> = {
+      "content-encoding": "gzip",
       "x-archive-orig-content-type": "image/gif",
       "x-archive-orig-last-modified": "Wed, 15 Nov 2000 10:00:00 GMT",
       "x-unrelated": "dropped",
-      "content-length": "1234",
     };
     const rawHeaders: RawHeader[] = [
+      ["content-encoding", "gzip"],
       ["x-archive-orig-content-type", "image/gif"],
       ["x-archive-orig-last-modified", "Wed, 15 Nov 2000 10:00:00 GMT"],
       ["x-unrelated", "dropped"],
-      ["content-length", "1234"],
     ];
     const url = "http://example.com/page";
 
@@ -51,13 +49,11 @@ describe("cleanupHeaders", () => {
       ext: ".html",
     });
 
-    expect(result).toEqual({
-      original: [
-        ["content-type", "image/gif"],
-        ["last-modified", "Wed, 15 Nov 2000 10:00:00 GMT"],
-      ],
-      reconstructed: [["content-length", "1234"]],
-    });
+    expect(result).toEqual([
+      ["content-encoding", "gzip"],
+      ["content-type", "image/gif"],
+      ["last-modified", "Wed, 15 Nov 2000 10:00:00 GMT"],
+    ]);
   });
 
   it("should remove web archive prefixes and origin from relative redirect headers", () => {
@@ -77,12 +73,14 @@ describe("cleanupHeaders", () => {
 
     const result = cleanupWaybackHeaders(url, headers, rawHeaders, { base: "defalt", ext: ".asp" });
 
-    expect(result).toEqual({
-      reconstructed: [
-        ["content-type", "text/html"],
-        ["location", "/japan/library/404/error.aspx?url=/japan/games/empires/default.asp"],
+    expect(result).toEqual([
+      ["content-type", "text/html", UNCONFIRMED_HEADER_MARKER],
+      [
+        "location",
+        "/japan/library/404/error.aspx?url=/japan/games/empires/default.asp",
+        UNCONFIRMED_HEADER_MARKER,
       ],
-    });
+    ]);
   });
 
   it("should remove web archive prefixes from absolute redirect headers", () => {
@@ -102,11 +100,13 @@ describe("cleanupHeaders", () => {
 
     const result = cleanupWaybackHeaders(url, headers, rawHeaders, { base: "defalt", ext: ".asp" });
 
-    expect(result).toEqual({
-      reconstructed: [
-        ["content-type", "text/html"],
-        ["location", "http://www.microsoft.com:80/japan/games/empires/download/up10a.asp"],
+    expect(result).toEqual([
+      ["content-type", "text/html", UNCONFIRMED_HEADER_MARKER],
+      [
+        "location",
+        "http://www.microsoft.com:80/japan/games/empires/download/up10a.asp",
+        UNCONFIRMED_HEADER_MARKER,
       ],
-    });
+    ]);
   });
 });
