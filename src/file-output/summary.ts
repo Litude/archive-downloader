@@ -20,14 +20,14 @@ interface SummaryRow {
   corrections?: string;
   classification: string;
   mimetype: string;
-  archive_source?: string;
+  source?: string;
   additional_sources?: string;
-  archive_digest?: string;
+  record_digest?: string;
   actual_digest?: string;
-  archive_filename?: string;
-  archive_available?: boolean;
-  archive_offset?: number;
-  archive_length?: number;
+  record_filename?: string;
+  record_available?: boolean;
+  record_offset?: number;
+  record_length?: number;
 }
 
 function mapCorrectionFieldName(field: string): string | undefined {
@@ -67,21 +67,21 @@ export async function writeCsvSummary(
             .join(ARRAY_SEPARATOR) ?? "",
         classification: entry.classification.type,
         mimetype: entry.mimetype,
-        archive_source: entry.cdxEntry.source,
+        source: entry.cdxEntry.source,
         additional_sources: entry.additionalSources
           ? entry.additionalSources
               .map((source) => source.source)
               .sort()
               .join(ARRAY_SEPARATOR)
           : undefined,
-        archive_digest: entry.cdxEntry.digest,
+        record_digest: entry.cdxEntry.digest,
         actual_digest: entry.actualDigest,
-        archive_filename: entry.cdxEntry.filename,
-        archive_available: Boolean(
+        record_filename: entry.cdxEntry.filename,
+        record_available: Boolean(
           entry.records?.find((r) => ["warc", "arc"].includes(r.type))?.type ?? undefined,
         ),
-        archive_offset: entry.cdxEntry.offset,
-        archive_length: entry.cdxEntry.length,
+        record_offset: entry.cdxEntry.offset,
+        record_length: entry.cdxEntry.length,
       }) satisfies SummaryRow,
   );
 

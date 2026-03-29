@@ -91,7 +91,7 @@ function calculateSourceCaptureCounts(
   captureEntries: CaptureEntry[],
   unavailableEntries: CaptureEntry[],
   skippedEntries: CaptureEntry[],
-  source: "wayback" | "commonCrawl",
+  source: "wayback" | "commoncrawl",
 ): SourceCaptureCounts {
   const sourceEntries = captureEntries.filter((entry) => entry.cdxEntry.source === source);
   const sourceUnavailableEntries = unavailableEntries.filter(
@@ -100,7 +100,8 @@ function calculateSourceCaptureCounts(
   const sourceSkippedEntries = skippedEntries.filter((entry) => entry.cdxEntry.source === source);
 
   return {
-    totalCaptures: sourceEntries.length + sourceUnavailableEntries.length,
+    totalCaptures:
+      sourceEntries.length + sourceUnavailableEntries.length + sourceSkippedEntries.length,
     validCaptures: sourceEntries.filter((entry) => entry.classification.type === "ok").length,
     invalidCaptures: sourceEntries.filter((entry) => entry.classification.type !== "ok").length,
     unavailableCaptures: sourceUnavailableEntries.length,
@@ -118,7 +119,7 @@ export function writeUrlMetadata(
   outputDirectory: string,
 ) {
   const timestamps = getTimestampsFromFile(fileInput);
-  const totalCaptures = captureEntries.length + unavailableEntries.length;
+  const totalCaptures = captureEntries.length + unavailableEntries.length + skippedEntries.length;
   const urlMetadata: UrlMetadata = {
     maxTimestamp: timestamps.maxTimestamp,
     minTimestamp: timestamps.minTimestamp,
@@ -138,7 +139,7 @@ export function writeUrlMetadata(
         captureEntries,
         unavailableEntries,
         skippedEntries,
-        "commonCrawl",
+        "commoncrawl",
       ),
     },
     filteredEntries: metadata,
