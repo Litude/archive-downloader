@@ -269,14 +269,16 @@ export async function downloadCommonCrawlEntries(
 
   let redirectNonSlashTotal = 0;
   for (const urlEntry of input.urls) {
-    const result = await downloadUrlCommonCrawlEntries(
-      urlEntry,
-      options,
-      input.commonCrawlCollections,
-      prefetchedIndex,
-    );
-    redirectNonSlashTotal += result.redirectNonSlashFiltered;
-    captureEntries.push(...result.filteredEntries);
+    if (!urlEntry.mirrorUrl) {
+      const result = await downloadUrlCommonCrawlEntries(
+        urlEntry,
+        options,
+        input.commonCrawlCollections,
+        prefetchedIndex,
+      );
+      redirectNonSlashTotal += result.redirectNonSlashFiltered;
+      captureEntries.push(...result.filteredEntries);
+    }
   }
 
   console.log(`Total filtered non-trailing-slash redirects: ${redirectNonSlashTotal}`);

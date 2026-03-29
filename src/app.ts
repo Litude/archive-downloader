@@ -87,6 +87,10 @@ function mergeWaybackAndCommonCrawlEntries(
 // 4. Find all unique digests across all URLs for the file
 // 5. Download each unique snapshot once and save to output directory
 
+function isCommonCrawlEnabledForInput(input: DownloadFileInput, prefetchedIndex?: CommonCrawlPrefetchedIndex): boolean {
+  return input.commonCrawlEnabled || !!input.commonCrawlCollections?.length || (prefetchedIndex ? Array.from(prefetchedIndex.keys()).some((prefix) => input.urls.some((urlEntry) => urlEntry.url.startsWith(prefix))) : false);
+}
+
 async function processWebsiteDownloads(
   downloadInputs: DownloadFileInput[],
   {
@@ -124,7 +128,7 @@ async function processWebsiteDownloads(
     } = await downloadWaybackEntries(input, context);
 
     const { filteredEntries: commonCrawlEntries, metadata: commonCrawlDownloadMetadata } =
-      input.commonCrawlEnabled
+      isCommonCrawlEnabledForInput(input, prefetchedIndex)
         ? await downloadCommonCrawlEntries(input, undefined, prefetchedIndex)
         : { filteredEntries: [], metadata: {} };
 
