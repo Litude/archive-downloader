@@ -100,10 +100,11 @@ export function cleanupWaybackHeaders(
   headers: Record<string, string>,
   rawHeaders: RawHeader[],
   filename: Filename,
+  timestamp: DateTime,
 ): RawHeader[] {
   const headerOutput: RawHeader[] = [];
-  const server = headers["x-archive-orig-server"];
-  const date = headers["x-archive-orig-date"];
+  const server: string | undefined = headers["x-archive-orig-server"];
+  const date = timestamp.toHTTP() ?? undefined;
 
   for (const [key, value] of rawHeaders) {
     if (isOriginalCaptureHeader(key)) {
