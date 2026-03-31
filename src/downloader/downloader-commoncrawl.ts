@@ -250,9 +250,12 @@ async function downloadUrlCommonCrawlEntries(
     captureEntries,
     urlEntry.url,
   );
-  console.log(
-    `Filtered ${redirectNonSlashFiltered} non-trailing-slash redirects for ${urlEntry.url}.`,
-  );
+
+  if (redirectNonSlashFiltered > 0) {
+    console.log(
+      `Filtered ${redirectNonSlashFiltered} non-trailing-slash redirects for ${urlEntry.url}.`,
+    );
+  }
 
   return {
     filteredEntries: filteredEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),

@@ -1,5 +1,5 @@
 import axios, { AxiosResponse } from "axios";
-import { WaybackItemDetails, WaybackMetadata } from "./wayback-types.js";
+import { WaybackItemCachedDetails, WaybackItemDetails, WaybackMetadata } from "./wayback-types.js";
 import {
   WAYBACK_INITIAL_BACKOFF,
   WAYBACK_MAX_BACKOFF,
@@ -13,18 +13,29 @@ function createMetadataUrl(itemId: string, attempt: number): string {
   return `${protocol}://${WAYBACK_METADATA_API_URL}/${itemId}`;
 }
 
-const metadataCache: Record<string, WaybackMetadata> = {};
+const itemCache: Record<string, WaybackItemCachedDetails> = {};
 
-export async function getWaybackItemMetadata(itemId: string): Promise<WaybackMetadata> {
-  if (metadataCache[itemId]) {
-    return metadataCache[itemId];
+export async function getWaybackItemDetails(itemId: string): Promise<WaybackItemCachedDetails> {
+  if (itemCache[itemId]) {
+    return itemCache[itemId];
   }
-  const metadata = await fetchWaybackItemMetadata(itemId);
-  metadataCache[itemId] = metadata;
-  return metadata;
+  const details = await fetchWaybackDetails(itemId);
+  // Reduce the cached details to only what we need for downloading and metadata, to save memory because we will save a lot of items...
+  itemCache[itemId] = {
+    files: details.files
+      .filter((file) => file.name.endsWith(".warc.gz") || file.name.endsWith(".arc.gz"))
+      .map((file) => ({ name: file.name, private: file.private })),
+    metadata: details.metadata,
+  };
+  return itemCache[itemId];
 }
 
-async function fetchWaybackItemMetadata(itemId: string): Promise<WaybackMetadata> {
+export async function getWaybackItemMetadata(itemId: string): Promise<WaybackMetadata> {
+  const item = await getWaybackItemDetails(itemId);
+  return item.metadata;
+}
+
+async function fetchWaybackDetails(itemId: string): Promise<WaybackItemDetails> {
   let attempt = 1;
   let backoff = WAYBACK_INITIAL_BACKOFF;
   while (true) {
@@ -47,7 +58,7 @@ async function fetchWaybackItemMetadata(itemId: string): Promise<WaybackMetadata
       if (numArcs && !data.metadata.numarcs) {
         data.metadata.numarcs = numArcs.toString();
       }
-      return data.metadata;
+      return data;
     } catch (e) {
       console.log(
         `Error fetching metadata for item ${itemId}: ${e}, retrying in ${backoff / 1000}s...`,

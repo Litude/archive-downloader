@@ -14,14 +14,18 @@ import {
 } from "../../special-rules/limit-captures.js";
 import { Context } from "../../types/context.js";
 import { isDefined } from "../../utils/ts-utils.js";
-import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common.js";
+import {
+  WAYBACK_INITIAL_BACKOFF,
+  WAYBACK_MAX_BACKOFF,
+  WAYBACK_REQUEST_TIMEOUT,
+} from "./wayback-common.js";
 import { UrlMetadataFilteredEntries } from "../../file-output/url-metadata.js";
 
 const WAYBACK_CDX_API_URL = "http://web.archive.org/cdx/search/cdx";
-const REQUEST_TIMEOUT = 60000; // 60 seconds
+const REQUEST_TIMEOUT = WAYBACK_REQUEST_TIMEOUT;
 
-const INITIAL_BACKOFF = 30_000; // 30 seconds
-const MAX_BACKOFF = 600_000; // 10 minutes
+const INITIAL_BACKOFF = WAYBACK_INITIAL_BACKOFF;
+const MAX_BACKOFF = WAYBACK_MAX_BACKOFF;
 
 // Redirects and not found are the most likely codes when a page no longer exists
 const INVALID_ALLOWED_STATUS_CODES = [301, 302, 303, 304, 307, 308, 403, 404];

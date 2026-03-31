@@ -14,7 +14,13 @@ export interface CaptureWaybackMetadata {
     notes?: string;
     crawler?: string;
     crawljob?: string;
+    scanningCenter?: string;
     numPages?: number;
+    scanDate?: string; // some local time, usually YYYYMMDDHHMMSS format
+    firstFileDate?: string; // some local time, usually YYYYMMDDHHMMSS format
+    firstFileSerial?: string;
+    lastFileDate?: string; // some local time, usually YYYYMMDDHHMMSS format
+    lastFileSerial?: string;
     numArcs?: number;
     numWarcs?: number;
     collections: {
@@ -22,8 +28,6 @@ export interface CaptureWaybackMetadata {
       title: string;
       description: string;
     }[];
-    firstFileDate?: string;
-    lastFileDate?: string;
   };
 }
 
@@ -35,6 +39,14 @@ export interface CaptureCommonCrawlMetadata {
     from: string; // ISO 8601, e.g. "2026-03-05T07:07:56"
     to: string; // ISO 8601, e.g. "2026-03-17T14:32:36"
   };
+}
+
+export interface CaptureCrawlJobMetadata {
+  crawler?: string;
+  crawljob?: string;
+  description?: string;
+  publisher?: string;
+  operator?: string;
 }
 
 export interface ArchiveRecord {
@@ -94,13 +106,7 @@ export interface CaptureEntry {
   metadata?: {
     wayback?: CaptureWaybackMetadata;
     commoncrawl?: CaptureCommonCrawlMetadata;
-    crawlData?: {
-      crawler?: string;
-      crawljob?: string;
-      description?: string;
-      publisher?: string;
-      operator?: string;
-    };
+    crawlData?: CaptureCrawlJobMetadata;
     validationErrors?: {
       type: string;
       details?: any;

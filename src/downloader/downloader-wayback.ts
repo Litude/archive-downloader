@@ -4,6 +4,7 @@ import { classifyEntry } from "../classification/classifier.js";
 import { DownloadedFile } from "../types/download-types.js";
 import {
   downloadUniqueDigestsForSnapshots,
+  fetchWaybackFile,
   fetchWaybackFileHeaders,
 } from "./wayback/file-download.js";
 import {
@@ -24,8 +25,11 @@ import {
   fetchArchiveCdx,
   fetchArchiveRecord,
 } from "./wayback/archive-record.js";
-import { parseWarcinfoFile } from "../archive-record/warcinfo.js";
-import { getHeaderValue } from "../headers/headers.js";
+import {
+  getContentLengthHeader,
+  getHeaderValue,
+  getUncompressedContentLength,
+} from "../headers/headers.js";
 import { cleanupWaybackHeaders } from "./wayback/header-cleanup.js";
 import { tryToCompleteMissingCdxFields } from "./wayback/cdx-completion/cdx-completion.js";
 import { cleanUpCorruptCommonCrawlEntries } from "./wayback/wayback-commoncrawl-cleanup.js";
@@ -33,6 +37,7 @@ import { extractMimeTypeFromContentType } from "../utils/mimetype.js";
 import { getArchivedRecord } from "../archive-record/archive-record.js";
 import { parseWaybackHeaderTimestamps } from "./wayback/wayback-timestamps.js";
 import { sanityCheckTimestamps } from "../utils/timestamp.js";
+import { WaybackMetadata } from "./wayback/wayback-types.js";
 
 function computeDigestHashes(uniqueDigestFiles: Map<string, DownloadedFile>) {
   const digestHashes = new Map<string, { sha256: string; actualDigest: string }>();
@@ -299,26 +304,20 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
         const itemId = entry.cdxEntry.filename.split("/")[0];
         if (itemId) {
           const metadata = await getWaybackItemMetadata(itemId);
-          const collections = [];
-          const collectionIds = Array.isArray(metadata.collection)
-            ? metadata.collection
-            : [metadata.collection];
+          const collections: WaybackMetadata[] = [];
+          const collectionIds =
+            metadata.collection && Array.isArray(metadata.collection)
+              ? metadata.collection
+              : metadata.collection
+                ? [metadata.collection]
+                : [];
           for (const collectionId of collectionIds) {
             if (collectionId === "web") {
               continue; // skip the generic "web" collection which is not very informative and is present on all items
             }
-            try {
-              const collectionMetadata = await getWaybackItemMetadata(collectionId);
-              if (collectionMetadata) {
-                collections.push(collectionMetadata);
-              }
-            } catch (e) {
-              console.log(`Error fetching metadata for collection ${collectionId}: ${e}`);
-              collections.push({
-                identifier: collectionId,
-                title: "",
-                description: "",
-              });
+            const collectionMetadata = await getWaybackItemMetadata(collectionId);
+            if (collectionMetadata) {
+              collections.push(collectionMetadata);
             }
           }
 
@@ -336,7 +335,13 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
               notes: metadata.notes,
               crawler: metadata.crawler,
               crawljob: metadata.crawljob ?? metadata["pwacrawlid"],
+              scanningCenter: metadata.scanningcenter,
               numPages: metadata.imagecount ? parseInt(metadata.imagecount) : undefined,
+              scanDate: metadata.scandate,
+              firstFileDate: metadata.firstfiledate,
+              firstFileSerial: metadata.firstfileserial,
+              lastFileDate: metadata.lastfiledate,
+              lastFileSerial: metadata.lastfileserial,
               numWarcs: metadata.numwarcs ? parseInt(metadata.numwarcs) : undefined,
               numArcs: metadata.numarcs ? parseInt(metadata.numarcs) : undefined,
               collections: collections.map((col) => ({
@@ -388,34 +393,8 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
         entry.responseHeaders,
         entry.rawResponseHeaders,
         input.filename,
-        entry.captureTimestamp
+        entry.captureTimestamp,
       );
-    }
-
-    const warcInfo = entry.records
-      ? entry.records.find((record) => record.type === "warcinfo")
-      : undefined;
-    if (warcInfo) {
-      const warcInfoMetadata = parseWarcinfoFile(warcInfo.content);
-      const software = getHeaderValue(warcInfoMetadata.lines, "software");
-      const isPartOf = getHeaderValue(warcInfoMetadata.lines, "isPartOf");
-      const description = getHeaderValue(warcInfoMetadata.lines, "description");
-      const publisher = getHeaderValue(warcInfoMetadata.lines, "publisher");
-      const operator = getHeaderValue(warcInfoMetadata.lines, "operator");
-      if (software || isPartOf || description || publisher || operator) {
-        if (!entry.metadata) {
-          entry.metadata = {};
-        }
-        if (!entry.metadata.crawlData) {
-          entry.metadata.crawlData = {
-            crawler: software,
-            crawljob: isPartOf,
-            publisher,
-            operator,
-            description,
-          };
-        }
-      }
     }
   }
   await tryToCompleteMissingCdxFields(baseEntries);
@@ -428,13 +407,59 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
   // (e.g. same digest but different content like in the common crawl case)
   for (const entry of baseEntries) {
     if (entry.responseHeaders && entry.content) {
-      const contentLength = entry.responseHeaders["content-length"]
-        ? parseInt(entry.responseHeaders["content-length"], 10)
-        : undefined;
+      const contentLength =
+        getContentLengthHeader(entry.headerOutput) ??
+        getContentLengthHeader(entry.rawResponseHeaders);
       if (contentLength !== undefined && entry.content.length !== contentLength) {
-        throw new Error(
-          `Content length mismatch for ${entry.url} at ${entry.timestamp}: expected ${contentLength}, got ${entry.content.length}`,
-        );
+        // If the original content was gzip compressed, this could be the content-length of the compressed payload
+        if (getHeaderValue(entry.headerOutput, "content-encoding") === "gzip") {
+          const uncompressedLength = getUncompressedContentLength(entry.headerOutput);
+          if (uncompressedLength === undefined && entry.downloadStatus === "digest-match") {
+            // We have to redownload the actual file to verify the content in this case since we don't have the content-length of the compressed or uncompressed payload
+            console.log(
+              `Content length mismatch for ${entry.url} at ${entry.timestamp}, and content-encoding is gzip but no uncompressed content length header found. Redownloading the file to verify content...`,
+            );
+            const response = await fetchWaybackFile(
+              entry.timestamp,
+              entry.url,
+              entry.statusCode ?? 0,
+            );
+            if (
+              response.content.length !== contentLength ||
+              entry.sha256 !== computeSha256(response.content)
+            ) {
+              // This should not really happen? Need to investigate manually if it does
+              console.error(
+                `Content mismatch for ${entry.url} at ${entry.timestamp} after redownloading: expected content length ${contentLength} and sha256 ${entry.sha256}, got content length ${response.content.length} and sha256 ${computeSha256(response.content)}`,
+              );
+              console.error(`Response headers: ${JSON.stringify(response.responseHeaders)}`);
+              throw new Error(
+                `Content mismatch for ${entry.url} at ${entry.timestamp} after redownloading: expected content length ${contentLength} and sha256 ${entry.sha256}, got content length ${response.content.length} and sha256 ${computeSha256(response.content)}`,
+              );
+            }
+          } else if (
+            uncompressedLength !== undefined &&
+            entry.content.length !== uncompressedLength
+          ) {
+            // We have the content-length of the uncompressed payload and it doesn't match the actual uncompressed content length, so this is a mismatch as well
+            console.error(
+              `Content length mismatch for ${entry.url} at ${entry.timestamp}: expected uncompressed content length ${uncompressedLength}, got actual content length ${entry.content.length}`,
+            );
+            console.error(`Response headers: ${JSON.stringify(entry.responseHeaders)}`);
+            throw new Error(
+              `Content length mismatch for ${entry.url} at ${entry.timestamp}: expected uncompressed content length ${uncompressedLength}, got actual content length ${entry.content.length}`,
+            );
+          }
+        } else {
+          // This should not really happen? Need to investigate manually if it does
+          console.error(
+            `Content length mismatch for ${entry.url} at ${entry.timestamp}: expected ${contentLength}, got ${entry.content.length}`,
+          );
+          console.error(`Response headers: ${JSON.stringify(entry.responseHeaders)}`);
+          throw new Error(
+            `Content length mismatch for ${entry.url} at ${entry.timestamp}: expected ${contentLength}, got ${entry.content.length}`,
+          );
+        }
       }
     }
   }

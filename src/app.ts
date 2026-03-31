@@ -10,7 +10,6 @@ import { applyTransformationPipeline } from "./transformation/transformation.js"
 import { filenameToString } from "./file-name/file-name.js";
 import { writeUnavailablePlaceholder } from "./file-output/unavailable.js";
 import { writeUrlMetadata } from "./file-output/url-metadata.js";
-import { resetLog } from "./utils/log-context.js";
 import { Context } from "./types/context.js";
 import { WithRequired } from "./utils/ts-utils.js";
 import { downloadWaybackEntries } from "./downloader/downloader-wayback.js";
@@ -26,8 +25,8 @@ import {
   COMMONCRAWL_REQUEST_TIMEOUT,
 } from "./downloader/commoncrawl/commoncrawl-common.js";
 import { validateCaptureEntries } from "./validation/validate-capture.js";
-import { enrichCaptureEntryWithExactTimestamps } from "./utils/timestamp.js";
 import { applyDataCorrectionsToEntry } from "./data-corrections/data-correction.js";
+import { enrichCaptureEntryData } from "./enrichment/data-enrichment.js";
 
 function mergeWaybackAndCommonCrawlEntries(
   waybackEntries: CaptureEntry[],
@@ -129,7 +128,6 @@ async function processWebsiteDownloads(
 
   for (const input of downloadInputs) {
     context.fileContext = {};
-    resetLog();
 
     const {
       baseEntries: waybackEntries,
@@ -151,7 +149,7 @@ async function processWebsiteDownloads(
     const baseEntries = mergeWaybackAndCommonCrawlEntries(waybackEntries, commonCrawlEntries);
 
     for (const entry of baseEntries) {
-      enrichCaptureEntryWithExactTimestamps(entry);
+      enrichCaptureEntryData(entry);
     }
 
     for (const entry of baseEntries) {
