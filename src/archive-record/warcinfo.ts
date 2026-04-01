@@ -33,7 +33,7 @@ export function parseWarcinfoFile(buffer: Buffer): {
   }
 
   const infoBlockStart = warcHeaderEnd + 4;
-  const infoBlock = buffer.subarray(infoBlockStart, infoBlockStart + contentLength);
+  const infoBlock = buffer.subarray(infoBlockStart);
 
   const infoBlockEnd = infoBlock.indexOf("\r\n\r\n");
   if (infoBlockEnd === -1) {

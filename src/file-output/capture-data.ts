@@ -156,7 +156,9 @@ export function writeCaptureData(
     const archiveFilename = mainCdxEntry.filename;
     const nonZippedFilename = archiveFilename?.endsWith(".gz")
       ? archiveFilename.slice(0, -3)
-      : archiveFilename;
+      : archiveFilename?.endsWith(".zst")
+        ? archiveFilename.slice(0, -4)
+        : archiveFilename;
     const archiveRecordFormat = nonZippedFilename?.endsWith(".warc")
       ? "warc"
       : nonZippedFilename?.endsWith(".arc")

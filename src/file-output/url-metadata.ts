@@ -105,7 +105,7 @@ function calculateSourceCaptureCounts(
     validCaptures: sourceEntries.filter((entry) => entry.classification.type === "ok").length,
     invalidCaptures: sourceEntries.filter((entry) => entry.classification.type !== "ok").length,
     unavailableCaptures: sourceUnavailableEntries.length,
-    skippedCaptures: sourceSkippedEntries.length ? sourceSkippedEntries.length : undefined,
+    skippedCaptures: sourceSkippedEntries.length,
   };
 }
 
@@ -127,7 +127,7 @@ export function writeUrlMetadata(
     validCaptures: captureEntries.filter((entry) => entry.classification.type === "ok").length,
     invalidCaptures: captureEntries.filter((entry) => entry.classification.type !== "ok").length,
     unavailableCaptures: unavailableEntries.length,
-    skippedCaptures: skippedEntries.length ? skippedEntries.length : undefined,
+    skippedCaptures: skippedEntries.length,
     sources: {
       wayback: calculateSourceCaptureCounts(
         captureEntries,
@@ -154,7 +154,7 @@ export function writeUrlMetadata(
           invalidCaptures: captureEntries.filter((entry) => entry.classification.type !== "ok")
             .length,
           unavailableCaptures: unavailableEntries.length,
-          skippedCaptures: skippedEntries.length ? skippedEntries.length : undefined,
+          skippedCaptures: skippedEntries.length,
         },
       },
     ],

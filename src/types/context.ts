@@ -4,7 +4,7 @@ export interface Context {
     includeInvalid?: boolean;
     peekAllFiles?: boolean;
     writeHeaders?: boolean;
-    skipOn302?: boolean;
+    skipOn302?: number;
     fetchMetadata?: boolean;
     fetchOriginalRecord?: boolean;
   };

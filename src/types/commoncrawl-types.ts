@@ -32,6 +32,7 @@ export interface CommonCrawlDownloadedFile {
   responseHeaders: Record<string, string>;
   rawResponseHeaders: RawHeader[];
   statusCode: number;
+  statusMessage: string;
   collection?: CommonCrawlCollection;
   classification?: "corrupt" | "unavailable";
   hostIp?: string;

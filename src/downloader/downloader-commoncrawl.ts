@@ -15,7 +15,6 @@ import { downloadCommonCrawlFile } from "./commoncrawl/file-download.js";
 import { computeSha256, computeBase32EncodedSha1 } from "../utils/hash.js";
 import { classifyEntry } from "../classification/classifier.js";
 import { extractMimeTypeFromContentType } from "../utils/mimetype.js";
-import { parseWarcinfoFile } from "../archive-record/warcinfo.js";
 import { resolveCommonCrawlRevisitRecords } from "./commoncrawl/commoncrawl-revisit.js";
 import { parseCommonCrawlTimestamps } from "./commoncrawl/commoncrawl-timestamps.js";
 import { sanityCheckTimestamps } from "../utils/timestamp.js";
@@ -104,28 +103,6 @@ async function fetchCommonCrawlCdxEntries(
   return allEntries;
 }
 
-function extractCrawlData(file: CommonCrawlDownloadedFile) {
-  const warcinfoRecord = file.records.find((r) => r.type === "warcinfo");
-  if (!warcinfoRecord) {
-    return undefined;
-  }
-  try {
-    const { lines } = parseWarcinfoFile(warcinfoRecord.content);
-    const get = (key: string) => lines.find(([k]) => k.toLowerCase() === key.toLowerCase())?.[1];
-    const crawlData = {
-      crawler: get("software"),
-      crawljob: get("isPartOf"),
-      description: get("description"),
-      publisher: get("publisher"),
-      operator: get("operator"),
-    };
-    const hasAnyValue = Object.values(crawlData).some((v) => v !== undefined);
-    return hasAnyValue ? crawlData : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 function buildCaptureEntry(entry: ExtendedCdxEntry, file: CommonCrawlDownloadedFile): CaptureEntry {
   const sha256 = computeSha256(file.content);
   const actualDigest = computeBase32EncodedSha1(file.content);
@@ -150,8 +127,6 @@ function buildCaptureEntry(entry: ExtendedCdxEntry, file: CommonCrawlDownloadedF
     file.contentTruncationDetails,
     file.statusCode || entry.status || 0,
   );
-
-  const crawlData = extractCrawlData(file);
 
   const fetchTimestamp = file.metadata?.find(([k]) => k === "x_commoncrawl_FetchTimestamp")?.[1];
 
@@ -191,7 +166,6 @@ function buildCaptureEntry(entry: ExtendedCdxEntry, file: CommonCrawlDownloadedF
     records: file.records,
     metadata: {
       commoncrawl: commonCrawlMetadata,
-      crawlData,
     },
   };
 }

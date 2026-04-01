@@ -14,6 +14,7 @@ export function parseArcFile(
   url: string;
   ip: string;
   status: number;
+  statusMessage: string;
   protocol: string;
   timestamp: string;
   metadata: RawHeader[];
@@ -54,11 +55,12 @@ export function parseArcFile(
   const httpHeader = contentBuffer.subarray(0, headerEndInContent).toString("latin1");
   const httpHeaderLines = httpHeader.split("\r\n");
   const statusLine = httpHeaderLines[0];
-  const [protocol, statusCodeStr, ..._statusMessageParts] = statusLine.split(" ");
+  const [protocol, statusCodeStr, ...statusMessageParts] = statusLine.split(" ");
   const statusCode = parseInt(statusCodeStr, 10);
   if (isNaN(statusCode)) {
     throw new Error("Invalid ARC file: status code is not a number");
   }
+  const statusMessage = statusMessageParts.join(" ");
 
   const parsedHeaders = parseArchiveRecordHeadersToPairs(httpHeaderLines.slice(1));
 
@@ -76,6 +78,7 @@ export function parseArcFile(
     url,
     ip,
     status: statusCode,
+    statusMessage,
     protocol,
     timestamp:
       DateTime.fromFormat(timestamp, "yyyyLLddHHmmss", { zone: "utc" }).toISO({

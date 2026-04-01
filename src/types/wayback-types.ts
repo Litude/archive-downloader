@@ -19,6 +19,8 @@ export interface ExtendedCdxEntry extends CdxEntry {
   requestUrl: string;
   /** common crawl collection */
   collection?: string;
+  /** unavailable due to being shadowed by duplicate entries */
+  unavailable?: boolean;
   /** For entries that were originally warc/revisit and are resolved, this contains the original entry with the warc/revisit content type */
   revisitEntry?: CdxEntry;
   // /** Things stored by the processing pipeline not part of the actual cdx entry */

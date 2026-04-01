@@ -33,6 +33,7 @@ async function downloadToBuffer(
   let responseHeaders: Record<string, string> = {};
   let rawHeaders: RawHeader[] = [];
   let status = 0;
+  let statusMessage = "";
   let aborted = false;
 
   try {
@@ -53,6 +54,7 @@ async function downloadToBuffer(
     responseHeaders = cleanupAxiosResponseHeaders(response.headers);
     rawHeaders = parseRawHeadersToPairs(response.request.res.rawHeaders);
     status = response.status;
+    statusMessage = response.statusText;
 
     const stream = response.data;
 
@@ -86,6 +88,7 @@ async function downloadToBuffer(
     headers: responseHeaders,
     rawHeaders,
     status,
+    statusMessage,
     aborted,
     length: buffer.length,
   };
@@ -98,14 +101,19 @@ async function fetchAllBytes(url: string, statusCode: number, maxAttempts = 10) 
   let completeDownload = false;
   let responseHeaders: Record<string, string> | undefined = undefined;
   let responseRawHeaders: RawHeader[] | undefined = undefined;
+  let status = 0;
+  let statusMessage = "";
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const rangeHeader = offset ? { Range: `bytes=${offset}-` } : undefined;
-    const { buffer, headers, rawHeaders, aborted } = await downloadToBufferWithRetry(
-      url,
-      rangeHeader,
-      statusCode,
-    );
+    const {
+      buffer,
+      headers,
+      rawHeaders,
+      aborted,
+      status: statusOutput,
+      statusMessage: statusMessageOutput,
+    } = await downloadToBufferWithRetry(url, rangeHeader, statusCode);
     const len = buffer.length;
 
     console.log(`Partial download attempt ${attempt}: got ${len} bytes (offset ${offset})`);
@@ -115,6 +123,12 @@ async function fetchAllBytes(url: string, statusCode: number, maxAttempts = 10) 
     }
     if (responseRawHeaders === undefined) {
       responseRawHeaders = rawHeaders;
+    }
+    if (status === 0) {
+      status = statusOutput;
+    }
+    if (!statusMessage) {
+      statusMessage = statusMessageOutput;
     }
 
     if (len === 0 || len === lastLength) {
@@ -138,12 +152,21 @@ async function fetchAllBytes(url: string, statusCode: number, maxAttempts = 10) 
     headers: responseHeaders ?? {},
     rawHeaders: responseRawHeaders ?? [],
     completeDownload,
+    statusCode: status,
+    statusMessage,
   };
 }
 
 export async function fetchPartiallyArchivedFileData(url: string, statusCode: number) {
   // Example usage:
-  const { buffer, headers, rawHeaders, completeDownload } = await fetchAllBytes(url, statusCode);
+  const {
+    buffer,
+    headers,
+    rawHeaders,
+    completeDownload,
+    statusCode: finalStatusCode,
+    statusMessage,
+  } = await fetchAllBytes(url, statusCode);
   let finalBuffer = buffer;
   const fetchedLength = buffer.length;
 
@@ -168,5 +191,7 @@ export async function fetchPartiallyArchivedFileData(url: string, statusCode: nu
     rawHeaders,
     valid: completeDownload,
     fetchedLength,
+    statusCode: finalStatusCode,
+    statusMessage,
   };
 }

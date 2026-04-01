@@ -135,6 +135,7 @@ export async function downloadCommonCrawlFile(
         responseHeaders,
         rawResponseHeaders: parsed.headers,
         statusCode: parsed.status,
+        statusMessage: parsed.statusMessage,
         hostIp: parsed.ip || undefined,
         protocol: parsed.protocol || undefined,
         metadata: parsed.metadata,
@@ -156,6 +157,7 @@ export async function downloadCommonCrawlFile(
         responseHeaders,
         rawResponseHeaders: parsed.headers,
         statusCode: parsed.status,
+        statusMessage: parsed.statusMessage,
         hostIp: parsed.ip || undefined,
         protocol: parsed.protocol || undefined,
         metadata: parsed.metadata,
@@ -184,6 +186,7 @@ export async function downloadCommonCrawlFile(
       responseHeaders: {},
       rawResponseHeaders: [],
       statusCode: 0,
+      statusMessage: "",
       classification: "corrupt",
       records: [{ type: isArc ? "arc" : "warc", content: buffer }],
     };

@@ -6,10 +6,10 @@ import { fileURLToPath } from "url";
 import { fetchPartiallyArchivedFileData } from "./partial-file.js";
 import { DownloadedFile } from "../../types/download-types.js";
 import { cleanupAxiosResponseHeaders, preventAxiosRedirects } from "../../utils/axios-utils.js";
-import { getWaybackCaptureBaseUrl } from "../../utils/address.js";
 import { CdxEntry } from "../../types/wayback-types.js";
 import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common.js";
 import { parseRawHeadersToPairs } from "../../headers/raw-header-parser.js";
+import { getWaybackCaptureBaseUrl } from "./utils/wayback-url.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -207,6 +207,7 @@ export async function fetchWaybackFile(
         rawResponseHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders),
         classification,
         statusCode: response.status,
+        statusMessage: response.statusText,
       };
     } catch (e: unknown) {
       if (e instanceof Error && e.message === "incorrect header check") {
@@ -263,6 +264,7 @@ export async function fetchWaybackFileHeaders(
         responseHeaders: cleanupAxiosResponseHeaders(response.headers),
         rawResponseHeaders: parseRawHeadersToPairs(response.request.res.rawHeaders),
         statusCode: response.status,
+        statusMessage: response.statusText,
       };
     } catch (e: unknown) {
       console.log(
@@ -321,6 +323,7 @@ async function fetchCorruptFileWithoutDecompression(
         },
         classification: "corrupt",
         statusCode: response.status,
+        statusMessage: response.statusText,
       };
     } catch (e: unknown) {
       console.log(`Error fetching raw file for ${url}: ${e}, retrying in ${backoff / 1000}s...`);
@@ -342,8 +345,15 @@ async function fetchPartialFile(
   while (true) {
     try {
       console.log(`Fetching partial file content for ${timestamp}-${url} (attempt ${attempt})...`);
-      const { buffer, headers, rawHeaders, valid, fetchedLength } =
-        await fetchPartiallyArchivedFileData(waybackUrl, statusCode);
+      const {
+        buffer,
+        headers,
+        rawHeaders,
+        valid,
+        fetchedLength,
+        statusCode: finalStatusCode,
+        statusMessage,
+      } = await fetchPartiallyArchivedFileData(waybackUrl, statusCode);
       const contentLength = headers["content-length"]
         ? parseInt(headers["content-length"], 10)
         : undefined;
@@ -366,7 +376,8 @@ async function fetchPartialFile(
               },
             }
           : {},
-        statusCode,
+        statusCode: finalStatusCode,
+        statusMessage,
       };
     } catch (e: unknown) {
       console.log(

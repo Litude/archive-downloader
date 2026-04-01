@@ -15,4 +15,5 @@ export interface DownloadedFile {
   };
   classification?: "corrupt" | "unavailable";
   statusCode: number;
+  statusMessage: string;
 }

@@ -13,6 +13,7 @@ export function parseWarcFile(
   url: string;
   ip: string;
   status: number;
+  statusMessage: string;
   protocol: string;
   timestamp: string;
   metadata: RawHeader[];
@@ -58,11 +59,12 @@ export function parseWarcFile(
 
   const httpHeaderLines = httpBlock.subarray(0, httpHeaderEnd).toString("latin1").split("\r\n");
   const statusLine = httpHeaderLines[0];
-  const [protocol, statusCodeStr, ..._statusMessageParts] = statusLine.split(" ");
+  const [protocol, statusCodeStr, ...statusMessageParts] = statusLine.split(" ");
   const statusCode = parseInt(statusCodeStr, 10);
   if (isNaN(statusCode)) {
     throw new Error("Invalid WARC file: status code is not a number");
   }
+  const statusMessage = statusMessageParts.join(" ");
 
   const httpHeaders = parseArchiveRecordHeadersToPairs(httpHeaderLines.slice(1));
   const dividerSize = options?.extraBlankLineAfterHeaders ? 6 : 4;
@@ -119,6 +121,7 @@ export function parseWarcFile(
     url,
     ip,
     status: statusCode,
+    statusMessage,
     protocol,
     timestamp,
     metadata: warcHeaders,

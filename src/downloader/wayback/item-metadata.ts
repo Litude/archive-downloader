@@ -15,6 +15,9 @@ function createMetadataUrl(itemId: string, attempt: number): string {
 
 const itemCache: Record<string, WaybackItemCachedDetails> = {};
 
+// archive team has some .zst file but we don't support uncompressing it and cdx does not really work with it...?
+const POTENTIAL_FILENAME_EXTENSIONS = [".warc.gz", ".arc.gz", ".warc.zst"];
+
 export async function getWaybackItemDetails(itemId: string): Promise<WaybackItemCachedDetails> {
   if (itemCache[itemId]) {
     return itemCache[itemId];
@@ -23,7 +26,7 @@ export async function getWaybackItemDetails(itemId: string): Promise<WaybackItem
   // Reduce the cached details to only what we need for downloading and metadata, to save memory because we will save a lot of items...
   itemCache[itemId] = {
     files: details.files
-      .filter((file) => file.name.endsWith(".warc.gz") || file.name.endsWith(".arc.gz"))
+      .filter((file) => POTENTIAL_FILENAME_EXTENSIONS.some((ext) => file.name.endsWith(ext)))
       .map((file) => ({ name: file.name, private: file.private })),
     metadata: details.metadata,
   };

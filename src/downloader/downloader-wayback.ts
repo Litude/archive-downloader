@@ -125,6 +125,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
           cdxEntry: entry,
           url: entry.url,
           statusCode: entry.status,
+          statusMessage: undefined,
           classification: { type: "skipped" } as const,
           mimetype: entry.mimetype,
           actualDigest: undefined,
@@ -188,6 +189,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
           lastModified,
           url: entry.url,
           statusCode: entry.status,
+          statusMessage: downloadIsExactMatch ? downloadedFile.statusMessage : undefined,
           classification: entry.digest
             ? classifiedEntries.get(entry.digest)!
             : { type: "unavailable" as const },
@@ -222,6 +224,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
         cdxEntry: entry.cdxEntry,
         url: entry.url,
         statusCode: entry.statusCode,
+        statusMessage: undefined,
         classification: entry.classification,
         mimetype:
           extractMimeTypeFromContentType(entry.responseHeaders?.["content-type"]) || entry.mimetype,
@@ -280,20 +283,18 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
         captureDate: timestamps.captureDate,
       });
       const waybackFilename = getWaybackFilename(response.responseHeaders);
-      const existingEntry = baseEntries.find(
-        (e) => e.url === entry.url && e.timestamp === entry.timestamp,
-      );
-      if (!existingEntry) {
-        throw new Error(`Existing entry for ${entry.url} at ${entry.timestamp} not found?!`);
+      entry.mimetype =
+        extractMimeTypeFromContentType(response.responseHeaders["content-type"]) || entry.mimetype;
+      entry.statusCode = response.statusCode;
+      entry.statusMessage = response.statusMessage;
+      entry.mementoDateTime = timestamps.mementoDate ?? undefined;
+      entry.lastModified = timestamps.lastModified;
+      entry.responseHeaders = response.responseHeaders;
+      entry.rawResponseHeaders = response.rawResponseHeaders;
+      entry.cdxEntry.filename = waybackFilename;
+      if (entry.cdxEntry.revisitEntry) {
+        entry.cdxEntry.revisitEntry.filename = waybackFilename;
       }
-      existingEntry.mimetype =
-        extractMimeTypeFromContentType(response.responseHeaders["content-type"]) ||
-        existingEntry.mimetype;
-      existingEntry.mementoDateTime = timestamps.mementoDate ?? undefined;
-      existingEntry.lastModified = timestamps.lastModified;
-      existingEntry.responseHeaders = response.responseHeaders;
-      existingEntry.rawResponseHeaders = response.rawResponseHeaders;
-      existingEntry.cdxEntry.filename = waybackFilename;
     }
   }
 

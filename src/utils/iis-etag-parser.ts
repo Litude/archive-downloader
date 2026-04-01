@@ -53,7 +53,7 @@ export function getMostLikelyEtagDate(
 ): string[] | null {
   const candidates = parseIisEtagDate(etag, captureDate);
   if (!candidates) {
-    throw new Error("No valid ETag candidates found");
+    return null;
   }
 
   const modifyDateSec = modifyDate.toISO({ suppressMilliseconds: true }).slice(0, -1); // Remove trailing 'Z' for easier comparison

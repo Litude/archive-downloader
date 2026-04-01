@@ -83,6 +83,7 @@ export interface CaptureEntry {
   lastModifiedPreciseCandidates?: string[];
   url: string;
   statusCode?: number;
+  statusMessage?: string;
   classification: Classification;
   mimetype: string;
   actualDigest?: string;
