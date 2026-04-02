@@ -191,7 +191,12 @@ export function writeCaptureData(
         headers: entry.headerOutput,
         body: {
           contentSize: entry.content?.length,
-          compressedSize: contentEncoding && contentLengthHeaderSize !== undefined && contentLengthHeaderSize < (entry.content?.length ?? 0) ? contentLengthHeaderSize : undefined,
+          compressedSize:
+            contentEncoding &&
+            contentLengthHeaderSize !== undefined &&
+            contentLengthHeaderSize < (entry.content?.length ?? 0)
+              ? contentLengthHeaderSize
+              : undefined,
           contentEncoding: contentEncoding ?? undefined,
           mimeType: entry.mimetype,
           sha256: entry.originalSha256 ?? entry.sha256,
@@ -220,7 +225,7 @@ export function writeCaptureData(
         })),
         warcInfo: entry.metadata?.warcInfo,
         wayback: entry.metadata?.wayback,
-        commonCrawl: entry.metadata?.commoncrawl,
+        commonCrawl: entry.metadata?.commonCrawl,
       },
     };
     fs.writeFileSync(captureDataPath, stringifyWithInlineTuples(captureData, inlineElementsOf));
