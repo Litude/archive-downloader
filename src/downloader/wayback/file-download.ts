@@ -220,7 +220,7 @@ export async function fetchWaybackFile(
           console.log(
             `Repeated header check errors for ${url}, attempting to fetch without decompression...`,
           );
-          return fetchCorruptFileWithoutDecompression(timestamp, url);
+          return fetchCorruptWaybackFileWithoutDecompression(timestamp, url);
         }
       } else if (e instanceof Error && e.message === "stream has been aborted") {
         backoff = INITIAL_BACKOFF;
@@ -282,7 +282,7 @@ function createWaybackDownloadUrl(timestamp: string, url: string, attempt?: numb
   return `${protocol}://${WEB_ARCHIVE}/${timestamp}id_/${url.replaceAll("\\", "%5C")}`;
 }
 
-async function fetchCorruptFileWithoutDecompression(
+export async function fetchCorruptWaybackFileWithoutDecompression(
   timestamp: string,
   url: string,
 ): Promise<DownloadedFile> {

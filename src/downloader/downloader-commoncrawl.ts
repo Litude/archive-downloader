@@ -151,6 +151,7 @@ function buildCaptureEntry(entry: ExtendedCdxEntry, file: CommonCrawlDownloadedF
     lastModified: timestamps.lastModified,
     url: entry.url,
     statusCode: file.statusCode || entry.status,
+    statusMessage: file.statusMessage,
     classification,
     mimetype,
     actualDigest,
@@ -165,7 +166,7 @@ function buildCaptureEntry(entry: ExtendedCdxEntry, file: CommonCrawlDownloadedF
     protocol: file.protocol,
     records: file.records,
     metadata: {
-      commoncrawl: commonCrawlMetadata,
+      commonCrawl: commonCrawlMetadata,
     },
   };
 }

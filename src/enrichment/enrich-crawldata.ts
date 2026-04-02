@@ -1,6 +1,6 @@
 import { parseWarcinfoFile } from "../archive-record/warcinfo.js";
 import { getHeaderValue } from "../headers/headers.js";
-import { CaptureEntry } from "../types/capture-types.js";
+import { CaptureWarcInfoMetadata, CaptureEntry } from "../types/capture-types.js";
 
 export function enrichCaptureEntryWithCrawlData(captureEntry: CaptureEntry) {
   const warcInfo = captureEntry.records
@@ -14,9 +14,9 @@ export function enrichCaptureEntryWithCrawlData(captureEntry: CaptureEntry) {
     const publisher = getHeaderValue(warcInfoMetadata.lines, "publisher");
     const operator = getHeaderValue(warcInfoMetadata.lines, "operator");
     if (software || isPartOf || description || publisher || operator) {
-      const crawlData = {
+      const warcInfo: CaptureWarcInfoMetadata = {
         crawler: software,
-        crawljob: isPartOf,
+        crawlJob: isPartOf,
         description,
         publisher,
         operator,
@@ -24,8 +24,8 @@ export function enrichCaptureEntryWithCrawlData(captureEntry: CaptureEntry) {
       if (!captureEntry.metadata) {
         captureEntry.metadata = {};
       }
-      if (!captureEntry.metadata.crawlData) {
-        captureEntry.metadata.crawlData = crawlData;
+      if (!captureEntry.metadata.warcInfo) {
+        captureEntry.metadata.warcInfo = warcInfo;
       }
     }
   }

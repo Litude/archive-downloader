@@ -3,6 +3,7 @@ import fs from "fs";
 import {
   CaptureCommonCrawlMetadata,
   CaptureEntry,
+  CaptureWarcInfoMetadata,
   CaptureWaybackMetadata,
   Classification,
 } from "../types/capture-types.js";
@@ -11,6 +12,8 @@ import { filenameToString } from "../file-name/file-name.js";
 import { CdxEntry } from "../types/wayback-types.js";
 import { RawHeader } from "../headers/raw-header-parser.js";
 import { DataCorrection } from "../data-corrections/data-correction.js";
+import { getContentLengthHeader, getHeaderValue } from "../headers/headers.js";
+import { ValidationError } from "../validation/validate-capture.js";
 
 /** CdxEntry as written to capture JSON files — optional fields are serialized as null rather than omitted */
 export interface CdxEntryJson {
@@ -34,43 +37,45 @@ export interface CaptureDataJson {
   mementoTime?: string;
   hostIp?: string;
   protocol?: string;
-  status?: number;
-  mimeType: string;
-  contentSize?: number;
-  contentSha256?: string;
-  contentDigest?: string;
+  request: {
+    method: string;
+    headers?: RawHeader[];
+  };
+  response: {
+    statusCode?: number;
+    statusText?: string;
+    headers?: RawHeader[];
+    body: {
+      contentSize?: number;
+      compressedSize?: number;
+      contentEncoding?: string;
+      mimeType: string;
+      sha256?: string;
+      digest?: string;
+    };
+  };
   /** ISO 8601 datetime from Last-Modified header */
   modificationTime?: string;
   /** ISO 8601 datetime with nanosecond precision derived from IIS ETag */
   modificationTimePrecise?: string;
   /** Multiple candidate modification times when ETag parsing is ambiguous */
   modificationTimePreciseCandidates?: string[];
-  headers?: RawHeader[];
   classification: Classification;
   corrections?: DataCorrection[];
-  validationErrors?: {
-    type: string;
-    details?: unknown;
-  }[];
-  captureData: {
-    source: string;
-    archiveRecordFormat?: "warc" | "arc";
-    archiveRecordAvailable: boolean;
+  validationErrors?: ValidationError[];
+  source: {
+    provider: string;
+    recordFormat?: "warc" | "arc";
+    recordAvailable: boolean;
     cdxEntry: CdxEntryJson;
     cdxEntryRevisitResolved?: CdxEntryJson;
     additionalSources?: {
-      source: string;
+      provider: string;
       cdxEntry: CdxEntryJson;
     }[];
-    crawlData?: {
-      crawler?: string;
-      crawljob?: string;
-      description?: string;
-      publisher?: string;
-      operator?: string;
-    };
+    warcInfo?: CaptureWarcInfoMetadata;
     wayback?: CaptureWaybackMetadata;
-    commoncrawl?: CaptureCommonCrawlMetadata;
+    commonCrawl?: CaptureCommonCrawlMetadata;
   };
 }
 
@@ -150,7 +155,7 @@ export function writeCaptureData(
       inlineElementsOf.add(headersResult);
     }
 
-    const archiveRecordAvailable = Boolean(
+    const recordAvailable = Boolean(
       entry.records?.find((r) => ["warc", "arc"].includes(r.type))?.type ?? undefined,
     );
     const archiveFilename = mainCdxEntry.filename;
@@ -159,12 +164,14 @@ export function writeCaptureData(
       : archiveFilename?.endsWith(".zst")
         ? archiveFilename.slice(0, -4)
         : archiveFilename;
-    const archiveRecordFormat = nonZippedFilename?.endsWith(".warc")
+    const recordFormat = nonZippedFilename?.endsWith(".warc")
       ? "warc"
       : nonZippedFilename?.endsWith(".arc")
         ? "arc"
         : undefined;
 
+    const contentLengthHeaderSize = getContentLengthHeader(entry.headerOutput);
+    const contentEncoding = getHeaderValue(entry.headerOutput, "content-encoding");
     const captureDataPath = path.join(archivalDir, `${outputFilename}.capture.json`);
     const captureData: CaptureDataJson = {
       url: entry.url,
@@ -175,40 +182,50 @@ export function writeCaptureData(
         : undefined,
       hostIp: entry.hostIp,
       protocol: entry.protocol,
-      status: entry.statusCode,
-      mimeType: entry.mimetype,
-      contentSize: entry.content?.length,
-      contentSha256: entry.originalSha256 ?? entry.sha256,
-      contentDigest: entry.actualDigest,
+      request: {
+        method: "GET",
+      },
+      response: {
+        statusCode: entry.statusCode,
+        statusText: entry.statusMessage,
+        headers: entry.headerOutput,
+        body: {
+          contentSize: entry.content?.length,
+          compressedSize: contentEncoding && contentLengthHeaderSize !== undefined && contentLengthHeaderSize < (entry.content?.length ?? 0) ? contentLengthHeaderSize : undefined,
+          contentEncoding: contentEncoding ?? undefined,
+          mimeType: entry.mimetype,
+          sha256: entry.originalSha256 ?? entry.sha256,
+          digest: entry.actualDigest,
+        },
+      },
       modificationTime: entry.lastModified
         ? entry.lastModified.toISO({ suppressMilliseconds: true })
         : undefined,
       modificationTimePrecise: entry.lastModifiedPrecise ?? undefined,
       modificationTimePreciseCandidates: entry.lastModifiedPreciseCandidates ?? undefined,
-      headers: headersResult,
       classification: entry.classification,
       corrections: entry.corrections,
       validationErrors: entry.metadata?.validationErrors,
-      captureData: {
-        source: entry.cdxEntry.source,
-        archiveRecordFormat,
-        archiveRecordAvailable,
+      source: {
+        provider: entry.cdxEntry.source,
+        recordFormat,
+        recordAvailable,
         cdxEntry: cdxToOutputData(mainCdxEntry),
         cdxEntryRevisitResolved: resolvedRevisitCdxEntry
           ? cdxToOutputData(resolvedRevisitCdxEntry)
           : undefined,
         additionalSources: entry.additionalSources?.map((source) => ({
-          source: source.source,
+          provider: source.source,
           cdxEntry: cdxToOutputData(source.cdxEntry),
         })),
-        crawlData: entry.metadata?.crawlData,
+        warcInfo: entry.metadata?.warcInfo,
         wayback: entry.metadata?.wayback,
-        commoncrawl: entry.metadata?.commoncrawl,
+        commonCrawl: entry.metadata?.commoncrawl,
       },
     };
     fs.writeFileSync(captureDataPath, stringifyWithInlineTuples(captureData, inlineElementsOf));
     const mtime = new Date(entry.captureTimestamp.toJSDate());
-    fs.utimesSync(captureDataPath, mtime, mtime);
+    //fs.utimesSync(captureDataPath, mtime, mtime);
 
     if (entry.records) {
       for (const record of entry.records) {

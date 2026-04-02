@@ -2,25 +2,29 @@ import { DateTime } from "luxon";
 import { CdxEntry, ExtendedCdxEntry } from "./wayback-types.js";
 import { RawHeader } from "../headers/raw-header-parser.js";
 import { DataCorrection } from "../data-corrections/data-correction.js";
+import { ValidationError } from "../validation/validate-capture.js";
 
 export interface CaptureWaybackMetadata {
   item: {
     id: string;
     title: string;
     contributor?: string;
+    creator?: string;
     sponsor?: string;
     description: string;
     coverage?: string;
     notes?: string;
     crawler?: string;
-    crawljob?: string;
+    crawlJob?: string;
     scanningCenter?: string;
+    scanner?: string;
     numPages?: number;
     scanDate?: string; // some local time, usually YYYYMMDDHHMMSS format
     firstFileDate?: string; // some local time, usually YYYYMMDDHHMMSS format
     firstFileSerial?: string;
     lastFileDate?: string; // some local time, usually YYYYMMDDHHMMSS format
     lastFileSerial?: string;
+    addedDate?: string; // YYYY-MM-DD HH:MM:SS format
     numArcs?: number;
     numWarcs?: number;
     collections: {
@@ -41,9 +45,9 @@ export interface CaptureCommonCrawlMetadata {
   };
 }
 
-export interface CaptureCrawlJobMetadata {
+export interface CaptureWarcInfoMetadata {
   crawler?: string;
-  crawljob?: string;
+  crawlJob?: string;
   description?: string;
   publisher?: string;
   operator?: string;
@@ -106,11 +110,8 @@ export interface CaptureEntry {
   corrections?: DataCorrection[];
   metadata?: {
     wayback?: CaptureWaybackMetadata;
-    commoncrawl?: CaptureCommonCrawlMetadata;
-    crawlData?: CaptureCrawlJobMetadata;
-    validationErrors?: {
-      type: string;
-      details?: any;
-    }[];
+    commonCrawl?: CaptureCommonCrawlMetadata;
+    warcInfo?: CaptureWarcInfoMetadata;
+    validationErrors?: ValidationError[];
   };
 }

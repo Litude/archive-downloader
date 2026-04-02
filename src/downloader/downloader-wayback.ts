@@ -327,22 +327,22 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
               id: metadata.identifier,
               title: metadata.title,
               contributor: metadata.contributor,
-              sponsor:
-                metadata.sponsor && metadata.sponsor !== metadata.contributor
-                  ? metadata.sponsor
-                  : undefined,
+              creator: metadata.creator,
+              sponsor: metadata.sponsor,
               description: metadata.description,
               coverage: metadata.coverage,
               notes: metadata.notes,
               crawler: metadata.crawler,
-              crawljob: metadata.crawljob ?? metadata["pwacrawlid"],
+              crawlJob: metadata.crawljob ?? metadata["pwacrawlid"],
               scanningCenter: metadata.scanningcenter,
+              scanner: metadata.scanner,
               numPages: metadata.imagecount ? parseInt(metadata.imagecount) : undefined,
               scanDate: metadata.scandate,
               firstFileDate: metadata.firstfiledate,
               firstFileSerial: metadata.firstfileserial,
               lastFileDate: metadata.lastfiledate,
               lastFileSerial: metadata.lastfileserial,
+              addedDate: metadata.addeddate,
               numWarcs: metadata.numwarcs ? parseInt(metadata.numwarcs) : undefined,
               numArcs: metadata.numarcs ? parseInt(metadata.numarcs) : undefined,
               collections: collections.map((col) => ({

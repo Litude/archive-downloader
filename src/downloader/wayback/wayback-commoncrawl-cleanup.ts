@@ -1,7 +1,7 @@
 import { classifyEntry } from "../../classification/classifier.js";
 import { CaptureClassification, CaptureEntry } from "../../types/capture-types.js";
 import { computeSha256, computeBase32EncodedSha1 } from "../../utils/hash.js";
-import { fetchWaybackFile } from "./file-download.js";
+import { fetchCorruptWaybackFileWithoutDecompression, fetchWaybackFile } from "./file-download.js";
 
 /** It seems that ALL gzipped common crawl entries served by wayback are corrupt.
  *  Worse, they share the same digest that non-corrupt entries have, so if the digest
@@ -88,10 +88,9 @@ export async function cleanUpCorruptCommonCrawlEntries(
         console.log(
           `Common Crawl entry ${entry.url} at ${entry.timestamp} was not downloaded but had a digest match. Refetching content to verify...`,
         );
-        const fileContent = await fetchWaybackFile(
+        const fileContent = await fetchCorruptWaybackFileWithoutDecompression(
           entry.timestamp,
           entry.url,
-          entry.statusCode ?? 0,
         );
         const sha256 = computeSha256(fileContent.content);
         const actualDigest = computeBase32EncodedSha1(fileContent.content);

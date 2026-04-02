@@ -4,7 +4,7 @@ import { parseArcFile } from "./arc.js";
 import { parseWarcFile } from "./warc.js";
 
 export function getArchivedRecord(entry: CaptureEntry) {
-  const commonCrawlCollection = entry.metadata?.commoncrawl?.collection;
+  const commonCrawlCollection = entry.metadata?.commonCrawl?.collection;
   const collectionCleanupData = commonCrawlCollection
     ? commonCrawlCleanupData[commonCrawlCollection.id] || {}
     : undefined;

@@ -17,7 +17,7 @@ function addCorrection(entry: CaptureEntry, correction: DataCorrection) {
 }
 
 export function applyDataCorrectionsToEntry(entry: CaptureEntry) {
-  const commonCrawlCollection = entry.metadata?.commoncrawl?.collection;
+  const commonCrawlCollection = entry.metadata?.commonCrawl?.collection;
   if (commonCrawlCollection) {
     const collectionCleanupData = commonCrawlCleanupData[commonCrawlCollection.id];
     if (collectionCleanupData) {

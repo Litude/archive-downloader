@@ -58,8 +58,8 @@ export function getExactModificationDate(
 }
 
 export function getExactCaptureDate(captureEntry: CaptureEntry): string | null {
-  if (captureEntry.metadata?.commoncrawl?.fetchTimestamp) {
-    return DateTime.fromJSDate(new Date(captureEntry.metadata.commoncrawl.fetchTimestamp))
+  if (captureEntry.metadata?.commonCrawl?.fetchTimestamp) {
+    return DateTime.fromJSDate(new Date(captureEntry.metadata.commonCrawl.fetchTimestamp))
       .setZone("utc")
       .toFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'000000Z'");
   }

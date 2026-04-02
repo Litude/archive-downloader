@@ -24,7 +24,7 @@ interface SummaryRow {
   additional_sources?: string;
   record_digest?: string;
   actual_digest?: string;
-  record_filename?: string;
+  archive_filename?: string;
   record_available?: boolean;
   record_offset?: number;
   record_length?: number;
@@ -76,7 +76,7 @@ export async function writeCsvSummary(
           : undefined,
         record_digest: entry.cdxEntry.digest,
         actual_digest: entry.actualDigest,
-        record_filename: entry.cdxEntry.filename,
+        archive_filename: entry.cdxEntry.filename,
         record_available: Boolean(
           entry.records?.find((r) => ["warc", "arc"].includes(r.type))?.type ?? undefined,
         ),

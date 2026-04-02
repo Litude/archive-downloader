@@ -3,14 +3,23 @@ import { getArchivedRecord } from "../archive-record/archive-record.js";
 import { CaptureEntry } from "../types/capture-types.js";
 import { computeSha256 } from "../utils/hash.js";
 
-export function addValidationError(entry: CaptureEntry, error: string, details?: any) {
+
+export interface ValidationError {
+  type: string;
+  values?: {
+    field: string;
+    value: unknown;
+  }[];
+}
+
+export function addValidationError(entry: CaptureEntry, error: string, values?: ValidationError["values"]) {
   if (!entry.metadata) {
     entry.metadata = {};
   }
   if (!entry.metadata.validationErrors) {
     entry.metadata.validationErrors = [];
   }
-  entry.metadata.validationErrors.push({ type: error, details });
+  entry.metadata.validationErrors.push({ type: error, values });
 }
 
 export function validateCaptureEntries(entries: CaptureEntry[]) {
@@ -26,10 +35,10 @@ export function validateCaptureEntry(entry: CaptureEntry) {
       ? DateTime.fromHTTP(serverDateHeader, { zone: "utc" })
       : null;
     if (serverDate?.isValid && Math.abs(serverDate.diff(entry.captureTimestamp).as("months")) > 1) {
-      addValidationError(entry, "server-time-mismatch", {
-        serverTime: serverDate.toISO({ suppressMilliseconds: true }),
-        captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
-      });
+      addValidationError(entry, "server-time-mismatch", [
+        { field: "serverTime", value: serverDate.toISO({ suppressMilliseconds: true }) },
+        { field: "captureTime", value: entry.captureTimestamp.toISO({ suppressMilliseconds: true }) },
+      ]);
     }
   }
 
@@ -39,29 +48,29 @@ export function validateCaptureEntry(entry: CaptureEntry) {
     });
     if (preciseCaptureTimestamp.isValid) {
       if (Math.abs(preciseCaptureTimestamp.diff(entry.captureTimestamp).as("seconds")) > 1) {
-        addValidationError(entry, "capture-time-precise-mismatch", {
-          captureTimePrecise: entry.captureTimestampPrecise,
-          captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
-        });
+        addValidationError(entry, "capture-time-precise-mismatch", [
+          { field: "captureTimePrecise", value: entry.captureTimestampPrecise },
+          { field: "captureTime", value: entry.captureTimestamp.toISO({ suppressMilliseconds: true }) },
+        ]);
       }
     }
   }
 
   if (entry.lastModified && entry.lastModified.diff(entry.captureTimestamp).as("hours") > 1) {
-    addValidationError(entry, "modification-time-future", {
-      modificationTime: entry.lastModified.toISO({ suppressMilliseconds: true }),
-      captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
-    });
+    addValidationError(entry, "modification-time-future", [
+      { field: "modificationTime", value: entry.lastModified.toISO({ suppressMilliseconds: true }) },
+      { field: "captureTime", value: entry.captureTimestamp.toISO({ suppressMilliseconds: true }) },
+    ]);
   }
 
   if (entry.lastModifiedPrecise && entry.lastModified) {
     const preciseLastModified = DateTime.fromISO(entry.lastModifiedPrecise, { zone: "utc" });
     if (preciseLastModified.isValid) {
       if (Math.abs(preciseLastModified.diff(entry.lastModified).as("seconds")) > 1) {
-        addValidationError(entry, "modification-time-precise-mismatch", {
-          modificationTimePrecise: entry.lastModifiedPrecise,
-          modificationTime: entry.lastModified.toISO({ suppressMilliseconds: true }),
-        });
+        addValidationError(entry, "modification-time-precise-mismatch", [
+          { field: "modificationTimePrecise", value: entry.lastModifiedPrecise },
+          { field: "modificationTime", value: entry.lastModified.toISO({ suppressMilliseconds: true }) },
+        ]);
       }
     }
   }
@@ -73,10 +82,10 @@ export function validateCaptureEntry(entry: CaptureEntry) {
     if (candidateDates) {
       candidateDates.forEach((candidate, index) => {
         if (candidate.isValid && Math.abs(candidate.diff(entry.lastModified!).as("seconds")) > 1) {
-          addValidationError(entry, "modification-time-precise-candidate-mismatch", {
-            modificationTimePreciseCandidate: entry.lastModifiedPreciseCandidates?.[index],
-            modificationTime: entry.lastModified?.toISO({ suppressMilliseconds: true }),
-          });
+          addValidationError(entry, "modification-time-precise-candidate-mismatch", [
+            { field: "modificationTimePreciseCandidate", value: entry.lastModifiedPreciseCandidates?.[index] },
+            { field: "modificationTime", value: entry.lastModified?.toISO({ suppressMilliseconds: true }) },
+          ]);
         }
       });
     }
@@ -86,10 +95,10 @@ export function validateCaptureEntry(entry: CaptureEntry) {
     entry.mementoDateTime &&
     entry.mementoDateTime.toMillis() !== entry.captureTimestamp.toMillis()
   ) {
-    addValidationError(entry, "memento-time-mismatch", {
-      mementoTime: entry.mementoDateTime.toISO({ suppressMilliseconds: true }),
-      captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
-    });
+    addValidationError(entry, "memento-time-mismatch", [
+      { field: "mementoTime", value: entry.mementoDateTime.toISO({ suppressMilliseconds: true }) },
+      { field: "captureTime", value: entry.captureTimestamp.toISO({ suppressMilliseconds: true }) },
+    ]);
   }
 
   // This validation is meant to validate that the ARC/WARC matches what the CDX record indicated,
@@ -101,16 +110,16 @@ export function validateCaptureEntry(entry: CaptureEntry) {
     if (!entry.cdxEntry?.revisitEntry) {
       const recordSha256 = computeSha256(record.content);
       if (entry.sha256 && recordSha256 !== entry.sha256) {
-        addValidationError(entry, "record-content-mismatch", {
-          recordSha256,
-          entrySha256: entry.sha256,
-        });
+        addValidationError(entry, "record-content-mismatch", [
+          { field: "recordSha256", value: recordSha256 },
+          { field: "entrySha256", value: entry.sha256 },
+        ]);
       }
       if (record.status !== entry.statusCode) {
-        addValidationError(entry, "record-status-mismatch", {
-          recordStatus: record.status,
-          entryStatus: entry.statusCode,
-        });
+        addValidationError(entry, "record-status-mismatch", [
+          { field: "recordStatus", value: record.status },
+          { field: "entryStatus", value: entry.statusCode },
+        ]);
       }
     }
 
@@ -118,17 +127,17 @@ export function validateCaptureEntry(entry: CaptureEntry) {
       zone: "utc",
     }).toISO({ suppressMilliseconds: true });
     if (record.timestamp !== cdxTimestamp) {
-      addValidationError(entry, "record-timestamp-mismatch", {
-        recordTimestamp: record.timestamp,
-        entryTimestamp: cdxTimestamp,
-      });
+      addValidationError(entry, "record-timestamp-mismatch", [
+        { field: "recordTimestamp", value: record.timestamp },
+        { field: "entryTimestamp", value: cdxTimestamp },
+      ]);
     }
 
     if (record.url !== entry.cdxEntry.url) {
-      addValidationError(entry, "record-url-mismatch", {
-        recordUrl: record.url,
-        entryUrl: entry.cdxEntry.url,
-      });
+      addValidationError(entry, "record-url-mismatch", [
+        { field: "recordUrl", value: record.url },
+        { field: "entryUrl", value: entry.cdxEntry.url },
+      ]);
     }
   }
 }
