@@ -54,7 +54,7 @@ export interface CaptureWarcInfoMetadata {
 }
 
 export interface ArchiveRecord {
-  type: "arc" | "warc" | "warcinfo";
+  type: "arc" | "archeader" | "warc" | "warcinfo";
   content: Buffer;
 }
 

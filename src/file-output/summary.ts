@@ -20,8 +20,8 @@ interface SummaryRow {
   corrections?: string;
   classification: string;
   mimetype: string;
-  source?: string;
-  additional_sources?: string;
+  provider?: string;
+  additional_providers?: string;
   record_digest?: string;
   actual_digest?: string;
   archive_filename?: string;
@@ -67,8 +67,8 @@ export async function writeCsvSummary(
             .join(ARRAY_SEPARATOR) ?? "",
         classification: entry.classification.type,
         mimetype: entry.mimetype,
-        source: entry.cdxEntry.source,
-        additional_sources: entry.additionalSources
+        provider: entry.cdxEntry.source,
+        additional_providers: entry.additionalSources
           ? entry.additionalSources
               .map((source) => source.source)
               .sort()

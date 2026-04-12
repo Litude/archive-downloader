@@ -1,7 +1,7 @@
 import { ArcParsingOptions, parseArcFile } from "../../archive-record/arc.js";
 import { parseWarcFile } from "../../archive-record/warc.js";
 import { fetchRangeBytes } from "../../archive-record/fetch-range-bytes.js";
-import { fetchWarcGlobalHeader } from "../../archive-record/fetch-warc-global-header.js";
+import { fetchWarcGlobalHeader } from "../../archive-record/fetch-global-header-warc.js";
 import { ExtendedCdxEntry } from "../../types/wayback-types.js";
 import {
   CommonCrawlDownloadedFile,
@@ -16,6 +16,7 @@ import {
 import { commonCrawlCleanupData } from "./commoncrawl-cleanup.js";
 import { getCommonCrawlCollection } from "./collections.js";
 import { RawHeader } from "../../headers/raw-header-parser.js";
+import { fetchArcGlobalHeader } from "../../archive-record/fetch-global-header-arc.js";
 
 function checkIfTruncated(
   content: Buffer,
@@ -128,6 +129,7 @@ export async function downloadCommonCrawlFile(
     const collection = getCommonCrawlCollection(entry.collection ?? "");
 
     if (isArc) {
+      const arcHeader = await fetchArcGlobalHeader(url, fetchOptions);
       return {
         content: parsed.content,
         url: entry.url,
@@ -140,7 +142,10 @@ export async function downloadCommonCrawlFile(
         protocol: parsed.protocol || undefined,
         metadata: parsed.metadata,
         collection,
-        records: [{ type: "arc", content: buffer }],
+        records: [
+          { type: "archeader", content: arcHeader },
+          { type: "arc", content: buffer },
+        ],
         classification: contentTruncationDetails ? "corrupt" : undefined,
         contentTruncationDetails: contentTruncationDetails
           ? {

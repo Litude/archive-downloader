@@ -1,3 +1,4 @@
+import { TrailingSlashParsingMode } from "../url/trailing-slash.js";
 import { CaptureClassification } from "./capture-types.js";
 import { Transformation } from "./transformation-types.js";
 import { QueryHashParameter } from "./website-types.js";
@@ -38,6 +39,7 @@ export interface UrlEntry {
   excludeInvalid?: boolean;
   maxTimestamp?: string;
   minTimestamp?: string;
+  trailingSlashParsingMode?: TrailingSlashParsingMode;
 }
 
 export interface Filename {

@@ -1,27 +1,147 @@
 import { LimitedCaptureRange } from "../../types/download-input-types.js";
 import { ExtendedCdxEntry } from "../../types/wayback-types.js";
-import { fetchWaybackFileHeaders } from "./file-download.js";
-import { DownloadedFile } from "../../types/download-types.js";
-import { Context } from "../../types/context.js";
 import { isDefined } from "../../utils/ts-utils.js";
 import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common.js";
+import { fetchWaybackFileHeaders } from "./file-download.js";
+import { DownloadedFile } from "../../types/download-types.js";
+import { parseWaybackLinkHeader } from "./utils/wayback-link.js";
+import { Context } from "../../types/context.js";
+import { isUrlTrailingSlashMatch, TrailingSlashParsingMode } from "../../url/trailing-slash.js";
 
-export function isUrlSlashMatch(url1: string, url2: string): boolean {
-  const urlObj1 = new URL(url1);
-  const urlObj2 = new URL(url2);
-  return urlObj1.pathname.toLowerCase() === urlObj2.pathname.toLowerCase();
+function getMergedSnapshot(snapshotsAtTimestamp: ExtendedCdxEntry[]): ExtendedCdxEntry {
+  const mergedSnapshot = { ...snapshotsAtTimestamp[0] };
+  const uniqueDigests = new Set(snapshotsAtTimestamp.map((s) => s.digest));
+  const uniqueSize = new Set(snapshotsAtTimestamp.map((s) => s.length));
+  // If the digest or size is different between the snapshots, we can't be sure which one is the correct one, so we will clear the digest and size to indicate that the values are unknown.
+  if (uniqueDigests.size > 1) {
+    mergedSnapshot.digest = undefined;
+  }
+  if (uniqueSize.size > 1) {
+    mergedSnapshot.length = undefined;
+  }
+  return mergedSnapshot;
 }
 
-const INITIAL_BACKOFF = WAYBACK_INITIAL_BACKOFF;
-const MAX_BACKOFF = WAYBACK_MAX_BACKOFF;
+function getMergedSnapshotForShadowedEntries(
+  snapshotsAtTimestamp: ExtendedCdxEntry[],
+): ExtendedCdxEntry | null {
+  const mergedSnapshot: ExtendedCdxEntry = { ...snapshotsAtTimestamp[0], unavailable: true };
+  const uniqueDigests = new Set(snapshotsAtTimestamp.map((s) => s.digest));
+  const uniqueSize = new Set(snapshotsAtTimestamp.map((s) => s.length));
+  const uniqueUrlPathsNormalized = new Set(
+    snapshotsAtTimestamp.map((s) => {
+      const urlObj = new URL(s.url);
+      return urlObj.pathname.toLowerCase();
+    }),
+  );
+  // If the digest or size is different between the snapshots, we can't be sure which one is the correct one, so we will clear the digest and size to indicate that the values are unknown.
+  if (uniqueDigests.size > 1) {
+    mergedSnapshot.digest = undefined;
+  }
+  if (uniqueSize.size > 1) {
+    mergedSnapshot.length = undefined;
+  }
+  if (uniqueUrlPathsNormalized.size > 1) {
+    return null;
+  }
+  return mergedSnapshot;
+}
 
-// Redirects and not found are the most likely codes when a page no longer exists
-const INVALID_ALLOWED_STATUS_CODES = [301, 302, 303, 304, 307, 308, 403, 404];
+function handleDuplicateCapture({
+  requestUrl,
+  duplicateUrlParsingMode,
+  response,
+  potentialDuplicates,
+}: {
+  requestUrl: string;
+  duplicateUrlParsingMode: TrailingSlashParsingMode;
+  response?: {
+    statusCode: number;
+    originalUrl: string;
+  };
+  potentialDuplicates: ExtendedCdxEntry[];
+}): {
+  resolvedSnapshot: ExtendedCdxEntry | null; // only null if filtering mode makes this a non match
+  unavailableOtherUniqueEntries: ExtendedCdxEntry[];
+  // this should take precedence over filteredDuplicateEntries, meaning that if a filtered entry had a non matching slash mode it should not be counted as a filtered duplicate
+  filteredSlashModeEntries: number;
+  filteredDuplicateEntries: number;
+} {
+  // We can pre-calculate the amount of entries that would be filtered by the slash mode
+  const filteredSlashModeEntryCount = potentialDuplicates.filter(
+    (entry) =>
+      !isUrlTrailingSlashMatch(entry.url, requestUrl, duplicateUrlParsingMode, entry.status ?? 0),
+  ).length;
+
+  let finalMatchingSnapShot: ExtendedCdxEntry | null = null;
+  if (response) {
+    // We first lookup the entry that matches the response status code and original URL
+    const matchingEntries = potentialDuplicates.filter(
+      (entry) => entry.status === response.statusCode && entry.url === response.originalUrl,
+    );
+    if (matchingEntries.length === 0) {
+      throw new Error(
+        `No matching CDX entries found for capture with status ${response.statusCode} and original URL ${response.originalUrl}?!`,
+      );
+    }
+    const matchingSnapShot = getMergedSnapshot(matchingEntries);
+    // But if the URL does not match our requested slash mode, we set the response to null
+    finalMatchingSnapShot = isUrlTrailingSlashMatch(
+      matchingSnapShot.url,
+      requestUrl,
+      duplicateUrlParsingMode,
+      matchingSnapShot.status ?? 0,
+    )
+      ? matchingSnapShot
+      : null;
+  }
+
+  // Then we return one unique entry per status code among the potential duplicates that do not match the response status code
+  // These should be considered unavailable
+  // Wayback responses return the original URL and statuscode, so based on those we could theoretically distinguish between multiple
+  // captures. The digest is not returned and even though it could be calculated, it does not always match the digest in the CDX, so
+  // it is not a reliable way to match captures. The size of offset fields are not returned either, so we group by status code and
+  // original URL and return one entry per unique combination of those that does not match the response status code and original URL.
+  const groupedNonMatchingEntryKeys = [
+    ...new Set(
+      potentialDuplicates
+        .map((entry) => `${entry.status}-${entry.url}`)
+        .filter((key) => key !== `${response?.statusCode}-${response?.originalUrl}`),
+    ),
+  ];
+  const unavailableOtherUniqueEntries = groupedNonMatchingEntryKeys
+    .map((key) => {
+      const [status, url] = [key.slice(0, key.indexOf("-")), key.slice(key.indexOf("-") + 1)];
+      const entriesWithStatus = potentialDuplicates.filter(
+        (entry) => entry.status === Number(status) && entry.url === url,
+      );
+      const mergedEntry = getMergedSnapshotForShadowedEntries(entriesWithStatus);
+      return mergedEntry;
+    })
+    .filter(isDefined)
+    .filter((entry) =>
+      isUrlTrailingSlashMatch(entry.url, requestUrl, duplicateUrlParsingMode, entry.status ?? 0),
+    );
+
+  const duplicateFilteredCount =
+    potentialDuplicates.length -
+    filteredSlashModeEntryCount -
+    unavailableOtherUniqueEntries.length -
+    (finalMatchingSnapShot ? 1 : 0);
+
+  return {
+    resolvedSnapshot: finalMatchingSnapShot,
+    unavailableOtherUniqueEntries: unavailableOtherUniqueEntries,
+    filteredSlashModeEntries: filteredSlashModeEntryCount,
+    filteredDuplicateEntries: duplicateFilteredCount,
+  };
+}
 
 async function fetchHeadersUntilSuccess(
   timestamp: string,
   url: string,
   statusCodes: number[],
+  allow404: boolean,
   context: Context,
 ): Promise<Omit<DownloadedFile, "content" | "corrupt">> {
   let attempt = 1;
@@ -31,28 +151,43 @@ async function fetchHeadersUntilSuccess(
   const allRedirect = statusCodes.every((code) => [301, 302].includes(code));
   const maxRedirectAttempts = allRedirect ? 5 : potentialRedirect ? 15 : 0; // Only attempt retries for missing x-archive-src if there is a potential redirect, otherwise it is likely an actual issue
   let redirectAttempts = 1;
-  let redirectBackoff = INITIAL_BACKOFF;
+  let redirectBackoff = WAYBACK_INITIAL_BACKOFF;
+  let error404Attempts = 0;
   while (true) {
     try {
       const result = await fetchWaybackFileHeaders(timestamp, url);
-      if (context.settings.skipOn302) {
+      if (result.responseHeaders["x-archive-src"]) {
         return result;
       }
-      if (result.responseHeaders["x-archive-src"] === undefined) {
-        if (!allRedirect && !potentialRedirect) {
-          throw new Error(
-            `Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}`,
-          );
-        } else if (redirectAttempts < maxRedirectAttempts && result.statusCode === 302) {
+      if (
+        context.settings.skipOn302 &&
+        attempt >= context.settings.skipOn302 &&
+        result.statusCode === 302
+      ) {
+        return result;
+      }
+      if (!allRedirect && !potentialRedirect) {
+        throw new Error(
+          `Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}`,
+        );
+      } else if (result.statusCode === 302 && redirectAttempts < maxRedirectAttempts) {
+        console.log(
+          `Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}, this ${allRedirect ? "redirect only" : "potential redirect"} capture might be unavailable. Retrying in ${redirectBackoff / 1000}s... (attempt ${redirectAttempts})`,
+        );
+        await new Promise((res) => setTimeout(res, redirectBackoff));
+        redirectBackoff = Math.min(redirectBackoff * 2, WAYBACK_MAX_BACKOFF);
+        redirectAttempts++;
+      } else if (allow404 && result.statusCode === 404) {
+        ++error404Attempts;
+        if (error404Attempts >= 3) {
           console.log(
-            `Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}, this ${allRedirect ? "redirect only" : "potential redirect"} capture might be unavailable. Retrying in ${redirectBackoff / 1000}s... (attempt ${redirectAttempts})`,
+            `Received 404 status code when fetching headers for ${timestamp}-${url} multiple times, but skipping due to settings.`,
           );
-          await new Promise((res) => setTimeout(res, redirectBackoff));
-          redirectBackoff = Math.min(redirectBackoff * 2, MAX_BACKOFF);
-          redirectAttempts++;
-        } else {
           return result;
         }
+        throw new Error(
+          `Received 404 status code when fetching headers for ${timestamp}-${url}, will attempt for ${3 - error404Attempts} more times before skipping.`,
+        );
       } else {
         return result;
       }
@@ -66,32 +201,27 @@ async function fetchHeadersUntilSuccess(
   }
 }
 
-function getMergedSnapshot(snapshotsAtTimestamp: ExtendedCdxEntry[]): ExtendedCdxEntry {
-  const mergedSnapshot = { ...snapshotsAtTimestamp.at(-1)! };
-  const uniqueDigests = new Set(snapshotsAtTimestamp.map((s) => s.digest));
-  const uniqueSize = new Set(snapshotsAtTimestamp.map((s) => s.length));
-  // If the digest or size is different between the snapshots, we can't be sure which one is the correct one, so we will clear the digest and size to indicate that the values are unknown.
-  if (uniqueDigests.size > 1) {
-    mergedSnapshot.digest = undefined;
-  }
-  if (uniqueSize.size > 1) {
-    mergedSnapshot.length = undefined;
-  }
-  return mergedSnapshot;
-}
-
-async function resolveDuplicateSnapshots(
-  snapshots: ExtendedCdxEntry[],
-  limitedCaptures: LimitedCaptureRange[],
-  context: Context,
-): Promise<{
+export async function resolveDuplicateSnapshots({
+  requestUrl,
+  slashMode,
+  snapshots,
+  limitedCaptures,
+  context,
+}: {
+  requestUrl: string;
+  slashMode: TrailingSlashParsingMode;
+  snapshots: ExtendedCdxEntry[];
+  limitedCaptures: LimitedCaptureRange[];
+  context: Context;
+}): Promise<{
   uniqueSnapshots: ExtendedCdxEntry[];
   limitedCaptureFiltered: number;
-  filteredSnapshots: number;
+  duplicateFiltered: number;
+  slashModeMismatchFiltered: number;
 }> {
   // Group snapshots by timestamp to handle duplicates
   const snapshotsByTimestamp = new Map<string, ExtendedCdxEntry[]>();
-  let filteredSnapshots = 0;
+  let duplicateFiltered = 0;
   for (const snapshot of snapshots) {
     const timestamp = snapshot.timestamp;
     if (!snapshotsByTimestamp.has(timestamp)) {
@@ -100,102 +230,114 @@ async function resolveDuplicateSnapshots(
     snapshotsByTimestamp.get(timestamp)!.push(snapshot);
   }
   let limitedCaptureFiltered = 0;
+  let slashModeMismatchFiltered = 0;
 
   const uniqueSnapshots: ExtendedCdxEntry[] = [];
+  const anyNonRedirectSnapshot = snapshots.some((s) => !s.status?.toString().startsWith("3"));
 
   // For each timestamp, check if there are multiple snapshots. If so, we need to resolve which one is the correct one by fetching the headers and comparing the status codes
   for (const [timestamp, snapshotsAtTimestamp] of snapshotsByTimestamp) {
     if (snapshotsAtTimestamp.length === 1) {
-      uniqueSnapshots.push(snapshotsAtTimestamp[0]);
+      if (
+        !isUrlTrailingSlashMatch(
+          snapshotsAtTimestamp[0].url,
+          requestUrl,
+          slashMode,
+          snapshotsAtTimestamp[0].status ?? 0,
+        )
+      ) {
+        slashModeMismatchFiltered++;
+      } else {
+        uniqueSnapshots.push(snapshotsAtTimestamp[0]);
+      }
     } else {
       // A performance optimization: If the duplicate falls inside a limited capture range, we won't even try resolving it and just filter out all duplicates here
+      // We do this because the limited capture range has tons of captures and most will be filtered out, so these duplicates hardly matter
+      // and can be filtered out
       if (limitedCaptures.length > 0) {
         const inLimitedCapture = limitedCaptures.some(
           (range) => timestamp >= range.startTimestamp && timestamp <= range.endTimestamp,
         );
         if (inLimitedCapture) {
-          limitedCaptureFiltered += snapshotsAtTimestamp.length;
-          filteredSnapshots += snapshotsAtTimestamp.length;
+          const slashNonMatchCount = snapshotsAtTimestamp.filter(
+            (s) => !isUrlTrailingSlashMatch(s.url, requestUrl, slashMode, s.status ?? 0),
+          ).length;
+          slashModeMismatchFiltered += slashNonMatchCount;
+          limitedCaptureFiltered += snapshotsAtTimestamp.length - slashNonMatchCount;
           continue;
         }
       }
 
-      const potentialSnapshot = snapshotsAtTimestamp.at(-1)!;
-      const allSameStatus = snapshotsAtTimestamp.every(
-        (s) => s.status === potentialSnapshot.status,
+      const potentialSnapshot = snapshotsAtTimestamp[0];
+      const allSameStatusAndUrl = snapshotsAtTimestamp.every(
+        (s) => s.status === potentialSnapshot.status && s.url === potentialSnapshot.url,
       );
-      if (allSameStatus) {
+      if (allSameStatusAndUrl) {
         console.log(
-          `Found ${snapshotsAtTimestamp.length} snapshots with same timestamp ${timestamp} for ${snapshotsAtTimestamp[0].url}. All snapshots have the same status code ${potentialSnapshot.status} for ${potentialSnapshot.url} at ${timestamp}, no need to fetch headers to resolve.`,
+          `Found ${snapshotsAtTimestamp.length} snapshots with same timestamp ${timestamp}-${potentialSnapshot.url}. All snapshots have the same status code ${potentialSnapshot.status} and url, no need to fetch headers to resolve.`,
         );
         const snapshot = getMergedSnapshot(snapshotsAtTimestamp);
-        uniqueSnapshots.push(snapshot);
-        filteredSnapshots += snapshotsAtTimestamp.length - 1;
+        if (isUrlTrailingSlashMatch(snapshot.url, requestUrl, slashMode, snapshot.status ?? 0)) {
+          uniqueSnapshots.push(snapshot);
+        } else {
+          slashModeMismatchFiltered += snapshotsAtTimestamp.length;
+        }
       } else {
         console.log(
           `Found ${snapshotsAtTimestamp.length} snapshots with same timestamp ${timestamp} for ${snapshotsAtTimestamp[0].url} (status codes ${snapshotsAtTimestamp.map((s) => s.status).join(", ")}). Attempting to resolve by fetching headers...`,
         );
-        while (true) {
-          try {
-            const actualSnapShot = snapshotsAtTimestamp.at(-1)!;
-            const result = await fetchHeadersUntilSuccess(
-              timestamp,
-              actualSnapShot.url,
-              snapshotsAtTimestamp.map((s) => s.status).filter(isDefined),
-              context,
-            );
+        const possibleStatusCodes = [
+          ...new Set(snapshotsAtTimestamp.map((s) => s.status).filter(isDefined)),
+        ];
+        const actualSnapShot = snapshotsAtTimestamp[0];
+        const result = await fetchHeadersUntilSuccess(
+          timestamp,
+          actualSnapShot.url,
+          possibleStatusCodes,
+          anyNonRedirectSnapshot,
+          context,
+        );
 
-            const matchingSnapshots = snapshotsAtTimestamp.filter(
-              (s) => s.status === result.statusCode,
+        const isValidResult = !!result.responseHeaders["x-archive-src"];
+        let response: { statusCode: number; originalUrl: string } | undefined = undefined;
+        if (isValidResult) {
+          const originalUrl = parseWaybackLinkHeader(result.responseHeaders["link"]).find(
+            (link) => link.rel === "original",
+          )?.url;
+          if (!originalUrl) {
+            throw new Error(
+              `Missing original URL in Link header when fetching headers for ${timestamp}-${actualSnapShot.url}`,
             );
-            if (matchingSnapshots.length > 0) {
-              console.log(
-                `Resolved duplicate snapshots for ${actualSnapShot.url} at ${timestamp}: status ${actualSnapShot.status}`,
-              );
-              const snapshot = getMergedSnapshot(matchingSnapshots);
-              snapshot.metadata = {
-                headers: result.responseHeaders,
-                rawHeaders: result.rawResponseHeaders,
-              };
-              uniqueSnapshots.push(snapshot);
-              filteredSnapshots += snapshotsAtTimestamp.length - 1;
-              break;
-            } else if (
-              result.statusCode === 302 &&
-              snapshotsAtTimestamp.some((s) => s.status === 301)
-            ) {
-              // Special case for 301/302 captures where they are self redirects and there are no actual captures, the web archive will return 302 without x-archive-src
-              const redirectSnapshot = snapshotsAtTimestamp.findLast((s) => s.status === 301)!;
-              console.log(
-                `Resolved duplicate snapshots for ${actualSnapShot.url} at ${timestamp}: status ${actualSnapShot.status} (NOTE: no matching status code found, but there is a 301 and fetched status is 302)`,
-              );
-              uniqueSnapshots.push(redirectSnapshot);
-              filteredSnapshots += snapshotsAtTimestamp.length - 1;
-              break;
-            } else if (
-              result.statusCode === 404 &&
-              snapshotsAtTimestamp.every((s) => [301, 302].includes(s.status ?? 0))
-            ) {
-              // Special case for 301/302 captures where they are self redirects and there are no actual captures, the web archive will return 404
-              const redirectSnapshot = snapshotsAtTimestamp.findLast((s) =>
-                [301, 302].includes(s.status ?? 0),
-              )!;
-              console.log(
-                `Resolved duplicate snapshots for ${actualSnapShot.url} at ${timestamp}: status ${actualSnapShot.status} (NOTE: no matching status code found, but all entries are 301/302 and fetched status is 404)`,
-              );
-              uniqueSnapshots.push(redirectSnapshot);
-              filteredSnapshots += snapshotsAtTimestamp.length - 1;
-              break;
-            } else {
-              throw new Error(
-                `Found ${snapshotsAtTimestamp.length} snapshots with same timestamp ${timestamp} for ${snapshotsAtTimestamp[0].url} but couldn't find a matching status code when fetching headers (got ${result.statusCode}, expected ${actualSnapShot.status}).`,
-              );
-            }
-          } catch (error: unknown) {
-            console.log((error as Error).message + " Retrying in 30s...");
-            await new Promise((res) => setTimeout(res, 30000));
           }
+          response = {
+            statusCode: result.statusCode,
+            originalUrl,
+          };
         }
+        const duplicateResponse = handleDuplicateCapture({
+          requestUrl,
+          duplicateUrlParsingMode: slashMode,
+          response,
+          potentialDuplicates: snapshotsAtTimestamp,
+        });
+        if (duplicateResponse.filteredSlashModeEntries) {
+          slashModeMismatchFiltered += duplicateResponse.filteredSlashModeEntries;
+        }
+        if (duplicateResponse.filteredDuplicateEntries) {
+          duplicateFiltered += duplicateResponse.filteredDuplicateEntries;
+        }
+        if (duplicateResponse.resolvedSnapshot) {
+          console.log(
+            `Resolved duplicate snapshots for ${timestamp}-${actualSnapShot.url}: status ${actualSnapShot.status}`,
+          );
+          uniqueSnapshots.push(duplicateResponse.resolvedSnapshot);
+        }
+        if (duplicateResponse.unavailableOtherUniqueEntries.length > 0) {
+          console.log(
+            `Found ${duplicateResponse.unavailableOtherUniqueEntries.length} unique snapshots with different status code and url combination that are considered unavailable for ${timestamp}-${actualSnapShot.url}`,
+          );
+        }
+        uniqueSnapshots.push(...duplicateResponse.unavailableOtherUniqueEntries);
       }
     }
   }
@@ -204,77 +346,13 @@ async function resolveDuplicateSnapshots(
       `Filtered out ${limitedCaptureFiltered} snapshots that fell inside limited capture ranges without attempting to resolve duplicates.`,
     );
   }
-  if (filteredSnapshots > 0) {
-    console.log(`Filtered out ${filteredSnapshots} total duplicate snapshots based on timestamp.`);
+  if (duplicateFiltered > 0) {
+    console.log(`Filtered out ${duplicateFiltered} total duplicate snapshots based on timestamp.`);
   }
-  return { uniqueSnapshots, limitedCaptureFiltered, filteredSnapshots };
-}
-
-// In some cases, the CDX index may contain multiple snapshots with the same timestamp for the same URL.
-// Because the granuarity is only seconds, this can happen if multiple snapshots were taken within the same second
-// Because it is only possible to download one snapshot per timestamp per URL, we need to filter out duplicates here
-//
-// We can't be sure that the snapshot we keep is actually the same one, but the likelihood of contentually different
-// snapshots having the same timestamp is very low
-export async function filterDuplicateSnapshots(
-  requestUrl: string,
-  keepInvalid: boolean,
-  snapshots: ExtendedCdxEntry[],
-  limitedCaptures: LimitedCaptureRange[],
-  context: Context,
-): Promise<{
-  uniqueSnapshots: ExtendedCdxEntry[];
-  filteredValidSnapshots: number;
-  filteredInvalidSnapshots: number;
-  filteredUnwantedSnapshots: number;
-  redirectNonSlashFiltered: number;
-  limitedCaptureFiltered: number;
-  duplicateFiltered: number;
-}> {
-  const filteredValidSnapshots = 0;
-  let filteredUnwantedSnapshots = 0; // these entries are quietly discarded
-  const filteredInvalidSnapshots = 0; // these are logged as removed
-
-  // As a very first step, we need to find all duplicate entries and resolve them by fetching the headers to see which one is actually the one that can be fetched
-  const result = await resolveDuplicateSnapshots(snapshots, limitedCaptures, context);
-  let filteredSnapshots = result.uniqueSnapshots;
-
-  // First we filter snapshots down to the statuscodes we might want to keep (2xx, 301, 302, 404)
-  filteredSnapshots = filteredSnapshots.filter((snapshot) => {
-    if (snapshot.status && snapshot.status >= 200 && snapshot.status < 300) {
-      return true;
-    }
-    if (INVALID_ALLOWED_STATUS_CODES.includes(snapshot.status ?? 0) && keepInvalid) {
-      return true;
-    }
-    filteredUnwantedSnapshots++;
-    return false;
-  });
-
-  // Then we filter out the wayback special case for 301/302 snapshots:
-  // if the code is a 301/302 and the request URL ended with / but the archive url does not, we will filter it out
-  // Such cases are most likely redirects to the URL with the trailing slash, which we don't care about (since the primary
-  // purpose is to see when the page was removed)
-  let redirectNonSlashFiltered = 0;
-  filteredSnapshots = filteredSnapshots.filter((snapshot) => {
-    if ([301, 302].includes(snapshot.status ?? 0)) {
-      const originalUrl = snapshot.url;
-      if (requestUrl.endsWith("/") && !originalUrl.endsWith("/")) {
-        filteredUnwantedSnapshots++;
-        redirectNonSlashFiltered++;
-        return false;
-      }
-    }
-    return true;
-  });
-
-  return {
-    uniqueSnapshots: filteredSnapshots,
-    filteredValidSnapshots,
-    filteredInvalidSnapshots,
-    filteredUnwantedSnapshots,
-    redirectNonSlashFiltered,
-    limitedCaptureFiltered: result.limitedCaptureFiltered,
-    duplicateFiltered: result.filteredSnapshots - result.limitedCaptureFiltered,
-  };
+  if (slashModeMismatchFiltered > 0) {
+    console.log(
+      `Filtered out ${slashModeMismatchFiltered} snapshots that did not match the trailing slash mode.`,
+    );
+  }
+  return { uniqueSnapshots, limitedCaptureFiltered, duplicateFiltered, slashModeMismatchFiltered };
 }

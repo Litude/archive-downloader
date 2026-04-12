@@ -7,6 +7,46 @@ export interface ArcParsingOptions {
   contentLengthIncludesTrailingNewline?: boolean;
 }
 
+function parseArcHeaderLine(headerLine: string): {
+  url: string;
+  ip: string;
+  timestamp: string;
+  mimetype: string;
+  length: number;
+} {
+  const parts = headerLine.split(" ");
+  if (parts.length === 5) {
+    // Arc v1
+    const [url, ip, timestamp, mimetype, lengthStr] = parts;
+    const length = parseInt(lengthStr, 10);
+    if (isNaN(length)) {
+      throw new Error("Invalid ARC file: length is not a number");
+    }
+    return { url, ip, timestamp, mimetype, length };
+  } else if (parts.length === 10) {
+    // Arc v2
+    const [
+      url,
+      ip,
+      timestamp,
+      mimetype,
+      _statusCode,
+      _checksum,
+      _location,
+      _offset,
+      _filename,
+      lengthStr,
+    ] = parts;
+    const length = parseInt(lengthStr, 10);
+    if (isNaN(length)) {
+      throw new Error("Invalid ARC file: length is not a number");
+    }
+    return { url, ip, timestamp, mimetype, length };
+  } else {
+    throw new Error(`Invalid ARC file: header has ${parts.length} parts (expected 5 or 10)`);
+  }
+}
+
 export function parseArcFile(
   buffer: Buffer,
   parsingOptions?: ArcParsingOptions,
@@ -28,11 +68,9 @@ export function parseArcFile(
   }
 
   const header = content.slice(0, headerEnd).trim();
-  const [url, ip, timestamp, _mimetype, lengthStr] = header.split(" ");
-  let length = parseInt(lengthStr, 10);
-  if (isNaN(length)) {
-    throw new Error("Invalid ARC file: length is not a number");
-  }
+
+  const { url, ip, timestamp, length: lengthRaw } = parseArcHeaderLine(header);
+  let length = lengthRaw;
 
   if (parsingOptions?.contentLengthIncludesTrailingNewline) {
     length -= 1;

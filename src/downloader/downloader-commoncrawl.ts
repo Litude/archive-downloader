@@ -20,7 +20,7 @@ import { parseCommonCrawlTimestamps } from "./commoncrawl/commoncrawl-timestamps
 import { sanityCheckTimestamps } from "../utils/timestamp.js";
 import { UrlMetadataFilteredEntries } from "../file-output/url-metadata.js";
 import { CommonCrawlPrefetchedIndex } from "./commoncrawl/cdx-prefetch.js";
-import { urlToUrlkey } from "../utils/urlkey.js";
+import { urlToUrlkey } from "../url/urlkey.js";
 
 function filterPrefetchedEntries(
   cachedEntries: ExtendedCdxEntry[],
@@ -265,7 +265,7 @@ export async function downloadCommonCrawlEntries(
   return {
     filteredEntries: captureEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
     metadata: {
-      nonTrailingSlashUrlRedirects: redirectNonSlashTotal ? redirectNonSlashTotal : undefined,
+      trailingSlashMismatchesRemoved: redirectNonSlashTotal ? redirectNonSlashTotal : undefined,
     },
   };
 }

@@ -13,6 +13,7 @@ import { createAdditionalUrls } from "../mirrors/additional-urls.js";
 import { readFileAsJson5 } from "../utils/file-json.js";
 import { MirrorData, MirrorUrlData, WebsiteFileEntryJson } from "../types/website-types.js";
 import { parseJsonTransformations } from "../transformation/transformation.js";
+import { TrailingSlashParsingMode } from "../url/trailing-slash.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -38,6 +39,7 @@ function getEntryUrls(
   url: string;
   maxTimestamp?: string;
   minTimestamp?: string;
+  trailingSlashParsingMode?: TrailingSlashParsingMode;
 }[] {
   if (entry.urls) {
     return entry.urls.map((u) =>
@@ -46,11 +48,15 @@ function getEntryUrls(
             url: u,
             maxTimestamp: entry.maxTimestamp ?? maxTimestamp,
             minTimestamp: entry.minTimestamp ?? minTimestamp,
+            trailingSlashParsingMode: parseTrailingSlashMode(entry.trailingSlashParsingMode),
           }
         : {
             url: u.url,
             maxTimestamp: u.maxTimestamp ?? entry.maxTimestamp ?? maxTimestamp,
             minTimestamp: u.minTimestamp ?? entry.minTimestamp ?? minTimestamp,
+            trailingSlashParsingMode: parseTrailingSlashMode(
+              u.trailingSlashParsingMode ?? entry.trailingSlashParsingMode,
+            ),
           },
     );
   } else if (entry.url) {
@@ -59,6 +65,7 @@ function getEntryUrls(
         url: entry.url,
         maxTimestamp: entry.maxTimestamp ?? maxTimestamp,
         minTimestamp: entry.minTimestamp ?? minTimestamp,
+        trailingSlashParsingMode: parseTrailingSlashMode(entry.trailingSlashParsingMode),
       },
     ];
   } else {
@@ -124,6 +131,19 @@ function readVariables(): Record<string, any> {
       `Variables file not found at ${variablesPath}, proceeding without variable substitution.`,
     );
     return {};
+  }
+}
+
+function parseTrailingSlashMode(mode: string | undefined): TrailingSlashParsingMode | undefined {
+  switch (mode) {
+    case "strict":
+      return TrailingSlashParsingMode.Strict;
+    case "strictWithValid":
+      return TrailingSlashParsingMode.StrictWithValid;
+    case "lax":
+      return TrailingSlashParsingMode.Lax;
+    default:
+      return undefined;
   }
 }
 

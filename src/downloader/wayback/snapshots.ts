@@ -13,7 +13,8 @@ import {
   WAYBACK_REQUEST_TIMEOUT,
 } from "./wayback-common.js";
 import { UrlMetadataFilteredEntries } from "../../file-output/url-metadata.js";
-import { filterDuplicateSnapshots } from "./duplicate-resolver.js";
+import { resolveDuplicateSnapshots } from "./duplicate-resolver.js";
+import { TrailingSlashParsingMode } from "../../url/trailing-slash.js";
 
 const WAYBACK_CDX_API_URL = "http://web.archive.org/cdx/search/cdx";
 const REQUEST_TIMEOUT = WAYBACK_REQUEST_TIMEOUT;
@@ -24,6 +25,7 @@ export async function getSnapshotsForWebsiteFile(
 ): Promise<{
   validCdxEntries: ExtendedCdxEntry[];
   invalidCdxEntries: ExtendedCdxEntry[];
+  unavailableCdxEntries: ExtendedCdxEntry[];
   metadata: UrlMetadataFilteredEntries;
 }> {
   const includeInvalid = context.settings.includeInvalid ?? false;
@@ -57,6 +59,7 @@ export async function getSnapshotsForWebsiteFile(
   }
   let validCdxEntries: ExtendedCdxEntry[] = [];
   let invalidCdxEntries: ExtendedCdxEntry[] = [];
+  let unavailableCdxEntries: ExtendedCdxEntry[] = [];
 
   console.log(`Total snapshots found: ${allSnapshots.length}`);
   const limitedCaptureConfigs = checkForLimitedCapture(allSnapshots);
@@ -79,36 +82,33 @@ export async function getSnapshotsForWebsiteFile(
     console.log(`Postprocessing ${url.url}`);
     const {
       uniqueSnapshots,
-      filteredValidSnapshots,
-      filteredInvalidSnapshots,
-      redirectNonSlashFiltered,
-      limitedCaptureFiltered: dupeLimitCapture,
       duplicateFiltered: dupeFiltered,
-    } = await filterDuplicateSnapshots(
-      url.url,
-      includeInvalid && !url.excludeInvalid,
+      slashModeMismatchFiltered: redirectNonSlashFiltered,
+      limitedCaptureFiltered: dupeLimitCapture,
+    } = await resolveDuplicateSnapshots({
+      requestUrl: url.url,
+      slashMode: url.trailingSlashParsingMode ?? TrailingSlashParsingMode.Lax,
       snapshots,
-      limitedCaptureConfigs,
+      limitedCaptures: limitedCaptureConfigs,
       context,
-    );
+    });
+    const unavailableOtherUniqueEntries = uniqueSnapshots.filter((s) => s.unavailable);
+    const availableUniqueSnapshots = uniqueSnapshots.filter((s) => !s.unavailable);
     redirectNonSlashTotal += redirectNonSlashFiltered;
     limitedCaptureFiltered += dupeLimitCapture;
     duplicateFiltered += dupeFiltered;
-    let validSnapShots = uniqueSnapshots.filter((snapshot) =>
+    let validSnapShots = availableUniqueSnapshots.filter((snapshot) =>
       snapshot.status?.toString().startsWith("2"),
     );
-    let invalidSnapshots = uniqueSnapshots.filter(
+    let invalidSnapshots = availableUniqueSnapshots.filter(
       (snapshot) => !snapshot.status?.toString().startsWith("2"),
     );
     console.log(`Found ${validSnapShots.length} valid snapshots for ${url.url}`);
     if (invalidSnapshots.length > 0) {
       console.log(`Found ${invalidSnapshots.length} invalid snapshots for ${url.url}`);
     }
-    if (filteredValidSnapshots > 0) {
-      console.log(`Removed ${filteredValidSnapshots} duplicate valid snapshots for ${url.url}`);
-    }
-    if (filteredInvalidSnapshots > 0) {
-      console.log(`Removed ${filteredInvalidSnapshots} duplicate invalid snapshots for ${url.url}`);
+    if (dupeFiltered > 0) {
+      console.log(`Removed ${dupeFiltered} duplicate invalid snapshots for ${url.url}`);
     }
 
     const originalValidCount = validSnapShots.length;
@@ -137,6 +137,7 @@ export async function getSnapshotsForWebsiteFile(
     }
     validCdxEntries = [...validCdxEntries, ...validSnapShots];
     invalidCdxEntries = [...invalidCdxEntries, ...invalidSnapshots];
+    unavailableCdxEntries = [...unavailableCdxEntries, ...unavailableOtherUniqueEntries];
   }
   console.log(
     `Total valid snapshots for ${filenameToString(input.filename, "simple")}: ${validCdxEntries.length}`,
@@ -149,6 +150,7 @@ export async function getSnapshotsForWebsiteFile(
   return {
     validCdxEntries: validCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
     invalidCdxEntries: invalidCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
+    unavailableCdxEntries,
     metadata: {
       duplicateTimestampsRemoved: duplicateFiltered ? duplicateFiltered : undefined,
       limitedCaptureRanges: limitedCaptureFiltered
@@ -157,7 +159,7 @@ export async function getSnapshotsForWebsiteFile(
             count: limitedCaptureFiltered,
           }
         : undefined,
-      nonTrailingSlashUrlRedirects: redirectNonSlashTotal ? redirectNonSlashTotal : undefined,
+      trailingSlashMismatchesRemoved: redirectNonSlashTotal ? redirectNonSlashTotal : undefined,
       unresolvableRevisits:
         unresolveableRevisits.length > 0
           ? {

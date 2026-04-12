@@ -21,7 +21,7 @@ export interface UrlMetadataFilteredEntries {
     count: number;
   };
   /** Cases where requested url ends with a /, but the received url does not and is a redirect to the slash url */
-  nonTrailingSlashUrlRedirects?: number;
+  trailingSlashMismatchesRemoved?: number;
 }
 
 interface UrlMetadataArchivalRun {

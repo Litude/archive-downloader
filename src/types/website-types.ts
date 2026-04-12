@@ -11,7 +11,15 @@ export interface QueryHashParameter {
 
 export interface WebsiteFileEntryJson {
   url?: string;
-  urls?: (string | { url: string; maxTimestamp?: string; minTimestamp?: string })[];
+  urls?: (
+    | string
+    | {
+        url: string;
+        maxTimestamp?: string;
+        minTimestamp?: string;
+        trailingSlashParsingMode?: "strict" | "strictWithValid" | "lax";
+      }
+  )[];
   additionalMirrors?: (string | MirrorUrlData)[];
   transformations?: TransformationJson[];
   filename?: string;
@@ -21,6 +29,7 @@ export interface WebsiteFileEntryJson {
   minTimestamp?: string;
   additionalUrls?: (string | MirrorUrlData)[];
   classifications?: Record<string, CaptureClassification>;
+  trailingSlashParsingMode?: "strict" | "strictWithValid" | "lax";
   commonCrawlEnabled?: boolean;
   commonCrawlCollections?: string[];
   skippedCaptures?: {

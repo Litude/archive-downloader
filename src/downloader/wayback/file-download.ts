@@ -6,10 +6,11 @@ import { fileURLToPath } from "url";
 import { fetchPartiallyArchivedFileData } from "./partial-file.js";
 import { DownloadedFile } from "../../types/download-types.js";
 import { cleanupAxiosResponseHeaders, preventAxiosRedirects } from "../../utils/axios-utils.js";
-import { CdxEntry } from "../../types/wayback-types.js";
+import { ExtendedCdxEntry } from "../../types/wayback-types.js";
 import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common.js";
 import { parseRawHeadersToPairs } from "../../headers/raw-header-parser.js";
 import { getWaybackCaptureBaseUrl } from "./utils/wayback-url.js";
+import { isUrlTrailingSlashMatch, TrailingSlashParsingMode } from "../../url/trailing-slash.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -65,6 +66,7 @@ function isBetterRedirectResponse(
 async function attemptToFetchRedirectUrl(
   waybackUrl: string,
   expectedStatusCode: number,
+  requestUrl?: string,
 ): Promise<AxiosResponse<any>> {
   let errorAttempt = 0;
   let responseAttempt = 0;
@@ -72,11 +74,17 @@ async function attemptToFetchRedirectUrl(
   const baseUrlInfo = getWaybackCaptureBaseUrl(waybackUrl);
   const isPotentialSelfRedirect =
     baseUrlInfo &&
-    selfRedirectUrls.some(
+    (selfRedirectUrls.some(
       (url) =>
         baseUrlInfo.originalUrl.startsWith(url.url) &&
         (!url.minTimestamp || baseUrlInfo.timestamp >= url.minTimestamp),
-    );
+    ) ||
+      (requestUrl &&
+        isUrlTrailingSlashMatch(
+          baseUrlInfo.originalUrl,
+          requestUrl,
+          TrailingSlashParsingMode.Strict,
+        )));
   const maxAttempts = isPotentialSelfRedirect ? 1 : 5;
   let bestResponse: AxiosResponse<any> | null = null;
   let errorBackoff = INITIAL_BACKOFF;
@@ -140,12 +148,12 @@ async function attemptToFetchRedirectUrl(
   }
 }
 
-async function getResponse(waybackUrl: string, statusCode: number) {
+async function getResponse(waybackUrl: string, statusCode: number, requestUrl?: string) {
   if (statusCode && statusCode >= 300) {
     if ([301, 302].includes(statusCode)) {
       // 302 can also be returned by the web archive when the capture is temporarily unavailable. And incase the original 302 capture was a self redirect, the response will be identical to an unavailable capture.
       // Best we can do is attempt a few times and if we keep getting 302 responses, we can assume the capture is unavailable
-      return attemptToFetchRedirectUrl(waybackUrl, statusCode);
+      return attemptToFetchRedirectUrl(waybackUrl, statusCode, requestUrl);
     } else if ([403, 404].includes(statusCode)) {
       return axios.get(waybackUrl, {
         headers: REQUEST_HEADERS,
@@ -181,6 +189,7 @@ export async function fetchWaybackFile(
   timestamp: string,
   url: string,
   statusCode: number,
+  requestUrl?: string,
 ): Promise<DownloadedFile> {
   let attempt = 1;
   let headersErrorCount = 0;
@@ -190,7 +199,7 @@ export async function fetchWaybackFile(
     try {
       const waybackUrl = createWaybackDownloadUrl(timestamp, url, attempt - 1);
       console.log(`Fetching file content for ${timestamp}-${url} (attempt ${attempt})...`);
-      const response = await getResponse(waybackUrl, statusCode);
+      const response = await getResponse(waybackUrl, statusCode, requestUrl);
       if (ERROR_STATUS_CODES.includes(response.status)) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -391,7 +400,7 @@ async function fetchPartialFile(
 }
 
 export async function downloadUniqueDigestsForSnapshots(
-  input: CdxEntry[],
+  input: ExtendedCdxEntry[],
 ): Promise<Map<string, DownloadedFile>> {
   const uniqueDigestCount = new Set(input.map((entry) => entry.digest)).size;
   console.log(`Unique digests to download: ${uniqueDigestCount}`);
@@ -402,7 +411,12 @@ export async function downloadUniqueDigestsForSnapshots(
       console.log(
         `Downloading snapshot ${entry.timestamp} for URL ${entry.url} (${++currentDigest}/${uniqueDigestCount})`,
       );
-      const result = await fetchWaybackFile(entry.timestamp, entry.url, entry.status ?? 0);
+      const result = await fetchWaybackFile(
+        entry.timestamp,
+        entry.url,
+        entry.status ?? 0,
+        entry.requestUrl,
+      );
       encounteredDigests.set(entry.digest, result);
     }
   }

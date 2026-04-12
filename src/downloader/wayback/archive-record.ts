@@ -6,11 +6,12 @@ import {
   WAYBACK_REQUEST_TIMEOUT,
 } from "./wayback-common.js";
 import { fetchRangeBytes } from "../../archive-record/fetch-range-bytes.js";
-import { fetchWarcGlobalHeader } from "../../archive-record/fetch-warc-global-header.js";
+import { fetchWarcGlobalHeader } from "../../archive-record/fetch-global-header-warc.js";
 import { ArchiveRecord, CaptureEntry } from "../../types/capture-types.js";
 import { parseCdx } from "../../cdx/cdx-parser.js";
 import { CdxEntry } from "../../types/wayback-types.js";
 import { getWaybackItemDetails } from "./item-metadata.js";
+import { fetchArcGlobalHeader } from "../../archive-record/fetch-global-header-arc.js";
 
 const downloadUrlBase = "https://archive.org/download/";
 
@@ -93,6 +94,14 @@ async function fetchRecordBytes(filename: string, offset: number, length: number
   });
 }
 
+async function fetchArcGlobalHeaderForFilename(filename: string): Promise<Buffer> {
+  return fetchArcGlobalHeader(generateDownloadUrl(filename), {
+    timeout: WAYBACK_REQUEST_TIMEOUT,
+    initialBackoff: WAYBACK_INITIAL_BACKOFF,
+    maxBackoff: WAYBACK_MAX_BACKOFF,
+  });
+}
+
 async function fetchWarcGlobalHeaderForFilename(filename: string): Promise<Buffer> {
   return fetchWarcGlobalHeader(generateDownloadUrl(filename), {
     timeout: WAYBACK_REQUEST_TIMEOUT,
@@ -133,7 +142,11 @@ export async function fetchArchiveRecord(entry: CaptureEntry): Promise<ArchiveRe
   }
   const content = await fetchRecordBytes(filename, offset, length);
   if (filename.endsWith(".arc.gz")) {
-    return [{ type: "arc", content }];
+    const arcHeader = await fetchArcGlobalHeaderForFilename(filename);
+    return [
+      { type: "archeader", content: arcHeader },
+      { type: "arc", content },
+    ];
   } else if (filename.endsWith(".warc.gz")) {
     const globalHeader = await fetchWarcGlobalHeaderForFilename(filename);
     return [

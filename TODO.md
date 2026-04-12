@@ -31,6 +31,7 @@
     - The number of duplicates that were filtered that would not have been filtered by slash mode filter
     - The number of duplicates that were filtered that would have matched the slash mode filter
 
+- Write a total CSV summary of all files which allows e.g. easy lookup of any captures in a specific date range (should probaby always append/clear only previous entries of same url to allow pausing/resuming the dowlonder)
 
 - Prevent double downloading by adding files that reference each other?
 

@@ -27,6 +27,7 @@ import {
 import { validateCaptureEntries } from "./validation/validate-capture.js";
 import { applyDataCorrectionsToEntry } from "./data-corrections/data-correction.js";
 import { enrichCaptureEntryData } from "./enrichment/data-enrichment.js";
+import { compareCaptureEntries } from "./capture-entry/capture-entry-compare.js";
 
 function mergeWaybackAndCommonCrawlEntries(
   waybackEntries: CaptureEntry[],
@@ -122,6 +123,7 @@ async function processWebsiteDownloads(
       writeHeaders,
       fetchMetadata: true,
       fetchOriginalRecord: true,
+      skipOn302: 3,
     },
     fileContext: {},
   };
@@ -147,6 +149,10 @@ async function processWebsiteDownloads(
     };
 
     const baseEntries = mergeWaybackAndCommonCrawlEntries(waybackEntries, commonCrawlEntries);
+
+    baseEntries.sort(compareCaptureEntries);
+    unavailableEntries.sort(compareCaptureEntries);
+    skippedEntries.sort(compareCaptureEntries);
 
     for (const entry of baseEntries) {
       enrichCaptureEntryData(entry);
@@ -245,7 +251,7 @@ async function processWebsiteDownloads(
         assignContentIndices(updatedEntries);
         writeUniqueFileEntries(updatedEntries, filename, input.outputDirectory);
         const summaryEntries = [...updatedEntries, ...invalidEntries, ...unavailableEntries].sort(
-          (a, b) => a.timestamp.localeCompare(b.timestamp),
+          compareCaptureEntries,
         );
         await writeCsvSummary(summaryEntries, filename, input.outputDirectory);
         // This actually includes the raw and all invalid files

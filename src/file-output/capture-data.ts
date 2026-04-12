@@ -230,18 +230,41 @@ export function writeCaptureData(
     };
     fs.writeFileSync(captureDataPath, stringifyWithInlineTuples(captureData, inlineElementsOf));
     const mtime = new Date(entry.captureTimestamp.toJSDate());
-    //fs.utimesSync(captureDataPath, mtime, mtime);
 
-    if (entry.records) {
-      for (const record of entry.records) {
-        const recordPath = path.join(
-          archivalDir,
-          record.type === "warcinfo"
-            ? `${outputFilename}.warcinfo.warc`
-            : `${outputFilename}.record.${record.type}`,
+    if (entry.records?.length) {
+      const isArc = entry.records.some((r) => r.type === "arc");
+      const isWarc = entry.records.some((r) => r.type === "warc");
+      if (isArc) {
+        const header = entry.records.find((r) => r.type === "archeader");
+        const content = entry.records.find((r) => r.type === "arc");
+        if (!header || !content) {
+          throw new Error(
+            `Expected both archeader and arc records for capture with arc record, but got header: ${header?.type} and content: ${content?.type}`,
+          );
+        }
+        const arcHeader = header.content;
+        const buffer = content.content;
+        fs.writeFileSync(
+          path.join(archivalDir, `${outputFilename}.arc`),
+          Buffer.concat([arcHeader, buffer]),
         );
-        fs.writeFileSync(recordPath, record.content);
-        fs.utimesSync(recordPath, mtime, mtime);
+        fs.utimesSync(path.join(archivalDir, `${outputFilename}.arc`), mtime, mtime);
+      }
+      if (isWarc) {
+        const warcinfo = entry.records.find((r) => r.type === "warcinfo");
+        const warcRecord = entry.records.find((r) => r.type === "warc");
+        if (!warcinfo || !warcRecord) {
+          throw new Error(
+            `Expected both warcinfo and warc records for capture with warc record, but got warcinfo: ${warcinfo?.type} and warc: ${warcRecord?.type}`,
+          );
+        }
+        const warcinfoBuffer = warcinfo.content;
+        const buffer = warcRecord.content;
+        fs.writeFileSync(
+          path.join(archivalDir, `${outputFilename}.warc`),
+          Buffer.concat([warcinfoBuffer, buffer]),
+        );
+        fs.utimesSync(path.join(archivalDir, `${outputFilename}.warc`), mtime, mtime);
       }
     }
   });
