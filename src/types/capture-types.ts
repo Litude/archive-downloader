@@ -40,21 +40,35 @@ export interface CaptureCommonCrawlMetadata {
   collection: {
     id: string;
     title: string;
+    description?: string;
+    authors?: string[];
+    releaseDate?: string; // YYYY-MM-DD format
+    announcementUrl?: string;
     from: string; // ISO 8601, e.g. "2026-03-05T07:07:56"
     to: string; // ISO 8601, e.g. "2026-03-17T14:32:36"
   };
 }
 
-export interface CaptureWarcInfoMetadata {
+export interface CrawlInfoMetadata {
   crawler?: string;
   crawlJob?: string;
   description?: string;
   publisher?: string;
   operator?: string;
+  format?: string;
+  robots?: string;
+  conformsTo?: string;  
 }
 
 export interface ArchiveRecord {
-  type: "arc" | "archeader" | "warc" | "warcinfo";
+  type:
+    | "arc"
+    | "arc-header"
+    | "warc"
+    | "warc-info"
+    | "warc-request"
+    | "warc-metadata"
+    | "warc-unknown";
   content: Buffer;
 }
 
@@ -111,7 +125,7 @@ export interface CaptureEntry {
   metadata?: {
     wayback?: CaptureWaybackMetadata;
     commonCrawl?: CaptureCommonCrawlMetadata;
-    warcInfo?: CaptureWarcInfoMetadata;
+    crawlInfo?: CrawlInfoMetadata;
     validationErrors?: ValidationError[];
   };
 }

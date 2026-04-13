@@ -12,6 +12,7 @@ import { parseCdx } from "../../cdx/cdx-parser.js";
 import { CdxEntry } from "../../types/wayback-types.js";
 import { getWaybackItemDetails } from "./item-metadata.js";
 import { fetchArcGlobalHeader } from "../../archive-record/fetch-global-header-arc.js";
+import { fetchWarcRecordWithAdjacentRecords } from "../../archive-record/fetch-adjacent-warc-records.js";
 
 const downloadUrlBase = "https://archive.org/download/";
 
@@ -140,19 +141,37 @@ export async function fetchArchiveRecord(entry: CaptureEntry): Promise<ArchiveRe
   if (offset === undefined || length === undefined || filename === undefined) {
     throw new Error(`CDX entry for ${filename} is missing offset, length, or filename`);
   }
-  const content = await fetchRecordBytes(filename, offset, length);
   if (filename.endsWith(".arc.gz")) {
+    const content = await fetchRecordBytes(filename, offset, length);
     const arcHeader = await fetchArcGlobalHeaderForFilename(filename);
     return [
-      { type: "archeader", content: arcHeader },
+      { type: "arc-header", content: arcHeader },
       { type: "arc", content },
     ];
   } else if (filename.endsWith(".warc.gz")) {
+    const fetchOptions = {
+      timeout: WAYBACK_REQUEST_TIMEOUT,
+      initialBackoff: WAYBACK_INITIAL_BACKOFF,
+      maxBackoff: WAYBACK_MAX_BACKOFF,
+    };
+    const { mainContent, adjacentPrepended, adjacentTailing } =
+      await fetchWarcRecordWithAdjacentRecords(
+        generateDownloadUrl(filename),
+        offset,
+        length,
+        fetchOptions,
+      );
     const globalHeader = await fetchWarcGlobalHeaderForFilename(filename);
-    return [
-      { type: "warcinfo", content: globalHeader },
-      { type: "warc", content },
+    const records = [
+      { type: "warc-info" as const, content: globalHeader },
+      ...adjacentPrepended,
+      { type: "warc" as const, content: mainContent },
+      ...adjacentTailing,
     ];
+    console.log(
+      `Fetched main record with ${records.length - 2} adjacent records (kept ${records.length} total) for ${filename} at offset ${offset} with length ${length}`,
+    );
+    return records;
   } else {
     throw new Error(
       `Unsupported archive format for fetching original record, only .arc.gz and .warc.gz are supported, but got ${filename}`,

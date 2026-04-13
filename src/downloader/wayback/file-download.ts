@@ -80,7 +80,7 @@ async function attemptToFetchRedirectUrl(
         (!url.minTimestamp || baseUrlInfo.timestamp >= url.minTimestamp),
     ) ||
       (requestUrl &&
-        isUrlTrailingSlashMatch(
+        !isUrlTrailingSlashMatch(
           baseUrlInfo.originalUrl,
           requestUrl,
           TrailingSlashParsingMode.Strict,

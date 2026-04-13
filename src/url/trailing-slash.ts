@@ -19,13 +19,16 @@ export function isUrlTrailingSlashMatch(
     if (!captureStatusCode) {
       throw new Error("captureStatusCode is required for StrictWithValid mode");
     }
-    if (!captureStatusCode.toString().startsWith("2")) {
-      return false;
-    }
     const urlObj1 = new URL(captureUrl);
     const urlObj2 = new URL(requestUrl);
     const path1 = urlObj1.pathname.toLowerCase();
     const path2 = urlObj2.pathname.toLowerCase();
+    if (path1 === path2) {
+      return true;
+    }
+    if (!captureStatusCode.toString().startsWith("2")) {
+      return false;
+    }
     return (
       path1 === path2 ||
       (path1.endsWith("/") && path1.slice(0, -1) === path2) ||

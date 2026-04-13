@@ -3,7 +3,7 @@ import fs from "fs";
 import {
   CaptureCommonCrawlMetadata,
   CaptureEntry,
-  CaptureWarcInfoMetadata,
+  CrawlInfoMetadata,
   CaptureWaybackMetadata,
   Classification,
 } from "../types/capture-types.js";
@@ -14,6 +14,8 @@ import { RawHeader } from "../headers/raw-header-parser.js";
 import { DataCorrection } from "../data-corrections/data-correction.js";
 import { getContentLengthHeader, getHeaderValue } from "../headers/headers.js";
 import { ValidationError } from "../validation/validate-capture.js";
+import { parseWarcFile } from "../archive-record/warc.js";
+import { parseArcHeader } from "../archive-record/arc-header.js";
 
 /** CdxEntry as written to capture JSON files — optional fields are serialized as null rather than omitted */
 export interface CdxEntryJson {
@@ -73,7 +75,7 @@ export interface CaptureDataJson {
       provider: string;
       cdxEntry: CdxEntryJson;
     }[];
-    warcInfo?: CaptureWarcInfoMetadata;
+    crawlInfo?: CrawlInfoMetadata;
     wayback?: CaptureWaybackMetadata;
     commonCrawl?: CaptureCommonCrawlMetadata;
   };
@@ -123,6 +125,31 @@ function stringifyWithInlineTuples(data: unknown, inlineElementsOf: Set<unknown[
   return json;
 }
 
+function getRequestHeaders(captureEntry: CaptureEntry): RawHeader[] | undefined {
+  const warcRequestRecord = captureEntry.records?.find((r) => r.type === "warc-request");
+  if (warcRequestRecord) {
+    const parsedRequestRecord = parseWarcFile(warcRequestRecord.content);
+    return parsedRequestRecord?.headers;
+  }
+  const arcHeaderRecord = captureEntry.records?.find((r) => r.type === "arc-header");
+  if (arcHeaderRecord) {
+    const parsedArcHeader = parseArcHeader(arcHeaderRecord.content);
+    const userAgent = getHeaderValue(parsedArcHeader, "http-header-user-agent");
+    const from = getHeaderValue(parsedArcHeader, "http-header-from");
+    if (userAgent || from) {
+      const headers: RawHeader[] = [];
+      if (userAgent) {
+        headers.push(["User-Agent", userAgent]);
+      }
+      if (from) {
+        headers.push(["From", from]);
+      }
+      return headers;
+    }
+  }
+  return undefined;
+}
+
 export function writeCaptureData(
   captureEntries: CaptureEntry[],
   filename: Filename,
@@ -148,11 +175,15 @@ export function writeCaptureData(
     const mainCdxEntry = entry.cdxEntry.revisitEntry ?? entry.cdxEntry;
     const resolvedRevisitCdxEntry = entry.cdxEntry.revisitEntry ? entry.cdxEntry : undefined;
 
-    const headersResult = entry.headerOutput;
+    const responseHeadersResult = entry.headerOutput;
+    const requestHeadersResult = getRequestHeaders(entry);
 
     const inlineElementsOf = new Set<unknown[]>();
-    if (headersResult) {
-      inlineElementsOf.add(headersResult);
+    if (responseHeadersResult) {
+      inlineElementsOf.add(responseHeadersResult);
+    }
+    if (requestHeadersResult) {
+      inlineElementsOf.add(requestHeadersResult);
     }
 
     const recordAvailable = Boolean(
@@ -184,6 +215,7 @@ export function writeCaptureData(
       protocol: entry.protocol,
       request: {
         method: "GET",
+        headers: requestHeadersResult,
       },
       response: {
         statusCode: entry.statusCode,
@@ -223,7 +255,7 @@ export function writeCaptureData(
           provider: source.source,
           cdxEntry: cdxToOutputData(source.cdxEntry),
         })),
-        warcInfo: entry.metadata?.warcInfo,
+        crawlInfo: entry.metadata?.crawlInfo,
         wayback: entry.metadata?.wayback,
         commonCrawl: entry.metadata?.commonCrawl,
       },
@@ -235,7 +267,7 @@ export function writeCaptureData(
       const isArc = entry.records.some((r) => r.type === "arc");
       const isWarc = entry.records.some((r) => r.type === "warc");
       if (isArc) {
-        const header = entry.records.find((r) => r.type === "archeader");
+        const header = entry.records.find((r) => r.type === "arc-header");
         const content = entry.records.find((r) => r.type === "arc");
         if (!header || !content) {
           throw new Error(
@@ -251,18 +283,10 @@ export function writeCaptureData(
         fs.utimesSync(path.join(archivalDir, `${outputFilename}.arc`), mtime, mtime);
       }
       if (isWarc) {
-        const warcinfo = entry.records.find((r) => r.type === "warcinfo");
-        const warcRecord = entry.records.find((r) => r.type === "warc");
-        if (!warcinfo || !warcRecord) {
-          throw new Error(
-            `Expected both warcinfo and warc records for capture with warc record, but got warcinfo: ${warcinfo?.type} and warc: ${warcRecord?.type}`,
-          );
-        }
-        const warcinfoBuffer = warcinfo.content;
-        const buffer = warcRecord.content;
+        const warcRecords = entry.records.filter((r) => r.type.startsWith("warc"));
         fs.writeFileSync(
           path.join(archivalDir, `${outputFilename}.warc`),
-          Buffer.concat([warcinfoBuffer, buffer]),
+          Buffer.concat(warcRecords.map((r) => r.content)),
         );
         fs.utimesSync(path.join(archivalDir, `${outputFilename}.warc`), mtime, mtime);
       }

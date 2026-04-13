@@ -2,6 +2,7 @@ import { ArcParsingOptions, parseArcFile } from "../../archive-record/arc.js";
 import { parseWarcFile } from "../../archive-record/warc.js";
 import { fetchRangeBytes } from "../../archive-record/fetch-range-bytes.js";
 import { fetchWarcGlobalHeader } from "../../archive-record/fetch-global-header-warc.js";
+import { fetchWarcRecordWithAdjacentRecords } from "../../archive-record/fetch-adjacent-warc-records.js";
 import { ExtendedCdxEntry } from "../../types/wayback-types.js";
 import {
   CommonCrawlDownloadedFile,
@@ -86,8 +87,6 @@ export async function downloadCommonCrawlFile(
     maxBackoff: COMMONCRAWL_MAX_BACKOFF,
   };
 
-  const buffer = await fetchRangeBytes(url, entry.offset, entry.length, fetchOptions);
-
   const isArc = entry.filename.endsWith(".arc.gz");
 
   const collectionCleanupData = commonCrawlCleanupData[entry.collection ?? ""];
@@ -97,38 +96,32 @@ export async function downloadCommonCrawlFile(
       collectionCleanupData?.contentLengthIncludesTrailingNewline ?? false,
   };
 
-  try {
-    const parsed = isArc
-      ? parseArcFile(buffer, arcCleanupData)
-      : parseWarcFile(buffer, {
-          undoCommonCrawlHeaderNaming: true,
-          extraBlankLineAfterHeaders: collectionCleanupData?.extraBlankLineAfterHeaders,
-        });
+  if (isArc) {
+    const buffer = await fetchRangeBytes(url, entry.offset, entry.length, fetchOptions);
+    try {
+      const parsed = parseArcFile(buffer, arcCleanupData);
 
-    const responseHeadersArray = parsed.headers.reduce(
-      (acc, [k, v]) => {
-        if (!acc[k.toLowerCase()]) {
-          acc[k.toLowerCase()] = [];
-        }
-        acc[k.toLowerCase()].push(v);
-        return acc;
-      },
-      {} as Record<string, string[]>,
-    );
+      const responseHeadersArray = parsed.headers.reduce(
+        (acc, [k, v]) => {
+          if (!acc[k.toLowerCase()]) {
+            acc[k.toLowerCase()] = [];
+          }
+          acc[k.toLowerCase()].push(v);
+          return acc;
+        },
+        {} as Record<string, string[]>,
+      );
 
-    const responseHeaders = Object.fromEntries(
-      Object.entries(responseHeadersArray).map(([k, v]) => [k, v.join(", ")]),
-    );
+      const responseHeaders = Object.fromEntries(
+        Object.entries(responseHeadersArray).map(([k, v]) => [k, v.join(", ")]),
+      );
 
-    const contentTruncationDetails = checkIfTruncated(
-      parsed.content,
-      parsed.headers,
-      parsed.metadata,
-    );
-
-    const collection = getCommonCrawlCollection(entry.collection ?? "");
-
-    if (isArc) {
+      const contentTruncationDetails = checkIfTruncated(
+        parsed.content,
+        parsed.headers,
+        parsed.metadata,
+      );
+      const collection = getCommonCrawlCollection(entry.collection ?? "");
       const arcHeader = await fetchArcGlobalHeader(url, fetchOptions);
       return {
         content: parsed.content,
@@ -143,18 +136,71 @@ export async function downloadCommonCrawlFile(
         metadata: parsed.metadata,
         collection,
         records: [
-          { type: "archeader", content: arcHeader },
+          { type: "arc-header", content: arcHeader },
           { type: "arc", content: buffer },
         ],
         classification: contentTruncationDetails ? "corrupt" : undefined,
         contentTruncationDetails: contentTruncationDetails
-          ? {
-              downloadErrorDetails: contentTruncationDetails,
-            }
+          ? { downloadErrorDetails: contentTruncationDetails }
           : undefined,
       };
-    } else {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(
+        `Failed to parse ARC record for ${entry.url} (${entry.timestamp}): ${errorMessage}`,
+      );
+      return {
+        content: Buffer.alloc(0),
+        url: entry.url,
+        timestamp: entry.timestamp,
+        responseHeaders: {},
+        rawResponseHeaders: [],
+        statusCode: 0,
+        statusMessage: "",
+        classification: "corrupt",
+        records: [{ type: "arc", content: buffer }],
+      };
+    }
+  } else {
+    const { mainContent, adjacentPrepended, adjacentTailing } =
+      await fetchWarcRecordWithAdjacentRecords(url, entry.offset, entry.length, fetchOptions);
+    try {
+      const parsed = parseWarcFile(mainContent, {
+        undoCommonCrawlHeaderNaming: true,
+        extraBlankLineAfterHeaders: collectionCleanupData?.extraBlankLineAfterHeaders,
+      });
+
+      const responseHeadersArray = parsed.headers.reduce(
+        (acc, [k, v]) => {
+          if (!acc[k.toLowerCase()]) {
+            acc[k.toLowerCase()] = [];
+          }
+          acc[k.toLowerCase()].push(v);
+          return acc;
+        },
+        {} as Record<string, string[]>,
+      );
+
+      const responseHeaders = Object.fromEntries(
+        Object.entries(responseHeadersArray).map(([k, v]) => [k, v.join(", ")]),
+      );
+
+      const contentTruncationDetails = checkIfTruncated(
+        parsed.content,
+        parsed.headers,
+        parsed.metadata,
+      );
+      const collection = getCommonCrawlCollection(entry.collection ?? "");
       const warcinfoBuffer = await fetchWarcGlobalHeader(url, fetchOptions);
+      const records = [
+        { type: "warc-info" as const, content: warcinfoBuffer },
+        ...adjacentPrepended,
+        { type: "warc" as const, content: mainContent },
+        ...adjacentTailing,
+      ];
+      console.log(
+        `Fetched main record with ${records.length - 2} adjacent records (kept ${records.length} total) for ${entry.filename} at offset ${entry.offset} with length ${entry.length}`,
+      );
       return {
         content: parsed.content,
         url: entry.url,
@@ -167,33 +213,28 @@ export async function downloadCommonCrawlFile(
         protocol: parsed.protocol || undefined,
         metadata: parsed.metadata,
         collection,
-        records: [
-          { type: "warcinfo", content: warcinfoBuffer },
-          { type: "warc", content: buffer },
-        ],
+        records,
         classification: contentTruncationDetails ? "corrupt" : undefined,
         contentTruncationDetails: contentTruncationDetails
-          ? {
-              downloadErrorDetails: contentTruncationDetails,
-            }
+          ? { downloadErrorDetails: contentTruncationDetails }
           : undefined,
       };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(
+        `Failed to parse WARC record for ${entry.url} (${entry.timestamp}): ${errorMessage}`,
+      );
+      return {
+        content: Buffer.alloc(0),
+        url: entry.url,
+        timestamp: entry.timestamp,
+        responseHeaders: {},
+        rawResponseHeaders: [],
+        statusCode: 0,
+        statusMessage: "",
+        classification: "corrupt",
+        records: [{ type: "warc", content: mainContent }],
+      };
     }
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(
-      `Failed to parse ${isArc ? "ARC" : "WARC"} record for ${entry.url} (${entry.timestamp}): ${errorMessage}`,
-    );
-    return {
-      content: Buffer.alloc(0),
-      url: entry.url,
-      timestamp: entry.timestamp,
-      responseHeaders: {},
-      rawResponseHeaders: [],
-      statusCode: 0,
-      statusMessage: "",
-      classification: "corrupt",
-      records: [{ type: isArc ? "arc" : "warc", content: buffer }],
-    };
   }
 }
