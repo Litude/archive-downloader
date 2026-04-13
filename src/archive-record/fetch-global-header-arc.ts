@@ -61,9 +61,9 @@ export async function fetchArcGlobalHeader(
           }
 
           if (recordTotalSize !== null && totalLength >= recordTotalSize) {
-            // In practice, it is not specified in the ARC specification whether the trailing newlines (2x) are included in the size
-            // or not. We assume that they are not included, and we trim the result to remove any non-newline characters at the end.
-            const merged = Buffer.concat(chunks);
+            // The ARC file length should not include the newline characters, but for commoncrawl it seems that it does include them
+            // for the header only. As a workaround, we assume that they are not included, and we trim the result to remove any non-newline characters at the end.
+            const merged = Buffer.concat(chunks).subarray(0, recordTotalSize);
             let nonNewlineCharactersAtEnd = 0;
             for (let i = merged.length - 1; i >= 0; i--) {
               const byte = merged[i];
@@ -73,7 +73,7 @@ export async function fetchArcGlobalHeader(
                 break;
               }
             }
-            settle(merged.subarray(0, totalLength - nonNewlineCharactersAtEnd));
+            settle(merged.subarray(0, recordTotalSize - nonNewlineCharactersAtEnd));
           }
         });
         gunzip.on("end", () => {
