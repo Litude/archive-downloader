@@ -154,7 +154,7 @@ async function getResponse(waybackUrl: string, statusCode: number, requestUrl?: 
       // 302 can also be returned by the web archive when the capture is temporarily unavailable. And incase the original 302 capture was a self redirect, the response will be identical to an unavailable capture.
       // Best we can do is attempt a few times and if we keep getting 302 responses, we can assume the capture is unavailable
       return attemptToFetchRedirectUrl(waybackUrl, statusCode, requestUrl);
-    } else if ([403, 404].includes(statusCode)) {
+    } else if ([400, 403, 404].includes(statusCode)) {
       return axios.get(waybackUrl, {
         headers: REQUEST_HEADERS,
         ...preventAxiosRedirects,

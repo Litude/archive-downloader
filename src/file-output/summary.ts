@@ -5,6 +5,7 @@ import { createObjectCsvWriter } from "csv-writer";
 import { Filename } from "../types/download-input-types.js";
 import { filenameToString } from "../file-name/file-name.js";
 import { isDefined } from "../utils/ts-utils.js";
+import { writeCsvRecordsSafe } from "../utils/file-write.js";
 
 const ARRAY_SEPARATOR = "|";
 
@@ -96,7 +97,7 @@ export async function writeCsvSummary(
       path: csvPath,
       header: Object.keys(summaryRows[0]).map((key) => ({ id: key, title: key })),
     });
-    await csvWriter.writeRecords(summaryRows);
+    await writeCsvRecordsSafe(csvWriter, summaryRows);
     console.log(`Summary written to ${csvPath}`);
   }
 }

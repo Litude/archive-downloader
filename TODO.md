@@ -4,8 +4,6 @@
   * Medium: Fetch unique digests + all missing headers
   * Full: Fetch all files
 
-- Write a total CSV summary of all files which allows e.g. easy lookup of any captures in a specific date range (should probaby always append/clear only previous entries of same url to allow pausing/resuming the dowlonder)
-
 - Prevent double downloading by adding files that reference each other?
 
 Skip these ideas for now:

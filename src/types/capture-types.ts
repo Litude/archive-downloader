@@ -88,6 +88,7 @@ export type Classification =
   | { type: "redirect" }
   | { type: "unavailable" }
   | { type: "skipped" }
+  | { type: "bad_request" }
   | { type: "forbidden" };
 
 export type CaptureClassification = Classification["type"];

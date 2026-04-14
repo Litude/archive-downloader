@@ -151,7 +151,11 @@ export function readWebsiteJsonConfig(
   jsonPath: string,
   baseDirectory: string,
   { noMirrors = false },
-): { downloadInputs: DownloadFileInput[]; commonCrawlIndexQueries: CommonCrawlIndexQuery[] } {
+): {
+  downloadInputs: DownloadFileInput[];
+  commonCrawlIndexQueries: CommonCrawlIndexQuery[];
+  websiteOutputDirectory: string;
+} {
   let config = readFileAsJson5(jsonPath);
   const variables = readVariables();
   config = replaceJsonConfigVariables(config, variables);
@@ -216,5 +220,9 @@ export function readWebsiteJsonConfig(
     } satisfies DownloadFileInput;
   });
 
-  return { downloadInputs: result, commonCrawlIndexQueries };
+  const websiteOutputDirectory = config.commonSettings?.baseDirectory
+    ? path.join(baseDirectory, config.commonSettings.baseDirectory)
+    : baseDirectory;
+
+  return { downloadInputs: result, commonCrawlIndexQueries, websiteOutputDirectory };
 }

@@ -5,6 +5,7 @@ import { DownloadFileInput } from "./types/download-input-types.js";
 import { computeSha256 } from "./utils/hash.js";
 import { CaptureEntry } from "./types/capture-types.js";
 import { writeCsvSummary } from "./file-output/summary.js";
+import { writeGlobalSummary } from "./file-output/global-summary.js";
 import { writeUniqueFileEntries } from "./file-output/write-files.js";
 import { applyTransformationPipeline } from "./transformation/transformation.js";
 import { filenameToString } from "./file-name/file-name.js";
@@ -109,11 +110,17 @@ async function processWebsiteDownloads(
     peekAllFiles = false,
     writeHeaders = false,
     prefetchedIndex,
+    websiteOutputDirectory,
+    skipOn302 = 0,
+    commonCrawlEnabled = true,
   }: {
     includeInvalid?: boolean;
     peekAllFiles?: boolean;
     writeHeaders?: boolean;
     prefetchedIndex?: CommonCrawlPrefetchedIndex;
+    websiteOutputDirectory: string;
+    skipOn302?: number;
+    commonCrawlEnabled?: boolean;
   },
 ) {
   const context: Context = {
@@ -123,7 +130,7 @@ async function processWebsiteDownloads(
       writeHeaders,
       fetchMetadata: true,
       fetchOriginalRecord: true,
-      skipOn302: 3,
+      skipOn302 : skipOn302 ? skipOn302 : undefined,
     },
     fileContext: {},
   };
@@ -139,7 +146,7 @@ async function processWebsiteDownloads(
     } = await downloadWaybackEntries(input, context);
 
     const { filteredEntries: commonCrawlEntries, metadata: commonCrawlDownloadMetadata } =
-      isCommonCrawlEnabledForInput(input, prefetchedIndex)
+      commonCrawlEnabled && isCommonCrawlEnabledForInput(input, prefetchedIndex)
         ? await downloadCommonCrawlEntries(input, undefined, prefetchedIndex)
         : { filteredEntries: [], metadata: {} };
 
@@ -148,7 +155,7 @@ async function processWebsiteDownloads(
       commonCrawl: commonCrawlDownloadMetadata,
     };
 
-    const baseEntries = mergeWaybackAndCommonCrawlEntries(waybackEntries, commonCrawlEntries);
+    const baseEntries = commonCrawlEnabled ? mergeWaybackAndCommonCrawlEntries(waybackEntries, commonCrawlEntries) : waybackEntries;
 
     baseEntries.sort(compareCaptureEntries);
     unavailableEntries.sort(compareCaptureEntries);
@@ -254,6 +261,12 @@ async function processWebsiteDownloads(
           compareCaptureEntries,
         );
         await writeCsvSummary(summaryEntries, filename, input.outputDirectory);
+        await writeGlobalSummary(
+          summaryEntries,
+          filename,
+          input.outputDirectory,
+          websiteOutputDirectory,
+        );
         // This actually includes the raw and all invalid files
         const rawFiles = baseEntries.filter(
           (entry) =>
@@ -289,6 +302,12 @@ async function processWebsiteDownloads(
         (a, b) => a.timestamp.localeCompare(b.timestamp),
       );
       await writeCsvSummary(summaryEntries, input.filename, input.outputDirectory);
+      await writeGlobalSummary(
+        summaryEntries,
+        input.filename,
+        input.outputDirectory,
+        websiteOutputDirectory,
+      );
       writeCaptureData(baseEntries, input.filename, input.outputDirectory);
 
       writeUrlMetadata(
@@ -313,11 +332,6 @@ async function main() {
       default: "output",
       describe: "Directory to write output files",
     })
-    .option("mirrors", {
-      type: "string",
-      default: "",
-      describe: "Comma-separated list of additional mirror URLs",
-    })
     .option("max-timestamp", {
       type: "string",
       default: "",
@@ -334,11 +348,22 @@ async function main() {
       default: true,
       describe: "Use mirrors and additional URLs",
     })
+    .option("common-crawl", {
+      type: "boolean",
+      default: true,
+      describe: "Disable Common Crawl downloads for all inputs",
+    })
     .option("peek-all", {
       type: "boolean",
       default: true,
       describe:
         "Peek into all downloaded files to get accurate last-modified timestamps and wayback filenames",
+    })
+    .option("skip-on-302", {
+      type: "number",
+      default: 0,
+      describe:
+        "Number of times to retry fetching a file if a 302 response is received from the web archive, as 302 can indicate a temporarily unavailable capture. 0 is infinite retries.",
     })
     .option("headers", {
       type: "boolean",
@@ -366,16 +391,16 @@ async function main() {
     console.log(`Peek all files: ${argv["peek-all"]}`);
     console.log(`Write headers: ${argv["headers"]}`);
     console.log(`Include invalid: ${argv["include-invalid"]}`);
+    console.log(`Skip on 302: ${argv["skip-on-302"] ? argv["skip-on-302"] : "infinite"} retries`);
+    console.log(`Common Crawl enabled: ${argv["common-crawl"]}`);
     console.log(`Max timestamp: ${argv["max-timestamp"] || "None"}`);
     console.log(`Min timestamp: ${argv["min-timestamp"] || "None"}`);
     console.log("================\n");
-    const { downloadInputs, commonCrawlIndexQueries } = readWebsiteJsonConfig(
-      argv.json,
-      argv["output-dir"],
-      { noMirrors: !argv["mirrors"] },
-    );
+    const commonCrawlEnabled = argv["common-crawl"];
+    const { downloadInputs, commonCrawlIndexQueries, websiteOutputDirectory } =
+      readWebsiteJsonConfig(argv.json, argv["output-dir"], { noMirrors: !argv["mirrors"] });
     const prefetchedIndex =
-      commonCrawlIndexQueries.length > 0
+      commonCrawlEnabled && commonCrawlIndexQueries.length > 0
         ? await prefetchCdxIndex(commonCrawlIndexQueries, {
             requestDelayMs: COMMONCRAWL_REQUEST_DELAY_MS,
             requestTimeoutMs: COMMONCRAWL_REQUEST_TIMEOUT,
@@ -386,6 +411,9 @@ async function main() {
       peekAllFiles: argv["peek-all"],
       writeHeaders: argv["headers"],
       prefetchedIndex,
+      websiteOutputDirectory,
+      skipOn302: argv["skip-on-302"],
+      commonCrawlEnabled,
     });
     return;
   } else {

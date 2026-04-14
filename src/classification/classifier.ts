@@ -77,6 +77,8 @@ export function classifyEntryWithConfig(
     return { type: "corrupt", details: { reason: "empty_content" } };
   } else if (downloadClassification === "unavailable") {
     return { type: "unavailable" };
+  } else if (statusCode === 400) {
+    return { type: "bad_request" };
   } else if (statusCode === 404) {
     return { type: "not_found" };
   } else if ([301, 302, 307, 308].includes(statusCode)) {
