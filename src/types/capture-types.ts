@@ -40,10 +40,10 @@ export interface CaptureCommonCrawlMetadata {
   collection: {
     id: string;
     title: string;
-    description?: string;
-    authors?: string[];
     releaseDate?: string; // YYYY-MM-DD format
+    authors?: string[];
     announcementUrl?: string;
+    description?: string;
     from: string; // ISO 8601, e.g. "2026-03-05T07:07:56"
     to: string; // ISO 8601, e.g. "2026-03-17T14:32:36"
   };
@@ -51,13 +51,15 @@ export interface CaptureCommonCrawlMetadata {
 
 export interface CrawlInfoMetadata {
   crawler?: string;
+  ip?: string;
+  hostname?: string;
   crawlJob?: string;
   description?: string;
   publisher?: string;
   operator?: string;
   format?: string;
   robots?: string;
-  conformsTo?: string;  
+  conformsTo?: string;
 }
 
 export interface ArchiveRecord {

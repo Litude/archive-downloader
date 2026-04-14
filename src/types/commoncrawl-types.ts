@@ -55,6 +55,21 @@ export interface CommonCrawlIndexQuery {
   minTimestamp?: string;
 }
 
+export interface CommonCrawlCollectionInfoErrata {
+  title: string;
+  link: string;
+}
+
+export interface CommonCrawlCollectionInfo {
+  collectionId: string;
+  announcementUrl: string;
+  title: string;
+  date: string; // e.g. January 1, 2026
+  summary: string;
+  authors: string[];
+  errata: CommonCrawlCollectionInfoErrata[];
+}
+
 export interface CommonCrawlDownloaderOptions {
   /** Milliseconds to wait between each API request. Default: COMMONCRAWL_REQUEST_DELAY_MS */
   requestDelayMs?: number;

@@ -2,6 +2,7 @@ import { ExtendedCdxEntry } from "../types/wayback-types.js";
 import { CaptureCommonCrawlMetadata, CaptureEntry } from "../types/capture-types.js";
 import { DownloadFileInput, UrlEntry } from "../types/download-input-types.js";
 import {
+  CommonCrawlCollectionInfo,
   CommonCrawlDownloadedFile,
   CommonCrawlDownloaderOptions,
 } from "../types/commoncrawl-types.js";
@@ -9,6 +10,8 @@ import {
   COMMONCRAWL_REQUEST_DELAY_MS,
   COMMONCRAWL_REQUEST_TIMEOUT,
 } from "./commoncrawl/commoncrawl-common.js";
+import JSON5 from "json5";
+import fs from "fs";
 import { getFilteredCollections } from "./commoncrawl/collections.js";
 import { fetchCdxEntriesForCollection } from "./commoncrawl/cdx-entries.js";
 import { downloadCommonCrawlFile } from "./commoncrawl/file-download.js";
@@ -21,6 +24,20 @@ import { sanityCheckTimestamps } from "../utils/timestamp.js";
 import { UrlMetadataFilteredEntries } from "../file-output/url-metadata.js";
 import { CommonCrawlPrefetchedIndex } from "./commoncrawl/cdx-prefetch.js";
 import { urlToUrlkey } from "../url/urlkey.js";
+import { fileURLToPath } from "url";
+import path, { dirname } from "path/win32";
+import { DateTime } from "luxon";
+import { isUrlTrailingSlashMatch, TrailingSlashParsingMode } from "../url/trailing-slash.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const commonCrawlCollectionInfo: CommonCrawlCollectionInfo[] = JSON5.parse(
+  fs.readFileSync(
+    path.join(__dirname, "../../data/settings/common_crawl_collections.json"),
+    "utf-8",
+  ),
+);
 
 function filterPrefetchedEntries(
   cachedEntries: ExtendedCdxEntry[],
@@ -134,11 +151,21 @@ function buildCaptureEntry(entry: ExtendedCdxEntry, file: CommonCrawlDownloadedF
   if (!collection) {
     throw new Error(`Missing collection metadata for ${entry.url} (${entry.timestamp})`);
   }
+  const collectionInfo = commonCrawlCollectionInfo.find(
+    (col) => col.collectionId === collection.id,
+  );
+
   const commonCrawlMetadata: CaptureCommonCrawlMetadata = {
     fetchTimestamp: fetchTimestamp ? new Date(+fetchTimestamp).toISOString() : undefined,
     collection: {
       id: collection.id,
       title: collection.name,
+      releaseDate: collectionInfo?.date
+        ? (DateTime.fromFormat(collectionInfo?.date, "LLLL d, yyyy").toISODate() ?? undefined)
+        : undefined,
+      description: collectionInfo?.summary,
+      authors: collectionInfo?.authors,
+      announcementUrl: collectionInfo?.announcementUrl,
       from: collection.from,
       to: collection.to,
     },
@@ -174,18 +201,17 @@ function buildCaptureEntry(entry: ExtendedCdxEntry, file: CommonCrawlDownloadedF
 function filterNonTrailingSlashRedirects(
   entries: CaptureEntry[],
   requestUrl: string,
+  mode: TrailingSlashParsingMode,
 ): {
   filteredEntries: CaptureEntry[];
   redirectNonSlashFiltered: number;
 } {
   let redirectNonSlashFiltered = 0;
+
   entries.filter((snapshot) => {
-    if ([301, 302].includes(snapshot.statusCode ?? 0)) {
-      const originalUrl = snapshot.url;
-      if (requestUrl.endsWith("/") && !originalUrl.endsWith("/")) {
-        redirectNonSlashFiltered++;
-        return false;
-      }
+    if (!isUrlTrailingSlashMatch(snapshot.url, requestUrl, mode)) {
+      redirectNonSlashFiltered++;
+      return false;
     }
     return true;
   });
@@ -224,6 +250,7 @@ async function downloadUrlCommonCrawlEntries(
   const { filteredEntries, redirectNonSlashFiltered } = filterNonTrailingSlashRedirects(
     captureEntries,
     urlEntry.url,
+    urlEntry.trailingSlashParsingMode ?? TrailingSlashParsingMode.Lax,
   );
 
   if (redirectNonSlashFiltered > 0) {

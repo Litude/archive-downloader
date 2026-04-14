@@ -16,6 +16,7 @@ import { getContentLengthHeader, getHeaderValue } from "../headers/headers.js";
 import { ValidationError } from "../validation/validate-capture.js";
 import { parseWarcFile } from "../archive-record/warc.js";
 import { parseArcHeader } from "../archive-record/arc-header.js";
+import { parseWarcinfoFile } from "../archive-record/warc-info.js";
 
 /** CdxEntry as written to capture JSON files — optional fields are serialized as null rather than omitted */
 export interface CdxEntryJson {
@@ -136,6 +137,22 @@ function getRequestHeaders(captureEntry: CaptureEntry): RawHeader[] | undefined 
     const parsedArcHeader = parseArcHeader(arcHeaderRecord.content);
     const userAgent = getHeaderValue(parsedArcHeader, "http-header-user-agent");
     const from = getHeaderValue(parsedArcHeader, "http-header-from");
+    if (userAgent || from) {
+      const headers: RawHeader[] = [];
+      if (userAgent) {
+        headers.push(["User-Agent", userAgent]);
+      }
+      if (from) {
+        headers.push(["From", from]);
+      }
+      return headers;
+    }
+  }
+  const warcInfoRecord = captureEntry.records?.find((r) => r.type === "warc-info");
+  if (warcInfoRecord) {
+    const parsedWarcInfo = parseWarcinfoFile(warcInfoRecord.content);
+    const userAgent = getHeaderValue(parsedWarcInfo.lines, "http-header-user-agent");
+    const from = getHeaderValue(parsedWarcInfo.lines, "http-header-from");
     if (userAgent || from) {
       const headers: RawHeader[] = [];
       if (userAgent) {
