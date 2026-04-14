@@ -17,7 +17,7 @@ interface GlobalSummaryRow {
   classification: string;
   mimetype: string;
   provider: string;
-  archive_format: string;
+  archive_filename: string;
   record_available: string;
 }
 
@@ -32,22 +32,9 @@ const GLOBAL_SUMMARY_HEADER: (keyof GlobalSummaryRow)[] = [
   "classification",
   "mimetype",
   "provider",
-  "archive_format",
+  "archive_filename", // gives a clue about the source collection and also the archive format
   "record_available",
 ];
-
-function deriveArchiveFormat(archiveFilename: string | undefined): string {
-  if (!archiveFilename) {
-    return "";
-  }
-  if (archiveFilename.includes(".warc")) {
-    return "warc";
-  }
-  if (archiveFilename.includes(".arc")) {
-    return "arc";
-  }
-  return "";
-}
 
 /**
  * Parse a single CSV line that was written by csv-writer.
@@ -153,11 +140,11 @@ export async function writeGlobalSummary(
     classification: entry.classification.type,
     mimetype: entry.mimetype,
     provider: entry.cdxEntry.source ?? "",
-    archive_format: deriveArchiveFormat(entry.cdxEntry.filename),
+    archive_filename: entry.cdxEntry.filename ?? "",
     record_available: String(
       Boolean(entry.records?.find((r) => ["warc", "arc"].includes(r.type))?.type ?? undefined),
     ),
-  }));
+  } satisfies GlobalSummaryRow));
 
   const archivalDir = path.join(rootOutputDirectory, ".archivaldata");
   fs.mkdirSync(archivalDir, { recursive: true });

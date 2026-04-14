@@ -39,13 +39,14 @@ export function extractGzipMembers(buffer: Buffer): Buffer[] {
       members.push(memberDecompressed);
       remaining = remaining.subarray(memberEnd);
     } else {
-      // No further boundary found — try the entire remaining buffer as the last member
+      // No boundary found — try the entire remaining buffer as the last member
       try {
         members.push(zlib.gunzipSync(remaining));
+        break;
       } catch {
-        // Partial or invalid member, nothing more to extract
+        // Decompression failed — this \x1f\x8b was a false positive, skip past it
+        remaining = remaining.subarray(1);
       }
-      break;
     }
   }
 

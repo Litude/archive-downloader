@@ -5,7 +5,10 @@ import { parseWarcFile } from "./warc.js";
 import { getHeaderValue } from "../headers/headers.js";
 import { ArchiveRecord } from "../types/capture-types.js";
 
-const ADJACENT_PADDING = 12800;
+// This needs to be quite large, particularily for Wpull which does not necessarily even
+// store the request and response adjacent to each other, but can have other records in between...
+// (It probably stored the requests as it made them, and then stored the responses as it received them and inited several concurrent requests...)
+const ADJACENT_PADDING = 512000; // 500kb (total of 1mb extra download)
 
 export function isRelatedRecord(
   record: Buffer,
