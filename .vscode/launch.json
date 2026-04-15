@@ -28,6 +28,7 @@
             "--json",
             ".\\data\\inputs\\test-input.json",
             "--no-mirrors",
+            "--no-common-crawl"
             // "--no-include-invalid",
             // "--no-headers",
             // "--no-peek-all"

@@ -4,6 +4,7 @@ import path, { dirname } from "path";
 import { CaptureClassification, Classification } from "../types/capture-types.js";
 import { DownloadedFile } from "../types/download-types.js";
 import { fileURLToPath } from "url";
+import { REDIRECT_STATUS_CODES } from "../downloader/wayback/file-download.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -81,7 +82,9 @@ export function classifyEntryWithConfig(
     return { type: "bad_request" };
   } else if (statusCode === 404) {
     return { type: "not_found" };
-  } else if ([301, 302, 307, 308].includes(statusCode)) {
+  } else if (statusCode.toString().startsWith("5")) {
+    return { type: "origin_error" };
+  } else if (REDIRECT_STATUS_CODES.includes(statusCode)) {
     return { type: "redirect" };
   } else if (config.transientRedirectSha256.includes(sha256)) {
     return { type: "transient_retry" };

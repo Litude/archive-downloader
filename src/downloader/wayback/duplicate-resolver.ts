@@ -149,7 +149,10 @@ async function fetchHeadersUntilSuccess(
   // Hopefully such timestamps that also have 200 captures would always resolve to the 200 capture or other code
   const potentialRedirect = statusCodes.some((code) => [301, 302].includes(code));
   const allRedirect = statusCodes.every((code) => [301, 302].includes(code));
-  const maxRedirectAttempts = allRedirect ? 5 : potentialRedirect ? 15 : 0; // Only attempt retries for missing x-archive-src if there is a potential redirect, otherwise it is likely an actual issue
+  let maxRedirectAttempts = allRedirect ? 5 : potentialRedirect ? 10 : 0; // Only attempt retries for missing x-archive-src if there is a potential redirect, otherwise it is likely an actual issue
+  if (context.settings.skipOn302) {
+    maxRedirectAttempts = context.settings.skipOn302;
+  }
   let redirectAttempts = 1;
   let redirectBackoff = WAYBACK_INITIAL_BACKOFF;
   let error404Attempts = 0;

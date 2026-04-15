@@ -28,6 +28,7 @@ import { fileURLToPath } from "url";
 import path, { dirname } from "path/win32";
 import { DateTime } from "luxon";
 import { isUrlTrailingSlashMatch, TrailingSlashParsingMode } from "../url/trailing-slash.js";
+import { getCommonCrawlCollectionSize } from "./commoncrawl/commoncrawl-collection-size.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -120,7 +121,21 @@ async function fetchCommonCrawlCdxEntries(
   return allEntries;
 }
 
-function buildCaptureEntry(entry: ExtendedCdxEntry, file: CommonCrawlDownloadedFile): CaptureEntry {
+function cleanupCrawlName(crawlName: string) {
+  let cleanedName = crawlName.trim();
+  if (cleanedName.endsWith(" Index")) {
+    cleanedName = cleanedName.slice(0, -6).trim();
+  }
+  if (!cleanedName.includes("Crawl")) {
+    cleanedName = `${cleanedName} Crawl`;
+  }
+  return cleanedName;
+}
+
+async function buildCaptureEntry(
+  entry: ExtendedCdxEntry,
+  file: CommonCrawlDownloadedFile,
+): Promise<CaptureEntry> {
   const sha256 = computeSha256(file.content);
   const actualDigest = computeBase32EncodedSha1(file.content);
 
@@ -151,6 +166,9 @@ function buildCaptureEntry(entry: ExtendedCdxEntry, file: CommonCrawlDownloadedF
   if (!collection) {
     throw new Error(`Missing collection metadata for ${entry.url} (${entry.timestamp})`);
   }
+
+  const collectionSizeInfo = await getCommonCrawlCollectionSize(collection.id);
+
   const collectionInfo = commonCrawlCollectionInfo.find(
     (col) => col.collectionId === collection.id,
   );
@@ -159,15 +177,18 @@ function buildCaptureEntry(entry: ExtendedCdxEntry, file: CommonCrawlDownloadedF
     fetchTimestamp: fetchTimestamp ? new Date(+fetchTimestamp).toISOString() : undefined,
     collection: {
       id: collection.id,
-      title: collection.name,
-      releaseDate: collectionInfo?.date
+      title: cleanupCrawlName(collectionInfo?.crawlTitle ?? collection.name),
+      publishDate: collectionInfo?.date
         ? (DateTime.fromFormat(collectionInfo?.date, "LLLL d, yyyy").toISODate() ?? undefined)
         : undefined,
+      from: collection.from,
+      to: collection.to,
       description: collectionInfo?.summary,
       authors: collectionInfo?.authors,
       announcementUrl: collectionInfo?.announcementUrl,
-      from: collection.from,
-      to: collection.to,
+      numPages: collectionSizeInfo.numPages,
+      numUrls: collectionSizeInfo.numUrls,
+      numDigests: collectionSizeInfo.numDigests,
     },
   };
 
@@ -190,7 +211,7 @@ function buildCaptureEntry(entry: ExtendedCdxEntry, file: CommonCrawlDownloadedF
     rawResponseHeaders: file.rawResponseHeaders,
     headerOutput: file.rawResponseHeaders,
     hostIp: file.hostIp,
-    protocol: file.protocol,
+    responseProtocol: file.protocol,
     records: file.records,
     metadata: {
       commonCrawl: commonCrawlMetadata,
@@ -209,7 +230,7 @@ function filterNonTrailingSlashRedirects(
   let redirectNonSlashFiltered = 0;
 
   entries.filter((snapshot) => {
-    if (!isUrlTrailingSlashMatch(snapshot.url, requestUrl, mode)) {
+    if (!isUrlTrailingSlashMatch(snapshot.url, requestUrl, mode, snapshot.statusCode)) {
       redirectNonSlashFiltered++;
       return false;
     }
@@ -243,9 +264,9 @@ async function downloadUrlCommonCrawlEntries(
 
   resolveCommonCrawlRevisitRecords(files);
 
-  files.forEach(({ file, entry }) => {
-    captureEntries.push(buildCaptureEntry(entry, file));
-  });
+  for (const { file, entry } of files) {
+    captureEntries.push(await buildCaptureEntry(entry, file));
+  }
 
   const { filteredEntries, redirectNonSlashFiltered } = filterNonTrailingSlashRedirects(
     captureEntries,

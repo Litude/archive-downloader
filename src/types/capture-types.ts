@@ -40,12 +40,15 @@ export interface CaptureCommonCrawlMetadata {
   collection: {
     id: string;
     title: string;
-    releaseDate?: string; // YYYY-MM-DD format
+    publishDate?: string; // YYYY-MM-DD format
+    from: string; // ISO 8601, e.g. "2026-03-05T07:07:56"
+    to: string; // ISO 8601, e.g. "2026-03-17T14:32:36"
     authors?: string[];
     announcementUrl?: string;
     description?: string;
-    from: string; // ISO 8601, e.g. "2026-03-05T07:07:56"
-    to: string; // ISO 8601, e.g. "2026-03-17T14:32:36"
+    numPages?: number;
+    numUrls?: number;
+    numDigests?: number;
   };
 }
 
@@ -89,6 +92,7 @@ export type Classification =
   | { type: "unavailable" }
   | { type: "skipped" }
   | { type: "bad_request" }
+  | { type: "origin_error" }
   | { type: "forbidden" };
 
 export type CaptureClassification = Classification["type"];
@@ -114,8 +118,9 @@ export interface CaptureEntry {
   downloadStatus: "downloaded" | "digest-match" | "skipped" | "unavailable";
   responseHeaders?: Record<string, string>;
   rawResponseHeaders?: RawHeader[];
+  derivedHeaders?: RawHeader[];
   hostIp?: string;
-  protocol?: string;
+  responseProtocol?: string;
   headerOutput?: RawHeader[];
   captureIndex?: number; // set when filename has _N suffix due to duplicate timestamp+flags
   contentIndex?: number | null; // set when multiple captures have same content and timestamp, so only one file is saved but all get an index to indicate they are part of the same group

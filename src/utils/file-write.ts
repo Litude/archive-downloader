@@ -3,7 +3,10 @@ import { CsvWriter } from "csv-writer/src/lib/csv-writer.js";
 import { ObjectMap } from "csv-writer/src/lib/lang/object.js";
 import { sleep } from "./sleep.js";
 
-export async function writeCsvRecordsSafe<T>(csvWriter: CsvWriter<ObjectMap<T>>, records: ObjectMap<T>[]): Promise<void> {
+export async function writeCsvRecordsSafe<T>(
+  csvWriter: CsvWriter<ObjectMap<T>>,
+  records: ObjectMap<T>[],
+): Promise<void> {
   while (true) {
     try {
       return await csvWriter.writeRecords(records);

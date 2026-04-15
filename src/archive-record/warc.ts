@@ -54,12 +54,14 @@ export function parseWarcFile(
   const mainBlockStart = warcHeaderEnd + 4;
   const mainBlock = buffer.subarray(mainBlockStart, mainBlockStart + contentLength);
 
-  const httpHeaderEnd = mainBlock.indexOf("\r\n\r\n");
-  if (httpHeaderEnd === -1) {
-    throw new Error("Invalid WARC file: missing HTTP headers in content block");
-  }
+  const isDnsRecord = url.startsWith("dns:");
 
-  if (warcType === "response" || warcType === "revisit") {
+  // Modern crawls store dns as resource, but older crawls might store them as response types
+  if (!isDnsRecord && (warcType === "response" || warcType === "revisit")) {
+    const httpHeaderEnd = mainBlock.indexOf("\r\n\r\n");
+    if (httpHeaderEnd === -1) {
+      throw new Error("Invalid WARC file: missing HTTP headers in content block");
+    }
     const httpHeaderLines = mainBlock.subarray(0, httpHeaderEnd).toString("latin1").split("\r\n");
     const statusLine = httpHeaderLines[0];
     const [protocol, statusCodeStr, ...statusMessageParts] = statusLine.split(" ");
@@ -133,6 +135,10 @@ export function parseWarcFile(
       method: "",
     };
   } else if (warcType === "request") {
+    const httpHeaderEnd = mainBlock.indexOf("\r\n\r\n");
+    if (httpHeaderEnd === -1) {
+      throw new Error("Invalid WARC file: missing HTTP headers in content block");
+    }
     const httpHeaderLines = mainBlock.subarray(0, httpHeaderEnd).toString("latin1").split("\r\n");
     const statusLine = httpHeaderLines[0];
     const [method, _path, protocol] = statusLine.split(" ");
@@ -159,7 +165,7 @@ export function parseWarcFile(
       statusMessage: "",
       protocol: "",
       metadata: warcHeaders,
-      content: mainBlock.subarray(httpHeaderEnd + 4),
+      content: mainBlock,
       headers: [],
       method: "",
     };

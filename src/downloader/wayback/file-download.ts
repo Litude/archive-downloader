@@ -20,6 +20,7 @@ const INITIAL_BACKOFF = WAYBACK_INITIAL_BACKOFF; // 30 seconds
 const MAX_BACKOFF = WAYBACK_MAX_BACKOFF; // 10 minutes
 
 const ERROR_STATUS_CODES = [429, 502, 503, 504];
+export const REDIRECT_STATUS_CODES = [301, 302, 303, 307, 308];
 const REQUEST_HEADERS = {
   "Accept-Encoding": "identity",
 };
@@ -150,11 +151,11 @@ async function attemptToFetchRedirectUrl(
 
 async function getResponse(waybackUrl: string, statusCode: number, requestUrl?: string) {
   if (statusCode && statusCode >= 300) {
-    if ([301, 302].includes(statusCode)) {
+    if ([301, 302, 303, 307, 308].includes(statusCode)) {
       // 302 can also be returned by the web archive when the capture is temporarily unavailable. And incase the original 302 capture was a self redirect, the response will be identical to an unavailable capture.
       // Best we can do is attempt a few times and if we keep getting 302 responses, we can assume the capture is unavailable
       return attemptToFetchRedirectUrl(waybackUrl, statusCode, requestUrl);
-    } else if ([400, 403, 404].includes(statusCode)) {
+    } else {
       return axios.get(waybackUrl, {
         headers: REQUEST_HEADERS,
         ...preventAxiosRedirects,
@@ -162,8 +163,6 @@ async function getResponse(waybackUrl: string, statusCode: number, requestUrl?: 
         validateStatus: (status) => status === statusCode,
         timeout: REQUEST_TIMEOUT,
       });
-    } else {
-      throw new Error(`Unsupported status code for special fetch: ${statusCode}`);
     }
   } else {
     return axios.get(waybackUrl, {
@@ -200,11 +199,11 @@ export async function fetchWaybackFile(
       const waybackUrl = createWaybackDownloadUrl(timestamp, url, attempt - 1);
       console.log(`Fetching file content for ${timestamp}-${url} (attempt ${attempt})...`);
       const response = await getResponse(waybackUrl, statusCode, requestUrl);
-      if (ERROR_STATUS_CODES.includes(response.status)) {
+      if (!response.headers["x-archive-src"] && !REDIRECT_STATUS_CODES.includes(statusCode)) {
         throw new Error(`HTTP ${response.status}`);
       }
       const classification =
-        [301, 302].includes(statusCode) && !response.headers["x-archive-src"]
+        REDIRECT_STATUS_CODES.includes(statusCode) && !response.headers["x-archive-src"]
           ? "unavailable"
           : undefined;
       const content = Buffer.from(response.data);

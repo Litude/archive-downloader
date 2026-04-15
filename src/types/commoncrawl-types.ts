@@ -62,12 +62,13 @@ export interface CommonCrawlCollectionInfoErrata {
 
 export interface CommonCrawlCollectionInfo {
   collectionId: string;
-  announcementUrl: string;
-  title: string;
-  date: string; // e.g. January 1, 2026
-  summary: string;
-  authors: string[];
-  errata: CommonCrawlCollectionInfoErrata[];
+  announcementUrl?: string;
+  crawlTitle: string;
+  title?: string;
+  date?: string; // e.g. January 1, 2026
+  summary?: string;
+  authors?: string[];
+  errata?: CommonCrawlCollectionInfoErrata[];
 }
 
 export interface CommonCrawlDownloaderOptions {

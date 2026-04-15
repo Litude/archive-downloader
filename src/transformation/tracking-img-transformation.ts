@@ -23,10 +23,11 @@ function normalizeUrl(
   const normalizedParams = paramParts
     .map((part) => {
       if (part.startsWith("source=")) {
-        if (part !== "source=www") {
+        if (part !== "source=www" && part !== "source=localhost") {
           modified = true;
+          return "source=www";
         }
-        return "source=www";
+        return part;
       } else if (part.startsWith("URI=")) {
         const content = decodeURIComponent(part.substring("URI=".length));
         const splitContent = content.split("?");
@@ -91,7 +92,9 @@ function normalizeUrl(
       }
       // Path parameter, which respects the case of the actual URL but must be lowercased to be normalized
       else if (part.startsWith("p=")) {
-        if (options.path) {
+        if (part === "p=library_toolbar_3.0") {
+          return part;
+        } else if (options.path) {
           const newValue = `p=${options.path}`;
           if (part !== newValue) {
             modified = true;

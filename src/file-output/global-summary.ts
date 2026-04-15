@@ -127,24 +127,27 @@ export async function writeGlobalSummary(
   const absoluteFilePath = path.join(outputDirectory, filenameToString(filename, "simple"));
   const filePath = path.relative(rootOutputDirectory, absoluteFilePath).replace(/\\/g, "/");
 
-  const newRows: GlobalSummaryRow[] = captureEntries.map((entry) => ({
-    path: filePath,
-    capture_ts: entry.captureTimestamp.toISO({ suppressMilliseconds: true }) ?? "",
-    capture_index: entry.captureIndex ?? 0,
-    modification_ts: entry.lastModified
-      ? (entry.lastModified.toISO({ suppressMilliseconds: true }) ?? "")
-      : "",
-    output_sha256: entry.sha256 ?? "",
-    url: entry.url,
-    statuscode: entry.statusCode !== undefined ? String(entry.statusCode) : "",
-    classification: entry.classification.type,
-    mimetype: entry.mimetype,
-    provider: entry.cdxEntry.source ?? "",
-    archive_filename: entry.cdxEntry.filename ?? "",
-    record_available: String(
-      Boolean(entry.records?.find((r) => ["warc", "arc"].includes(r.type))?.type ?? undefined),
-    ),
-  } satisfies GlobalSummaryRow));
+  const newRows: GlobalSummaryRow[] = captureEntries.map(
+    (entry) =>
+      ({
+        path: filePath,
+        capture_ts: entry.captureTimestamp.toISO({ suppressMilliseconds: true }) ?? "",
+        capture_index: entry.captureIndex ?? 0,
+        modification_ts: entry.lastModified
+          ? (entry.lastModified.toISO({ suppressMilliseconds: true }) ?? "")
+          : "",
+        output_sha256: entry.sha256 ?? "",
+        url: entry.url,
+        statuscode: entry.statusCode !== undefined ? String(entry.statusCode) : "",
+        classification: entry.classification.type,
+        mimetype: entry.mimetype,
+        provider: entry.cdxEntry.source ?? "",
+        archive_filename: entry.cdxEntry.filename ?? "",
+        record_available: String(
+          Boolean(entry.records?.find((r) => ["warc", "arc"].includes(r.type))?.type ?? undefined),
+        ),
+      }) satisfies GlobalSummaryRow,
+  );
 
   const archivalDir = path.join(rootOutputDirectory, ".archivaldata");
   fs.mkdirSync(archivalDir, { recursive: true });

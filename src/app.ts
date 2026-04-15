@@ -130,7 +130,7 @@ async function processWebsiteDownloads(
       writeHeaders,
       fetchMetadata: true,
       fetchOriginalRecord: true,
-      skipOn302 : skipOn302 ? skipOn302 : undefined,
+      skipOn302: skipOn302 ? skipOn302 : undefined,
     },
     fileContext: {},
   };
@@ -155,7 +155,9 @@ async function processWebsiteDownloads(
       commonCrawl: commonCrawlDownloadMetadata,
     };
 
-    const baseEntries = commonCrawlEnabled ? mergeWaybackAndCommonCrawlEntries(waybackEntries, commonCrawlEntries) : waybackEntries;
+    const baseEntries = commonCrawlEnabled
+      ? mergeWaybackAndCommonCrawlEntries(waybackEntries, commonCrawlEntries)
+      : waybackEntries;
 
     baseEntries.sort(compareCaptureEntries);
     unavailableEntries.sort(compareCaptureEntries);

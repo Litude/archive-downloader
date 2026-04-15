@@ -39,12 +39,14 @@ export interface CaptureDataJson {
   captureTimePrecise?: string;
   mementoTime?: string;
   hostIp?: string;
-  protocol?: string;
   request: {
+    protocol?: string;
     method: string;
     headers?: RawHeader[];
+    headersIncomplete?: true;
   };
   response: {
+    protocol?: string;
     statusCode?: number;
     statusText?: string;
     headers?: RawHeader[];
@@ -126,26 +128,30 @@ function stringifyWithInlineTuples(data: unknown, inlineElementsOf: Set<unknown[
   return json;
 }
 
-function getRequestHeaders(captureEntry: CaptureEntry): RawHeader[] | undefined {
+function getRequestHeaders(
+  captureEntry: CaptureEntry,
+): { headers: RawHeader[]; partial: boolean } | undefined {
   const warcRequestRecord = captureEntry.records?.find((r) => r.type === "warc-request");
   if (warcRequestRecord) {
     const parsedRequestRecord = parseWarcFile(warcRequestRecord.content);
-    return parsedRequestRecord?.headers;
+    return parsedRequestRecord?.headers
+      ? { headers: parsedRequestRecord.headers, partial: false }
+      : undefined;
   }
+
+  const headers: RawHeader[] = [];
   const arcHeaderRecord = captureEntry.records?.find((r) => r.type === "arc-header");
   if (arcHeaderRecord) {
     const parsedArcHeader = parseArcHeader(arcHeaderRecord.content);
     const userAgent = getHeaderValue(parsedArcHeader, "http-header-user-agent");
     const from = getHeaderValue(parsedArcHeader, "http-header-from");
     if (userAgent || from) {
-      const headers: RawHeader[] = [];
       if (userAgent) {
         headers.push(["User-Agent", userAgent]);
       }
       if (from) {
         headers.push(["From", from]);
       }
-      return headers;
     }
   }
   const warcInfoRecord = captureEntry.records?.find((r) => r.type === "warc-info");
@@ -153,16 +159,29 @@ function getRequestHeaders(captureEntry: CaptureEntry): RawHeader[] | undefined 
     const parsedWarcInfo = parseWarcinfoFile(warcInfoRecord.content);
     const userAgent = getHeaderValue(parsedWarcInfo.lines, "http-header-user-agent");
     const from = getHeaderValue(parsedWarcInfo.lines, "http-header-from");
+    const headers: RawHeader[] = [];
     if (userAgent || from) {
-      const headers: RawHeader[] = [];
       if (userAgent) {
         headers.push(["User-Agent", userAgent]);
       }
       if (from) {
         headers.push(["From", from]);
       }
-      return headers;
     }
+  }
+  if (captureEntry.derivedHeaders) {
+    headers.push(...captureEntry.derivedHeaders);
+  }
+  return headers.length ? { headers, partial: true } : undefined;
+}
+
+function getRequestMethodAndProtocol(
+  captureEntry: CaptureEntry,
+): { method: string; protocol?: string } | undefined {
+  const warcRequestRecord = captureEntry.records?.find((r) => r.type === "warc-request");
+  if (warcRequestRecord) {
+    const parsedRequestRecord = parseWarcFile(warcRequestRecord.content);
+    return { method: parsedRequestRecord.method, protocol: parsedRequestRecord.protocol };
   }
   return undefined;
 }
@@ -199,8 +218,8 @@ export function writeCaptureData(
     if (responseHeadersResult) {
       inlineElementsOf.add(responseHeadersResult);
     }
-    if (requestHeadersResult) {
-      inlineElementsOf.add(requestHeadersResult);
+    if (requestHeadersResult?.headers) {
+      inlineElementsOf.add(requestHeadersResult.headers);
     }
 
     const recordAvailable = Boolean(
@@ -221,6 +240,7 @@ export function writeCaptureData(
     const contentLengthHeaderSize = getContentLengthHeader(entry.headerOutput);
     const contentEncoding = getHeaderValue(entry.headerOutput, "content-encoding");
     const captureDataPath = path.join(archivalDir, `${outputFilename}.capture.json`);
+    const requestMethodAndProtocol = getRequestMethodAndProtocol(entry);
     const captureData: CaptureDataJson = {
       url: entry.url,
       captureTime: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
@@ -229,12 +249,14 @@ export function writeCaptureData(
         ? entry.mementoDateTime.toISO({ suppressMilliseconds: true })
         : undefined,
       hostIp: entry.hostIp,
-      protocol: entry.protocol,
       request: {
-        method: "GET",
-        headers: requestHeadersResult,
+        protocol: requestMethodAndProtocol?.protocol,
+        method: requestMethodAndProtocol?.method ?? "GET",
+        headers: requestHeadersResult?.headers,
+        headersIncomplete: requestHeadersResult?.partial ? true : undefined,
       },
       response: {
+        protocol: entry.responseProtocol,
         statusCode: entry.statusCode,
         statusText: entry.statusMessage,
         headers: entry.headerOutput,
