@@ -38,3 +38,18 @@ export function isUrlTrailingSlashMatch(
     return true;
   }
 }
+
+export function parseTrailingSlashMode(
+  mode: string | undefined,
+): TrailingSlashParsingMode | undefined {
+  switch (mode) {
+    case "strict":
+      return TrailingSlashParsingMode.Strict;
+    case "strictWithValid":
+      return TrailingSlashParsingMode.StrictWithValid;
+    case "lax":
+      return TrailingSlashParsingMode.Lax;
+    default:
+      return undefined;
+  }
+}

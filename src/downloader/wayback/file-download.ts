@@ -11,13 +11,15 @@ import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common.j
 import { parseRawHeadersToPairs } from "../../headers/raw-header-parser.js";
 import { getWaybackCaptureBaseUrl } from "./utils/wayback-url.js";
 import { isUrlTrailingSlashMatch, TrailingSlashParsingMode } from "../../url/trailing-slash.js";
+import { Context } from "../../types/context.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const WEB_ARCHIVE = "web.archive.org/web";
 const REQUEST_TIMEOUT = 60_000; // 60 seconds
 const INITIAL_BACKOFF = WAYBACK_INITIAL_BACKOFF; // 30 seconds
-const MAX_BACKOFF = WAYBACK_MAX_BACKOFF; // 10 minutes
+const MAX_BACKOFF = WAYBACK_MAX_BACKOFF; // 5 minutes
+const REDIRECT_MAX_BACKOFF = 120_000; // 2 minutes
 
 const ERROR_STATUS_CODES = [429, 502, 503, 504];
 export const REDIRECT_STATUS_CODES = [301, 302, 303, 307, 308];
@@ -175,12 +177,12 @@ async function getResponse(waybackUrl: string, statusCode: number, requestUrl?: 
   }
 }
 
-function getResponseHeaders(waybackUrl: string, statusCodes?: number[]) {
+function getResponseHeaders(waybackUrl: string) {
   return axios.head(waybackUrl, {
     headers: REQUEST_HEADERS,
     maxRedirects: 0,
     timeout: REQUEST_TIMEOUT,
-    validateStatus: (status) => (statusCodes ? statusCodes.includes(status) : true),
+    validateStatus: null,
   });
 }
 
@@ -189,10 +191,12 @@ export async function fetchWaybackFile(
   url: string,
   statusCode: number,
   requestUrl?: string,
+  context?: Context,
 ): Promise<DownloadedFile> {
   let attempt = 1;
   let headersErrorCount = 0;
   let abortedCount = 0;
+  let redirectCount = 0;
   let backoff = INITIAL_BACKOFF;
   while (true) {
     try {
@@ -241,6 +245,32 @@ export async function fetchWaybackFile(
           );
           return fetchPartialFile(timestamp, url, statusCode);
         }
+      } else if (
+        e instanceof Error &&
+        e.message.includes("Unexpected redirect...") &&
+        context?.settings.skipOn302
+      ) {
+        ++redirectCount;
+        if (redirectCount >= (context.settings.skipOn302 || 0)) {
+          console.log(
+            `Received ${redirectCount} unexpected redirect errors for ${url}. Skipping this file.`,
+          );
+          return {
+            content: Buffer.alloc(0),
+            url,
+            timestamp,
+            responseHeaders: {},
+            rawResponseHeaders: [],
+            classification: "unavailable",
+            statusCode: 0,
+            statusMessage: "Unexpected redirect - skipped",
+          };
+        }
+        console.log(
+          `Error fetching file for ${url}: unexpected redirect (attempt ${attempt} / ${context.settings.skipOn302}), retrying in ${backoff / 1000}s...`,
+        );
+        await new Promise((res) => setTimeout(res, backoff));
+        backoff = Math.min(backoff * 2, REDIRECT_MAX_BACKOFF);
       } else {
         console.log(`Error fetching file for ${url}: ${e}, retrying in ${backoff / 1000}s...`);
         await new Promise((res) => setTimeout(res, backoff));
@@ -254,17 +284,44 @@ export async function fetchWaybackFile(
 export async function fetchWaybackFileHeaders(
   timestamp: string,
   url: string,
-  statusCodes?: number[],
+  statusCodes: number[] | undefined,
+  context: Context,
 ): Promise<Omit<DownloadedFile, "content" | "corrupt">> {
   let attempt = 1;
+  let redirectCount = 0;
   let backoff = INITIAL_BACKOFF;
   while (true) {
     try {
       const waybackUrl = createWaybackDownloadUrl(timestamp, url, attempt - 1);
       console.log(`Fetching file headers for ${timestamp}-${url} (attempt ${attempt})...`);
-      const response = await getResponseHeaders(waybackUrl, statusCodes);
-      if (ERROR_STATUS_CODES.includes(response.status)) {
-        throw new Error(`HTTP ${response.status}`);
+      const response = await getResponseHeaders(waybackUrl);
+      if (!response.headers["x-archive-src"]) {
+        if (response.status === 302 && context?.settings.skipOn302) {
+          redirectCount++;
+          if (redirectCount >= context.settings.skipOn302) {
+            console.log(
+              `Received ${redirectCount} unexpected redirect errors for ${url}. Skipping this file.`,
+            );
+            return {
+              url,
+              timestamp,
+              responseHeaders: {},
+              rawResponseHeaders: [],
+              classification: "unavailable",
+              statusCode: response.status,
+              statusMessage: response.statusText,
+            };
+          }
+          throw new Error(
+            `Unexpected redirect for ${url} (attempt ${attempt} / ${context.settings.skipOn302})`,
+          );
+        } else {
+          throw new Error(`HTTP ${response.status} missing x-archive-src header`);
+        }
+      } else if (statusCodes && !statusCodes.includes(response.status)) {
+        throw new Error(
+          `HTTP ${response.status} does not match expected status codes ${statusCodes.join(", ")}`,
+        );
       }
       return {
         url,
@@ -275,12 +332,26 @@ export async function fetchWaybackFileHeaders(
         statusMessage: response.statusText,
       };
     } catch (e: unknown) {
-      console.log(
-        `Error fetching headers for ${timestamp}-${url}: ${e}, retrying in ${backoff / 1000}s...`,
-      );
-      await new Promise((res) => setTimeout(res, backoff));
-      backoff = Math.min(backoff * 2, MAX_BACKOFF);
-      attempt++;
+      if (
+        e instanceof Error &&
+        e.message.includes("Unexpected redirect") &&
+        context?.settings.skipOn302
+      ) {
+        console.log(
+          `Error fetching headers for ${timestamp}-${url}: ${e} (attempt ${attempt} / ${context.settings.skipOn302}), retrying in ${backoff / 1000}s...`,
+        );
+        await new Promise((res) => setTimeout(res, backoff));
+        backoff = Math.min(backoff * 2, REDIRECT_MAX_BACKOFF);
+        attempt++;
+        continue;
+      } else {
+        console.log(
+          `Error fetching headers for ${timestamp}-${url}: ${e}, retrying in ${backoff / 1000}s...`,
+        );
+        await new Promise((res) => setTimeout(res, backoff));
+        backoff = Math.min(backoff * 2, MAX_BACKOFF);
+        attempt++;
+      }
     }
   }
 }
@@ -400,11 +471,13 @@ async function fetchPartialFile(
 
 export async function downloadUniqueDigestsForSnapshots(
   input: ExtendedCdxEntry[],
+  context: Context,
 ): Promise<Map<string, DownloadedFile>> {
   const uniqueDigestCount = new Set(input.map((entry) => entry.digest)).size;
   console.log(`Unique digests to download: ${uniqueDigestCount}`);
   let currentDigest = 0;
   const encounteredDigests = new Map<string, DownloadedFile>();
+  const unavailableDigests = new Map<string, DownloadedFile>();
   for (const entry of input) {
     if (entry.digest && !encounteredDigests.has(entry.digest)) {
       console.log(
@@ -415,9 +488,20 @@ export async function downloadUniqueDigestsForSnapshots(
         entry.url,
         entry.status ?? 0,
         entry.requestUrl,
+        context,
       );
-      encounteredDigests.set(entry.digest, result);
+      if (result.classification !== "unavailable") {
+        encounteredDigests.set(entry.digest, result);
+      } else if (!unavailableDigests.has(entry.digest)) {
+        unavailableDigests.set(entry.digest, result);
+      }
     }
   }
+  // Populate unavailable if no version of digest was successfully downloaded
+  unavailableDigests.forEach((value, key) => {
+    if (!encounteredDigests.has(key)) {
+      encounteredDigests.set(key, value);
+    }
+  });
   return encounteredDigests;
 }

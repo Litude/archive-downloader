@@ -53,6 +53,7 @@ export interface CommonCrawlIndexQuery {
   prefix: string;
   maxTimestamp?: string;
   minTimestamp?: string;
+  collections?: string[]; // Optional list of collection IDs to restrict the query to specific collections
 }
 
 export interface CommonCrawlCollectionInfoErrata {

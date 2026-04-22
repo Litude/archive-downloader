@@ -18,6 +18,7 @@ export interface CaptureWaybackMetadata {
     crawlJob?: string;
     scanningCenter?: string;
     scanner?: string;
+    source?: string;
     numPages?: number;
     scanDate?: string; // some local time, usually YYYYMMDDHHMMSS format
     firstFileDate?: string; // some local time, usually YYYYMMDDHHMMSS format

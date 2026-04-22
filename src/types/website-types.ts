@@ -61,4 +61,5 @@ export interface MirrorUrlData {
   maxTimestamp?: string;
   minTimestamp?: string;
   excludeInvalid?: boolean;
+  trailingSlashParsingMode?: "strict" | "strictWithValid" | "lax";
 }

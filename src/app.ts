@@ -403,7 +403,7 @@ async function main() {
       readWebsiteJsonConfig(argv.json, argv["output-dir"], { noMirrors: !argv["mirrors"] });
     const prefetchedIndex =
       commonCrawlEnabled && commonCrawlIndexQueries.length > 0
-        ? await prefetchCdxIndex(commonCrawlIndexQueries, {
+        ? await prefetchCdxIndex(commonCrawlIndexQueries, websiteOutputDirectory, {
             requestDelayMs: COMMONCRAWL_REQUEST_DELAY_MS,
             requestTimeoutMs: COMMONCRAWL_REQUEST_TIMEOUT,
           })

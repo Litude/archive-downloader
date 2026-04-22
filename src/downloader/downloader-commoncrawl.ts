@@ -79,8 +79,20 @@ async function fetchCommonCrawlCdxEntries(
 
   if (prefetchedIndex) {
     for (const [prefix, cachedEntries] of prefetchedIndex) {
-      if (urlEntry.url.startsWith(prefix)) {
-        const entries = filterPrefetchedEntries(cachedEntries, urlEntry, commonCrawlCollections);
+      if (
+        urlEntry.url.startsWith(prefix) &&
+        (!urlEntry.maxTimestamp ||
+          cachedEntries.maxTimestamp === undefined ||
+          cachedEntries.maxTimestamp >= urlEntry.maxTimestamp) &&
+        (!urlEntry.minTimestamp ||
+          cachedEntries.minTimestamp === undefined ||
+          cachedEntries.minTimestamp <= urlEntry.minTimestamp)
+      ) {
+        const entries = filterPrefetchedEntries(
+          cachedEntries.entries,
+          urlEntry,
+          commonCrawlCollections,
+        );
         console.log(
           `Using pre-fetched CDX index for ${urlEntry.url} (prefix: ${prefix}), found ${entries.length} entries.`,
         );

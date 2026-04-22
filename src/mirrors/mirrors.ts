@@ -6,6 +6,7 @@ import { UrlEntry } from "../types/download-input-types.js";
 import { MirrorData, MirrorUrlData } from "../types/website-types.js";
 import { urlIsIpv4Address } from "../utils/address.js";
 import { fileURLToPath } from "url";
+import { TrailingSlashParsingMode } from "../url/trailing-slash.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -85,6 +86,7 @@ function collectMirrors(
 export function createMirrorUrlsWithConfig(
   urls: UrlEntry[],
   additionalMirrors: (string | MirrorData | MirrorUrlData)[],
+  trailingSlashParsingMode: TrailingSlashParsingMode | undefined,
   mirrorData: MirrorData[],
 ): UrlEntry[] {
   const parsed: UrlEntry[] = [];
@@ -95,6 +97,7 @@ export function createMirrorUrlsWithConfig(
       excludeInvalid: false,
       maxTimestamp: urlEntry.maxTimestamp,
       minTimestamp: urlEntry.minTimestamp,
+      trailingSlashParsingMode: urlEntry.trailingSlashParsingMode ?? trailingSlashParsingMode,
     });
 
     // Lookup common mirrors defined in mirrors.json
@@ -116,6 +119,7 @@ export function createMirrorUrlsWithConfig(
           excludeInvalid: mirror.excludeInvalid ?? urlIsIpv4Address(mirror.url),
           maxTimestamp: timestampMin(mirror.maxTimestamp, urlEntry.maxTimestamp),
           minTimestamp: timestampMax(mirror.minTimestamp, urlEntry.minTimestamp),
+          trailingSlashParsingMode: urlEntry.trailingSlashParsingMode ?? trailingSlashParsingMode,
         });
       }
     }
@@ -127,7 +131,8 @@ export function createMirrorUrlsWithConfig(
 export function createMirrorUrls(
   urls: UrlEntry[],
   additionalMirrors: (string | MirrorUrlData)[],
+  trailingSlashParsingMode?: TrailingSlashParsingMode,
 ): UrlEntry[] {
   const mirrorData = loadDefaultMirrors();
-  return createMirrorUrlsWithConfig(urls, additionalMirrors, mirrorData);
+  return createMirrorUrlsWithConfig(urls, additionalMirrors, trailingSlashParsingMode, mirrorData);
 }

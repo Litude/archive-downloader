@@ -158,7 +158,7 @@ async function fetchHeadersUntilSuccess(
   let error404Attempts = 0;
   while (true) {
     try {
-      const result = await fetchWaybackFileHeaders(timestamp, url);
+      const result = await fetchWaybackFileHeaders(timestamp, url, undefined, context);
       if (result.responseHeaders["x-archive-src"]) {
         return result;
       }

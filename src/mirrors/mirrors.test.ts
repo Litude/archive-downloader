@@ -44,7 +44,7 @@ describe("mirrors", () => {
     it("should add original URL first", () => {
       const urls: UrlEntry[] = [{ url: "http://example.com/test.html" }];
 
-      const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, [], undefined, mockMirrorData);
 
       expect(result[0]).toEqual({
         excludeInvalid: false,
@@ -64,7 +64,7 @@ describe("mirrors", () => {
         },
       ];
 
-      const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, [], undefined, mockMirrorData);
 
       expect(result[0]).toEqual({
         excludeInvalid: false,
@@ -77,7 +77,7 @@ describe("mirrors", () => {
     it("should add mirrors from mirror data with only path", () => {
       const urls: UrlEntry[] = [{ url: "http://www.example.com/test.html" }];
 
-      const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, [], undefined, mockMirrorData);
 
       expect(result.length).toBe(2); // original + 1 mirror
       expect(result[1]).toEqual({
@@ -97,7 +97,7 @@ describe("mirrors", () => {
         },
       ];
 
-      const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, [], undefined, mockMirrorData);
 
       // First mirror has maxTimestamp of 20000101000000, should clamp to that
       expect(result[1].maxTimestamp).toBe("20000101000000");
@@ -111,7 +111,7 @@ describe("mirrors", () => {
         },
       ];
 
-      const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, [], undefined, mockMirrorData);
 
       // Second mirror has minTimestamp of 19980601000000, should clamp to that
       expect(result[2].minTimestamp).toBe("19980601000000");
@@ -124,7 +124,7 @@ describe("mirrors", () => {
         { url: "http://example.com/test.html" },
       ];
 
-      const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, [], undefined, mockMirrorData);
 
       // All three should match the same mirror and use the path only
       expect(result[1].url).toBe("http://www.example4.com/test.html");
@@ -137,7 +137,7 @@ describe("mirrors", () => {
 
       const additionalMirrors = ["http://custom-example.org", "http://another-mirror.org"];
 
-      const result = createMirrorUrlsWithConfig(urls, additionalMirrors, mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, additionalMirrors, undefined, mockMirrorData);
 
       expect(result.length).toBe(4); // original + 1 from mirrorData + 2 additional
       expect(result[2].url).toBe("http://custom-example.org/page.html");
@@ -147,7 +147,7 @@ describe("mirrors", () => {
     it("should handle paths correctly for root-level files", () => {
       const urls: UrlEntry[] = [{ url: "http://example.com/robots.txt" }];
 
-      const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, [], undefined, mockMirrorData);
 
       // Should preserve the root path
       expect(result[1].url).toBe("http://www.example4.com/robots.txt");
@@ -156,7 +156,7 @@ describe("mirrors", () => {
     it("should handle paths correctly for nested directories", () => {
       const urls: UrlEntry[] = [{ url: "http://microsoft.com/games/age2/default.htm" }];
 
-      const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, [], undefined, mockMirrorData);
 
       // Should only include the path part (/games/age2/default.htm)
       expect(result[1].url).toBe("http://region1.microsoft.com/games/age2/default.htm");
@@ -166,14 +166,14 @@ describe("mirrors", () => {
     it("should handle URLs with no matching mirrors", () => {
       const urls: UrlEntry[] = [{ url: "http://unknown-site.com/page.html" }];
 
-      const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, [], undefined, mockMirrorData);
 
       expect(result.length).toBe(1); // only the original URL
       expect(result[0].url).toBe("http://unknown-site.com/page.html");
     });
 
     it("should handle empty input", () => {
-      const result = createMirrorUrlsWithConfig([], [], mockMirrorData);
+      const result = createMirrorUrlsWithConfig([], [], undefined, mockMirrorData);
 
       expect(result).toEqual([]);
     });
@@ -184,7 +184,7 @@ describe("mirrors", () => {
         { url: "http://microsoft.com/games/age2/default.htm" },
       ];
 
-      const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, [], undefined, mockMirrorData);
 
       expect(result.length).toBe(5); // 2 originals + 1 mirror for first + 2 mirrors for second
     });
@@ -200,7 +200,7 @@ describe("mirrors", () => {
 
       const additionalMirrors = ["http://custom-archive.org"];
 
-      const result = createMirrorUrlsWithConfig(urls, additionalMirrors, mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, additionalMirrors, undefined, mockMirrorData);
 
       // Additional mirrors should use per-URL timestamps
       expect(result[2].maxTimestamp).toBe("20050101000000");
@@ -210,7 +210,7 @@ describe("mirrors", () => {
     it("should preserve query parameters when adding mirrors", () => {
       const urls: UrlEntry[] = [{ url: "http://www.example.com/page.html?id=123&sort=desc" }];
 
-      const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, [], undefined, mockMirrorData);
 
       expect(result.length).toBe(2); // original + 1 mirror
       expect(result[0].url).toBe("http://www.example.com/page.html?id=123&sort=desc");
@@ -220,7 +220,7 @@ describe("mirrors", () => {
     it("should preserve hash fragments when adding mirrors", () => {
       const urls: UrlEntry[] = [{ url: "http://www.example.com/page.html#section2" }];
 
-      const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, [], undefined, mockMirrorData);
 
       expect(result.length).toBe(2); // original + 1 mirror
       expect(result[0].url).toBe("http://www.example.com/page.html#section2");
@@ -232,7 +232,7 @@ describe("mirrors", () => {
         { url: "http://www.microsoft.com/games/age2/default.htm?lang=en&version=1#downloads" },
       ];
 
-      const result = createMirrorUrlsWithConfig(urls, [], mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, [], undefined, mockMirrorData);
 
       expect(result.length).toBe(3); // original + 2 mirrors
       expect(result[0].url).toBe(
@@ -251,7 +251,7 @@ describe("mirrors", () => {
 
       const additionalMirrors = ["http://custom-example.org", "http://another-mirror.org"];
 
-      const result = createMirrorUrlsWithConfig(urls, additionalMirrors, mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, additionalMirrors, undefined, mockMirrorData);
 
       expect(result.length).toBe(4); // original + 1 from mirrorData + 2 additional
       expect(result[0].url).toBe("http://example.com/page.html?param=value");
@@ -264,7 +264,7 @@ describe("mirrors", () => {
 
       const additionalMirrors = ["http://custom-archive.org"];
 
-      const result = createMirrorUrlsWithConfig(urls, additionalMirrors, mockMirrorData);
+      const result = createMirrorUrlsWithConfig(urls, additionalMirrors, undefined, mockMirrorData);
 
       expect(result[0].url).toBe("http://example.com/page.html#anchor");
       expect(result[2].url).toBe("http://custom-archive.org/page.html#anchor");

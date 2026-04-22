@@ -13,7 +13,7 @@ import { createAdditionalUrls } from "../mirrors/additional-urls.js";
 import { readFileAsJson5 } from "../utils/file-json.js";
 import { MirrorData, MirrorUrlData, WebsiteFileEntryJson } from "../types/website-types.js";
 import { parseJsonTransformations } from "../transformation/transformation.js";
-import { TrailingSlashParsingMode } from "../url/trailing-slash.js";
+import { parseTrailingSlashMode, TrailingSlashParsingMode } from "../url/trailing-slash.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -87,12 +87,14 @@ function createAllMirrorUrls(
     minTimestamp?: string;
   },
 ): UrlEntry[] {
-  const mirrorUrls = createMirrorUrls(urls, mirrors);
+  const trailingSlashParsingMode = parseTrailingSlashMode(file.trailingSlashParsingMode);
+  const mirrorUrls = createMirrorUrls(urls, mirrors, trailingSlashParsingMode);
   const additionalUrls = file.additionalUrls
     ? createAdditionalUrls(
         file.additionalUrls,
         file.maxTimestamp ?? maxTimestamp,
         file.minTimestamp ?? minTimestamp,
+        trailingSlashParsingMode,
       )
     : [];
   return [...mirrorUrls, ...additionalUrls];
@@ -131,19 +133,6 @@ function readVariables(): Record<string, any> {
       `Variables file not found at ${variablesPath}, proceeding without variable substitution.`,
     );
     return {};
-  }
-}
-
-function parseTrailingSlashMode(mode: string | undefined): TrailingSlashParsingMode | undefined {
-  switch (mode) {
-    case "strict":
-      return TrailingSlashParsingMode.Strict;
-    case "strictWithValid":
-      return TrailingSlashParsingMode.StrictWithValid;
-    case "lax":
-      return TrailingSlashParsingMode.Lax;
-    default:
-      return undefined;
   }
 }
 

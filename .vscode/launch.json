@@ -26,9 +26,10 @@
         "internalConsoleOptions": "neverOpen",
         "args": [
             "--json",
-            ".\\data\\inputs\\test-input.json",
-            "--no-mirrors",
-            "--no-common-crawl"
+            ".\\data\\inputs\\aoe1-ms-usa.json",
+            // "--no-mirrors",
+            "--no-common-crawl",
+            "--skip-on-302", "15"
             // "--no-include-invalid",
             // "--no-headers",
             // "--no-peek-all"

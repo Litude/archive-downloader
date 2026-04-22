@@ -104,6 +104,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
   const allEntries = [...validCdxEntries, ...invalidCdxEntries];
   const uniqueDigestFiles = await downloadUniqueDigestsForSnapshots(
     allEntries.filter((entry) => !isEntrySkipped(entry, input.skippedCaptures)),
+    context,
   );
   const digestFileHashes = computeDigestHashes(uniqueDigestFiles);
   const classifiedEntries = classifyDigestFiles(
@@ -194,9 +195,9 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
             ? classifiedEntries.get(entry.digest)!
             : { type: "unavailable" as const },
           mimetype: extractMimeTypeFromContentType(headers?.["content-type"]) || entry.mimetype,
-          actualDigest: entry.digest ? digestFileHashes.get(entry.digest)!.actualDigest : undefined,
-          sha256: entry.digest ? digestFileHashes.get(entry.digest)!.sha256 : undefined,
-          originalSha256: entry.digest ? digestFileHashes.get(entry.digest)!.sha256 : undefined,
+          actualDigest: entry.digest ? digestFileHashes.get(entry.digest)?.actualDigest : undefined,
+          sha256: entry.digest ? digestFileHashes.get(entry.digest)?.sha256 : undefined,
+          originalSha256: entry.digest ? digestFileHashes.get(entry.digest)?.sha256 : undefined,
           content: downloadedFile?.content,
           downloadStatus: downloadIsExactMatch
             ? ("downloaded" as const)
@@ -273,6 +274,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
         entry.timestamp,
         entry.url,
         entry.statusCode ? [entry.statusCode] : undefined,
+        context,
       );
       const timestamps = parseWaybackHeaderTimestamps(response.responseHeaders, entry.timestamp);
       sanityCheckTimestamps({
@@ -336,6 +338,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
               crawlJob: metadata.crawljob ?? metadata["pwacrawlid"],
               scanningCenter: metadata.scanningcenter,
               scanner: metadata.scanner,
+              source: metadata.source,
               numPages: metadata.imagecount ? parseInt(metadata.imagecount) : undefined,
               scanDate: metadata.scandate,
               firstFileDate: metadata.firstfiledate,
@@ -366,9 +369,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
     for (const entry of baseEntries) {
       if (entry.cdxEntry.filename) {
         const available = await checkArchiveRecordPublicAvailability(entry.cdxEntry.filename);
-        if (!available) {
-          console.log(`Original record for ${entry.cdxEntry.filename} is NOT publicly available.`);
-        } else {
+        if (available) {
           console.log(`Original record for ${entry.cdxEntry.filename} IS publicly available!`);
           const fullCdx = await fetchArchiveCdx(entry);
           entry.cdxEntry.offset = fullCdx.offset;
