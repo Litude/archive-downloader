@@ -12,6 +12,12 @@ export interface CdxEntry {
   length?: number;
 }
 
+export interface WaybackCdxIndexQuery {
+  prefix: string;
+  maxTimestamp?: string;
+  minTimestamp?: string;
+}
+
 export interface ExtendedCdxEntry extends CdxEntry {
   /** e.g. wayback, commoncrawl */
   source: string;

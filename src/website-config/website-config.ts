@@ -4,6 +4,7 @@ import path, { dirname } from "path";
 import { fileURLToPath } from "url";
 import { DownloadFileInput, UrlEntry } from "../types/download-input-types.js";
 import { CommonCrawlIndexQuery } from "../types/commoncrawl-types.js";
+import { WaybackCdxIndexQuery } from "../types/wayback-types.js";
 import {
   determineFilenameFromUrls,
   determineOutputSubdirectoryFromUrls,
@@ -143,6 +144,7 @@ export function readWebsiteJsonConfig(
 ): {
   downloadInputs: DownloadFileInput[];
   commonCrawlIndexQueries: CommonCrawlIndexQuery[];
+  waybackCdxIndexQueries: WaybackCdxIndexQuery[];
   websiteOutputDirectory: string;
 } {
   let config = readFileAsJson5(jsonPath);
@@ -155,6 +157,8 @@ export function readWebsiteJsonConfig(
   const commonClassifications = config.commonSettings?.classifications || {};
   const commonCrawlIndexQueries: CommonCrawlIndexQuery[] =
     config.commonSettings?.commonCrawlIndexQueries || [];
+  const waybackCdxIndexQueries: WaybackCdxIndexQuery[] =
+    config.commonSettings?.waybackCdxIndexQueries || [];
 
   const files: WebsiteFileEntryJson[] = config.files;
 
@@ -213,5 +217,5 @@ export function readWebsiteJsonConfig(
     ? path.join(baseDirectory, config.commonSettings.baseDirectory)
     : baseDirectory;
 
-  return { downloadInputs: result, commonCrawlIndexQueries, websiteOutputDirectory };
+  return { downloadInputs: result, commonCrawlIndexQueries, waybackCdxIndexQueries, websiteOutputDirectory };
 }

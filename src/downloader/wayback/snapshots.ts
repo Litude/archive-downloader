@@ -12,9 +12,11 @@ import {
   WAYBACK_MAX_BACKOFF,
   WAYBACK_REQUEST_TIMEOUT,
 } from "./wayback-common.js";
+import { WaybackPrefetchedCdxIndex } from "./cdx-prefetch.js";
 import { UrlMetadataFilteredEntries } from "../../file-output/url-metadata.js";
 import { resolveDuplicateSnapshots } from "./duplicate-resolver.js";
 import { TrailingSlashParsingMode } from "../../url/trailing-slash.js";
+import { urlToUrlkey } from "../../url/urlkey.js";
 
 const WAYBACK_CDX_API_URL = "http://web.archive.org/cdx/search/cdx";
 const REQUEST_TIMEOUT = WAYBACK_REQUEST_TIMEOUT;
@@ -22,6 +24,7 @@ const REQUEST_TIMEOUT = WAYBACK_REQUEST_TIMEOUT;
 export async function getSnapshotsForWebsiteFile(
   input: DownloadFileInput,
   context: Context,
+  waybackPrefetchedIndex?: WaybackPrefetchedCdxIndex,
 ): Promise<{
   validCdxEntries: ExtendedCdxEntry[];
   invalidCdxEntries: ExtendedCdxEntry[];
@@ -43,7 +46,7 @@ export async function getSnapshotsForWebsiteFile(
   }[] = [];
   let allSnapshots: ExtendedCdxEntry[] = [];
   for (const url of input.urls) {
-    const snapshots = await getSnapshotsForUrl(url);
+    const snapshots = await getSnapshotsForUrl(url, waybackPrefetchedIndex);
     const filteredSnapshots = snapshots.filter((snapshot) => snapshot.mimetype !== "warc/revisit");
     if (filteredSnapshots.length !== snapshots.length) {
       console.log(
@@ -171,6 +174,28 @@ export async function getSnapshotsForWebsiteFile(
   };
 }
 
+
+function filterPrefetchedWaybackEntries(
+  cachedEntries: ExtendedCdxEntry[],
+  url: UrlEntry,
+): ExtendedCdxEntry[] {
+  const targetUrlkey = urlToUrlkey(url.url);
+  return cachedEntries
+    .filter((entry) => {
+      if (entry.urlkey !== targetUrlkey) {
+        return false;
+      }
+      if (url.maxTimestamp && entry.timestamp > url.maxTimestamp) {
+        return false;
+      }
+      if (url.minTimestamp && entry.timestamp < url.minTimestamp) {
+        return false;
+      }
+      return true;
+    })
+    .map((entry) => ({ ...entry, requestUrl: url.url }));
+}
+
 function validateCdxEntryFieldMatch(first: CdxEntry, second: CdxEntry, field: keyof CdxEntry) {
   if (first[field] !== second[field]) {
     throw new Error(
@@ -179,10 +204,54 @@ function validateCdxEntryFieldMatch(first: CdxEntry, second: CdxEntry, field: ke
   }
 }
 
-async function getSnapshotsForUrl(url: UrlEntry) {
+async function getSnapshotsForUrl(url: UrlEntry, prefetchedIndex?: WaybackPrefetchedCdxIndex) {
+  let filteredSnapshots: ExtendedCdxEntry[];
+
+  if (prefetchedIndex) {
+    for (const [prefix, cachedEntries] of prefetchedIndex) {
+      if (url.url.startsWith(prefix)) {
+        filteredSnapshots = filterPrefetchedWaybackEntries(cachedEntries, url);
+        console.log(
+          `Using pre-fetched Wayback CDX index for ${url.url} (prefix: ${prefix}), found ${filteredSnapshots.length} entries.`,
+        );
+        const revisitCount = filteredSnapshots.filter((s) => s.mimetype === "warc/revisit").length;
+        if (revisitCount > 0) {
+          console.log(
+            `Found ${revisitCount} warc/revisit snapshots for ${url.url}. Will resolve revisits.`,
+          );
+          const resolvedSnapshots = await fetchWaybackCdxIndex(url.url, true);
+          const filteredResolvedSnapshots = filterSnapshotsByTimestamp(
+            resolvedSnapshots,
+            url.maxTimestamp,
+            url.minTimestamp,
+          );
+          if (filteredResolvedSnapshots.length !== filteredSnapshots.length) {
+            throw new Error(
+              `Unexpectedly found a different number of snapshots when fetching with resolve revisits (got ${filteredResolvedSnapshots.length}, expected ${filteredSnapshots.length}) for ${url.url}.`,
+            );
+          }
+          filteredSnapshots.forEach((snapshot, index) => {
+            if (snapshot.mimetype === "warc/revisit") {
+              const resolvedSnapshot = filteredResolvedSnapshots[index];
+              validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "timestamp");
+              validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "url");
+              validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "digest");
+              validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "length");
+              filteredSnapshots![index] = {
+                ...resolvedSnapshot,
+                revisitEntry: snapshot,
+              };
+            }
+          });
+        }
+        return filteredSnapshots;
+      }
+    }
+  }
+
   const allSnapshots = await fetchWaybackCdxIndex(url.url, false);
   console.log(`Found ${allSnapshots.length} total snapshots for ${url.url}.`);
-  const filteredSnapshots = filterSnapshotsByTimestamp(
+  filteredSnapshots = filterSnapshotsByTimestamp(
     allSnapshots,
     url.maxTimestamp,
     url.minTimestamp,

@@ -1,4 +1,5 @@
 import { getSnapshotsForWebsiteFile } from "./wayback/snapshots.js";
+import { WaybackPrefetchedCdxIndex } from "./wayback/cdx-prefetch.js";
 import { computeSha256, computeBase32EncodedSha1 } from "../utils/hash.js";
 import { classifyEntry } from "../classification/classifier.js";
 import { DownloadedFile } from "../types/download-types.js";
@@ -86,7 +87,11 @@ function isEntrySkipped(entry: CdxEntry, skippedCaptures?: { url: string; timest
   );
 }
 
-export async function downloadWaybackEntries(input: DownloadFileInput, context: Context) {
+export async function downloadWaybackEntries(
+  input: DownloadFileInput,
+  context: Context,
+  waybackPrefetchedIndex?: WaybackPrefetchedCdxIndex,
+) {
   // return {
   //   baseEntries: [] as CaptureEntry[],
   //   unavailableEntries: [] as CaptureEntry[],
@@ -97,6 +102,7 @@ export async function downloadWaybackEntries(input: DownloadFileInput, context: 
   const { validCdxEntries, invalidCdxEntries, metadata } = await getSnapshotsForWebsiteFile(
     input,
     context,
+    waybackPrefetchedIndex,
   );
   const fetchAllHeaders = context.settings.peekAllFiles;
   const fetchMetadata = context.settings.fetchMetadata;

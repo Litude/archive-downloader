@@ -136,3 +136,12 @@ export function createMirrorUrls(
   const mirrorData = loadDefaultMirrors();
   return createMirrorUrlsWithConfig(urls, additionalMirrors, trailingSlashParsingMode, mirrorData);
 }
+
+export function getMirrorPrefixesForPrefix(prefix: string): string[] {
+  const mirrorData = loadDefaultMirrors();
+  const urlObj = new URL(prefix);
+  const cleanedHostname = normalizeUrl(urlObj.hostname);
+  const pathAndParams = urlObj.pathname + urlObj.search + urlObj.hash;
+  const mirrors = collectMirrors(cleanedHostname, mirrorData, []);
+  return mirrors.map((m) => `${m.url}${pathAndParams}`);
+}

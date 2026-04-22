@@ -22,6 +22,10 @@ import {
   prefetchCdxIndex,
 } from "./downloader/commoncrawl/cdx-prefetch.js";
 import {
+  WaybackPrefetchedCdxIndex,
+  prefetchWaybackCdxIndex,
+} from "./downloader/wayback/cdx-prefetch.js";
+import {
   COMMONCRAWL_REQUEST_DELAY_MS,
   COMMONCRAWL_REQUEST_TIMEOUT,
 } from "./downloader/commoncrawl/commoncrawl-common.js";
@@ -109,7 +113,8 @@ async function processWebsiteDownloads(
     includeInvalid = false,
     peekAllFiles = false,
     writeHeaders = false,
-    prefetchedIndex,
+    commonCrawlPrefetchedIndex,
+    waybackPrefetchedIndex,
     websiteOutputDirectory,
     skipOn302 = 0,
     commonCrawlEnabled = true,
@@ -117,7 +122,8 @@ async function processWebsiteDownloads(
     includeInvalid?: boolean;
     peekAllFiles?: boolean;
     writeHeaders?: boolean;
-    prefetchedIndex?: CommonCrawlPrefetchedIndex;
+    commonCrawlPrefetchedIndex?: CommonCrawlPrefetchedIndex;
+    waybackPrefetchedIndex?: WaybackPrefetchedCdxIndex;
     websiteOutputDirectory: string;
     skipOn302?: number;
     commonCrawlEnabled?: boolean;
@@ -143,11 +149,11 @@ async function processWebsiteDownloads(
       unavailableEntries,
       skippedEntries,
       metadata: waybackDownloadMetadata,
-    } = await downloadWaybackEntries(input, context);
+    } = await downloadWaybackEntries(input, context, waybackPrefetchedIndex);
 
     const { filteredEntries: commonCrawlEntries, metadata: commonCrawlDownloadMetadata } =
-      commonCrawlEnabled && isCommonCrawlEnabledForInput(input, prefetchedIndex)
-        ? await downloadCommonCrawlEntries(input, undefined, prefetchedIndex)
+      commonCrawlEnabled && isCommonCrawlEnabledForInput(input, commonCrawlPrefetchedIndex)
+        ? await downloadCommonCrawlEntries(input, undefined, commonCrawlPrefetchedIndex)
         : { filteredEntries: [], metadata: {} };
 
     const downloadMetadata = {
@@ -399,7 +405,7 @@ async function main() {
     console.log(`Min timestamp: ${argv["min-timestamp"] || "None"}`);
     console.log("================\n");
     const commonCrawlEnabled = argv["common-crawl"];
-    const { downloadInputs, commonCrawlIndexQueries, websiteOutputDirectory } =
+    const { downloadInputs, commonCrawlIndexQueries, websiteOutputDirectory, waybackCdxIndexQueries } =
       readWebsiteJsonConfig(argv.json, argv["output-dir"], { noMirrors: !argv["mirrors"] });
     const prefetchedIndex =
       commonCrawlEnabled && commonCrawlIndexQueries.length > 0
@@ -408,11 +414,16 @@ async function main() {
             requestTimeoutMs: COMMONCRAWL_REQUEST_TIMEOUT,
           })
         : undefined;
+    const waybackPrefetchedIndex =
+      waybackCdxIndexQueries.length > 0
+        ? await prefetchWaybackCdxIndex(waybackCdxIndexQueries)
+        : undefined;
     await processWebsiteDownloads(downloadInputs, {
       includeInvalid: argv["include-invalid"],
       peekAllFiles: argv["peek-all"],
       writeHeaders: argv["headers"],
-      prefetchedIndex,
+      commonCrawlPrefetchedIndex: prefetchedIndex,
+      waybackPrefetchedIndex,
       websiteOutputDirectory,
       skipOn302: argv["skip-on-302"],
       commonCrawlEnabled,
