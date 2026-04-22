@@ -138,12 +138,18 @@ export function parseAlexaRecordFilename(filename: string, timestamp: string) {
     // GR-034747.arc.gz
     // FS-195519.arc.gz
     // IA-000150X.arc.gz
-    const oldNameMatch = baseName.match(/^([A-Z]{2})-(\d{6}[A-Z])$/)
+    const oldNameMatch = baseName.match(/^([A-Z]{2})-(\d{6}[A-Z])$/);
     if (oldNameMatch) {
       const crawlIdentifier = oldNameMatch[1];
       const serialNumber = oldNameMatch[2];
       const crawlerName = getCrawlerNameFromAbbreviation(crawlIdentifier);
-      return { crawlIdentifier, timestamp, serialNumber, crawlerName, recordFormat: "arc" as const };
+      return {
+        crawlIdentifier,
+        timestamp,
+        serialNumber,
+        crawlerName,
+        recordFormat: "arc" as const,
+      };
     }
   }
   if (timestamp < "19981208") {
@@ -154,7 +160,13 @@ export function parseAlexaRecordFilename(filename: string, timestamp: string) {
       const crawlerName = parts[0];
       const serialNumber = parts[1];
       const timestamp = DateTime.fromSeconds(+parts[2]).toISO({ suppressMilliseconds: true });
-      return { crawlIdentifier: crawlerName, timestamp, serialNumber, crawlerName, recordFormat: "arc" as const };
+      return {
+        crawlIdentifier: crawlerName,
+        timestamp,
+        serialNumber,
+        crawlerName,
+        recordFormat: "arc" as const,
+      };
     }
   }
 

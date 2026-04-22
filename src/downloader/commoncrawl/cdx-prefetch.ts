@@ -111,7 +111,7 @@ function readCacheFromDisk(
   return { cachedIndex: index, missingQueries };
 }
 
-export async function prefetchCdxIndex(
+export async function prefetchCommonCrawlCdxIndex(
   queries: CommonCrawlIndexQuery[],
   websiteOutputDirectory: string,
   options?: CommonCrawlDownloaderOptions,

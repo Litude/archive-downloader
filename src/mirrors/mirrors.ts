@@ -51,10 +51,14 @@ function toMirrorUrlData(mirror: string | MirrorUrlData): MirrorUrlData {
 }
 
 function collectMirrors(
-  cleanedUrl: string,
+  url: string,
   mirrorData: MirrorData[],
   additionalMirrors: (string | MirrorData | MirrorUrlData)[],
 ): MirrorUrlData[] {
+  const urlObj = new URL(url);
+  const hostname = urlObj.hostname;
+  const cleanedUrl = normalizeUrl(hostname);
+
   const mirrors: MirrorUrlData[] = [];
 
   // Collect from mirrorData (mirrors.json)
@@ -70,7 +74,14 @@ function collectMirrors(
     if (typeof mirror === "string") {
       mirrors.push({ url: mirror });
     } else if ("mirrors" in mirror) {
-      if (normalizeUrl(mirror.url) === cleanedUrl) {
+      const mirrorUrlObj = new URL(mirror.url);
+      const mirrorHostname = mirrorUrlObj.hostname;
+      const cleanedMirrorUrl = normalizeUrl(mirrorHostname);
+      const pathname = mirrorUrlObj.pathname;
+      if (
+        cleanedMirrorUrl === cleanedUrl &&
+        (!pathname || urlObj.pathname.toLowerCase().startsWith(pathname.toLowerCase()))
+      ) {
         for (const m of mirror.mirrors) {
           mirrors.push(toMirrorUrlData(m));
         }
@@ -102,12 +113,10 @@ export function createMirrorUrlsWithConfig(
 
     // Lookup common mirrors defined in mirrors.json
     const urlObj = new URL(urlEntry.url);
-    const hostname = urlObj.hostname;
-    const cleanedUrl = normalizeUrl(hostname);
     // Preserve pathname, query parameters, and hash fragment
     const pathAndParams = urlObj.pathname + urlObj.search + urlObj.hash;
 
-    const allMirrors = collectMirrors(cleanedUrl, mirrorData, additionalMirrors);
+    const allMirrors = collectMirrors(urlEntry.url, mirrorData, additionalMirrors);
     const encounteredMirrorUrls = new Set<string>();
     for (const mirror of allMirrors) {
       const url = `${mirror.url}${pathAndParams}`;
@@ -137,11 +146,17 @@ export function createMirrorUrls(
   return createMirrorUrlsWithConfig(urls, additionalMirrors, trailingSlashParsingMode, mirrorData);
 }
 
-export function getMirrorPrefixesForPrefix(prefix: string): string[] {
+export function getMirrorPrefixesForPrefix(
+  prefix: string,
+  additionalMirrors: (string | MirrorData | MirrorUrlData)[] = [],
+): { prefix: string; minTimestamp?: string; maxTimestamp?: string }[] {
   const mirrorData = loadDefaultMirrors();
   const urlObj = new URL(prefix);
-  const cleanedHostname = normalizeUrl(urlObj.hostname);
   const pathAndParams = urlObj.pathname + urlObj.search + urlObj.hash;
-  const mirrors = collectMirrors(cleanedHostname, mirrorData, []);
-  return mirrors.map((m) => `${m.url}${pathAndParams}`);
+  const mirrors = collectMirrors(prefix, mirrorData, additionalMirrors);
+  return mirrors.map((m) => ({
+    prefix: `${m.url}${pathAndParams}`,
+    minTimestamp: m.minTimestamp,
+    maxTimestamp: m.maxTimestamp,
+  }));
 }

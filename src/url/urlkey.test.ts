@@ -53,4 +53,10 @@ describe("urlToUrlkey", () => {
       "com,microsoft)/games/empires",
     );
   });
+
+  it("handles weird backslashes in hostname like wayback", () => {
+    expect(urlToUrlkey("http://\\www.example.com:80/secure/a.gif")).toBe(
+      "com,example,\\www)/secure/a.gif",
+    );
+  });
 });

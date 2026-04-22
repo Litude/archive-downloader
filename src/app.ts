@@ -19,7 +19,7 @@ import { assignCaptureIndices, assignContentIndices } from "./file-output/output
 import { downloadCommonCrawlEntries } from "./downloader/downloader-commoncrawl.js";
 import {
   CommonCrawlPrefetchedIndex,
-  prefetchCdxIndex,
+  prefetchCommonCrawlCdxIndex,
 } from "./downloader/commoncrawl/cdx-prefetch.js";
 import {
   WaybackPrefetchedCdxIndex,
@@ -405,24 +405,28 @@ async function main() {
     console.log(`Min timestamp: ${argv["min-timestamp"] || "None"}`);
     console.log("================\n");
     const commonCrawlEnabled = argv["common-crawl"];
-    const { downloadInputs, commonCrawlIndexQueries, websiteOutputDirectory, waybackCdxIndexQueries } =
-      readWebsiteJsonConfig(argv.json, argv["output-dir"], { noMirrors: !argv["mirrors"] });
-    const prefetchedIndex =
+    const {
+      downloadInputs,
+      commonCrawlIndexQueries,
+      websiteOutputDirectory,
+      waybackCdxIndexQueries,
+    } = readWebsiteJsonConfig(argv.json, argv["output-dir"], { noMirrors: !argv["mirrors"] });
+    const commonCrawlPrefetchedIndex =
       commonCrawlEnabled && commonCrawlIndexQueries.length > 0
-        ? await prefetchCdxIndex(commonCrawlIndexQueries, websiteOutputDirectory, {
+        ? await prefetchCommonCrawlCdxIndex(commonCrawlIndexQueries, websiteOutputDirectory, {
             requestDelayMs: COMMONCRAWL_REQUEST_DELAY_MS,
             requestTimeoutMs: COMMONCRAWL_REQUEST_TIMEOUT,
           })
         : undefined;
     const waybackPrefetchedIndex =
       waybackCdxIndexQueries.length > 0
-        ? await prefetchWaybackCdxIndex(waybackCdxIndexQueries)
+        ? await prefetchWaybackCdxIndex(waybackCdxIndexQueries, websiteOutputDirectory)
         : undefined;
     await processWebsiteDownloads(downloadInputs, {
       includeInvalid: argv["include-invalid"],
       peekAllFiles: argv["peek-all"],
       writeHeaders: argv["headers"],
-      commonCrawlPrefetchedIndex: prefetchedIndex,
+      commonCrawlPrefetchedIndex,
       waybackPrefetchedIndex,
       websiteOutputDirectory,
       skipOn302: argv["skip-on-302"],

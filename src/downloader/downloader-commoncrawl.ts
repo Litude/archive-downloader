@@ -80,7 +80,7 @@ async function fetchCommonCrawlCdxEntries(
   if (prefetchedIndex) {
     for (const [prefix, cachedEntries] of prefetchedIndex) {
       if (
-        urlEntry.url.startsWith(prefix) &&
+        urlToUrlkey(urlEntry.url).startsWith(urlToUrlkey(prefix)) &&
         (!urlEntry.maxTimestamp ||
           cachedEntries.maxTimestamp === undefined ||
           cachedEntries.maxTimestamp >= urlEntry.maxTimestamp) &&

@@ -13,7 +13,7 @@ export interface WaybackItemFile {
 }
 
 export interface WaybackMetadata {
-  ['access-restricted-item']?: string; // "true" if access restricted, else omitted
+  ["access-restricted-item"]?: string; // "true" if access restricted, else omitted
   addeddate: string; // YYYY-MM-DD HH:MM:SS UTC. If >2019-12, date when item was made public in wayback, else date when item was created
   boxid?: string; // physical catalog id, e.g. "IA1113259-1" but also exists for crawls <2012 where it is OL#########
   collection?: string[] | string; // if just single item in collection, this is a string instead of array (recursively includes all parent collections)

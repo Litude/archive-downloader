@@ -174,7 +174,6 @@ export async function getSnapshotsForWebsiteFile(
   };
 }
 
-
 function filterPrefetchedWaybackEntries(
   cachedEntries: ExtendedCdxEntry[],
   url: UrlEntry,
@@ -208,54 +207,83 @@ async function getSnapshotsForUrl(url: UrlEntry, prefetchedIndex?: WaybackPrefet
   let filteredSnapshots: ExtendedCdxEntry[];
 
   if (prefetchedIndex) {
-    for (const [prefix, cachedEntries] of prefetchedIndex) {
-      if (url.url.startsWith(prefix)) {
-        filteredSnapshots = filterPrefetchedWaybackEntries(cachedEntries, url);
-        console.log(
-          `Using pre-fetched Wayback CDX index for ${url.url} (prefix: ${prefix}), found ${filteredSnapshots.length} entries.`,
-        );
-        const revisitCount = filteredSnapshots.filter((s) => s.mimetype === "warc/revisit").length;
-        if (revisitCount > 0) {
-          console.log(
-            `Found ${revisitCount} warc/revisit snapshots for ${url.url}. Will resolve revisits.`,
-          );
-          const resolvedSnapshots = await fetchWaybackCdxIndex(url.url, true);
-          const filteredResolvedSnapshots = filterSnapshotsByTimestamp(
-            resolvedSnapshots,
-            url.maxTimestamp,
-            url.minTimestamp,
-          );
-          if (filteredResolvedSnapshots.length !== filteredSnapshots.length) {
-            throw new Error(
-              `Unexpectedly found a different number of snapshots when fetching with resolve revisits (got ${filteredResolvedSnapshots.length}, expected ${filteredSnapshots.length}) for ${url.url}.`,
-            );
-          }
-          filteredSnapshots.forEach((snapshot, index) => {
-            if (snapshot.mimetype === "warc/revisit") {
-              const resolvedSnapshot = filteredResolvedSnapshots[index];
-              validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "timestamp");
-              validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "url");
-              validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "digest");
-              validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "length");
-              filteredSnapshots![index] = {
-                ...resolvedSnapshot,
-                revisitEntry: snapshot,
-              };
-            }
-          });
-        }
-        return filteredSnapshots;
+    for (const [prefix, cachedData] of prefetchedIndex) {
+      if (!urlToUrlkey(url.url).startsWith(urlToUrlkey(prefix))) {
+        continue;
       }
+      if (cachedData.minTimestamp && !url.minTimestamp) {
+        console.log(
+          `Skipping pre-fetched Wayback CDX index for ${url.url} (prefix: ${prefix}): index minTimestamp ${cachedData.minTimestamp} but request has no minTimestamp.`,
+        );
+        continue;
+      }
+      if (cachedData.maxTimestamp && !url.maxTimestamp) {
+        console.log(
+          `Skipping pre-fetched Wayback CDX index for ${url.url} (prefix: ${prefix}): index maxTimestamp ${cachedData.maxTimestamp} but request has no maxTimestamp.`,
+        );
+        continue;
+      }
+      if (
+        url.minTimestamp &&
+        cachedData.minTimestamp &&
+        cachedData.minTimestamp > url.minTimestamp
+      ) {
+        console.log(
+          `Skipping pre-fetched Wayback CDX index for ${url.url} (prefix: ${prefix}): index minTimestamp ${cachedData.minTimestamp} > request minTimestamp ${url.minTimestamp}.`,
+        );
+        continue;
+      }
+      if (
+        url.maxTimestamp &&
+        cachedData.maxTimestamp &&
+        cachedData.maxTimestamp < url.maxTimestamp
+      ) {
+        console.log(
+          `Skipping pre-fetched Wayback CDX index for ${url.url} (prefix: ${prefix}): index maxTimestamp ${cachedData.maxTimestamp} < request maxTimestamp ${url.maxTimestamp}.`,
+        );
+        continue;
+      }
+      filteredSnapshots = filterPrefetchedWaybackEntries(cachedData.entries, url);
+      console.log(
+        `Using pre-fetched Wayback CDX index for ${url.url} (prefix: ${prefix}), found ${filteredSnapshots.length} entries.`,
+      );
+      const revisitCount = filteredSnapshots.filter((s) => s.mimetype === "warc/revisit").length;
+      if (revisitCount > 0) {
+        console.log(
+          `Found ${revisitCount} warc/revisit snapshots for ${url.url}. Will resolve revisits.`,
+        );
+        const resolvedSnapshots = await fetchWaybackCdxIndex(url.url, true);
+        const filteredResolvedSnapshots = filterSnapshotsByTimestamp(
+          resolvedSnapshots,
+          url.maxTimestamp,
+          url.minTimestamp,
+        );
+        if (filteredResolvedSnapshots.length !== filteredSnapshots.length) {
+          throw new Error(
+            `Unexpectedly found a different number of snapshots when fetching with resolve revisits (got ${filteredResolvedSnapshots.length}, expected ${filteredSnapshots.length}) for ${url.url}.`,
+          );
+        }
+        filteredSnapshots.forEach((snapshot, index) => {
+          if (snapshot.mimetype === "warc/revisit") {
+            const resolvedSnapshot = filteredResolvedSnapshots[index];
+            validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "timestamp");
+            validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "url");
+            validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "digest");
+            validateCdxEntryFieldMatch(snapshot, resolvedSnapshot, "length");
+            filteredSnapshots![index] = {
+              ...resolvedSnapshot,
+              revisitEntry: snapshot,
+            };
+          }
+        });
+      }
+      return filteredSnapshots;
     }
   }
 
   const allSnapshots = await fetchWaybackCdxIndex(url.url, false);
   console.log(`Found ${allSnapshots.length} total snapshots for ${url.url}.`);
-  filteredSnapshots = filterSnapshotsByTimestamp(
-    allSnapshots,
-    url.maxTimestamp,
-    url.minTimestamp,
-  );
+  filteredSnapshots = filterSnapshotsByTimestamp(allSnapshots, url.maxTimestamp, url.minTimestamp);
   if (filteredSnapshots.length !== allSnapshots.length) {
     console.log(
       `Filtered ${allSnapshots.length - filteredSnapshots.length} snapshots for ${url.url} based on timestamp constraints`,

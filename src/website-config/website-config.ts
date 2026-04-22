@@ -9,8 +9,9 @@ import {
   determineFilenameFromUrls,
   determineOutputSubdirectoryFromUrls,
 } from "../file-name/file-name.js";
-import { createMirrorUrls } from "../mirrors/mirrors.js";
+import { createMirrorUrls, getMirrorPrefixesForPrefix } from "../mirrors/mirrors.js";
 import { createAdditionalUrls } from "../mirrors/additional-urls.js";
+import { timestampMax, timestampMin } from "../utils/timestamp.js";
 import { readFileAsJson5 } from "../utils/file-json.js";
 import { MirrorData, MirrorUrlData, WebsiteFileEntryJson } from "../types/website-types.js";
 import { parseJsonTransformations } from "../transformation/transformation.js";
@@ -155,14 +156,14 @@ export function readWebsiteJsonConfig(
   const maxTimestamp: string | undefined = config.commonSettings?.maxTimestamp;
   const minTimestamp: string | undefined = config.commonSettings?.minTimestamp;
   const commonClassifications = config.commonSettings?.classifications || {};
-  const commonCrawlIndexQueries: CommonCrawlIndexQuery[] =
-    config.commonSettings?.commonCrawlIndexQueries || [];
+  const commonCrawlCdxIndexQueries: CommonCrawlIndexQuery[] =
+    config.commonSettings?.commonCrawlCdxCacheQueries || [];
   const waybackCdxIndexQueries: WaybackCdxIndexQuery[] =
-    config.commonSettings?.waybackCdxIndexQueries || [];
+    config.commonSettings?.waybackCdxCacheQueries || [];
 
   const files: WebsiteFileEntryJson[] = config.files;
 
-  const result = files.map((file) => {
+  const result: DownloadFileInput[] = files.map((file) => {
     const urls = getEntryUrls(file, maxTimestamp, minTimestamp);
 
     const mirrors = [...new Set([...(commonMirrors || []), ...(file.additionalMirrors || [])])];
@@ -217,5 +218,108 @@ export function readWebsiteJsonConfig(
     ? path.join(baseDirectory, config.commonSettings.baseDirectory)
     : baseDirectory;
 
-  return { downloadInputs: result, commonCrawlIndexQueries, waybackCdxIndexQueries, websiteOutputDirectory };
+  const expandedWaybackCdxIndexQueries = expandWaybackQueriesWithMirrors(
+    waybackCdxIndexQueries,
+    files,
+    commonMirrors,
+    maxTimestamp,
+    minTimestamp,
+  );
+
+  console.log(
+    `Expanded Wayback CDX index queries:\n${JSON.stringify(expandedWaybackCdxIndexQueries, null, 2)}`,
+  );
+
+  return {
+    downloadInputs: result,
+    commonCrawlIndexQueries: commonCrawlCdxIndexQueries,
+    waybackCdxIndexQueries: expandedWaybackCdxIndexQueries,
+    websiteOutputDirectory,
+  };
+}
+
+function expandWaybackQueriesWithMirrors(
+  queries: WaybackCdxIndexQuery[],
+  files: WebsiteFileEntryJson[],
+  commonMirrors: (string | MirrorData)[],
+  maxTimestamp: string | undefined,
+  minTimestamp: string | undefined,
+): WaybackCdxIndexQuery[] {
+  const expandedQueries: WaybackCdxIndexQuery[] = [];
+
+  for (const query of queries) {
+    expandedQueries.push(query);
+
+    const urlObj = new URL(query.prefix);
+    const pathAndParams = urlObj.pathname + urlObj.search + urlObj.hash;
+
+    // Track mirror prefixes with their timestamp ranges.
+    // When the same mirror prefix is encountered from multiple files, widen the range so all
+    // files are covered (take the earlier minTimestamp / later maxTimestamp), while still
+    // honouring any constraint the mirror itself declares.
+    const mirrorRanges = new Map<string, { minTimestamp?: string; maxTimestamp?: string }>();
+
+    function addOrWidenMirror(
+      mirrorPrefix: string,
+      mirrorMinTimestamp: string | undefined,
+      mirrorMaxTimestamp: string | undefined,
+    ) {
+      // Clamp the query-level timestamps with the mirror's own constraints
+      const clampedMin = timestampMax(query.minTimestamp, mirrorMinTimestamp);
+      const clampedMax = timestampMin(query.maxTimestamp, mirrorMaxTimestamp);
+
+      if (mirrorRanges.has(mirrorPrefix)) {
+        const existing = mirrorRanges.get(mirrorPrefix)!;
+        // Widen: take the more permissive bound so every file that needs this mirror is covered.
+        // If either side has no constraint (undefined), the combined result has no constraint.
+        mirrorRanges.set(mirrorPrefix, {
+          minTimestamp:
+            existing.minTimestamp === undefined || clampedMin === undefined
+              ? undefined
+              : timestampMin(existing.minTimestamp, clampedMin),
+          maxTimestamp:
+            existing.maxTimestamp === undefined || clampedMax === undefined
+              ? undefined
+              : timestampMax(existing.maxTimestamp, clampedMax),
+        });
+      } else {
+        mirrorRanges.set(mirrorPrefix, { minTimestamp: clampedMin, maxTimestamp: clampedMax });
+      }
+    }
+
+    for (const mirror of getMirrorPrefixesForPrefix(query.prefix, commonMirrors)) {
+      addOrWidenMirror(mirror.prefix, mirror.minTimestamp, mirror.maxTimestamp);
+    }
+
+    for (const file of files) {
+      if (!file.additionalMirrors?.length) {
+        continue;
+      }
+      const fileUrls = getEntryUrls(file, maxTimestamp, minTimestamp);
+      const hasUrlUnderPrefix = fileUrls.some((u) => u.url.startsWith(query.prefix));
+      if (!hasUrlUnderPrefix) {
+        continue;
+      }
+      for (const mirror of file.additionalMirrors) {
+        const mirrorBaseUrl = typeof mirror === "string" ? mirror : mirror.url;
+        const mirrorPrefix = `${mirrorBaseUrl}${pathAndParams}`;
+        const mirrorMinTimestamp = typeof mirror === "string" ? undefined : mirror.minTimestamp;
+        const mirrorMaxTimestamp = typeof mirror === "string" ? undefined : mirror.maxTimestamp;
+        addOrWidenMirror(mirrorPrefix, mirrorMinTimestamp, mirrorMaxTimestamp);
+      }
+    }
+
+    for (const [
+      mirrorPrefix,
+      { minTimestamp: mirrorMin, maxTimestamp: mirrorMax },
+    ] of mirrorRanges) {
+      expandedQueries.push({
+        prefix: mirrorPrefix,
+        minTimestamp: mirrorMin,
+        maxTimestamp: mirrorMax,
+      });
+    }
+  }
+
+  return expandedQueries;
 }
