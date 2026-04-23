@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { urlToUrlkey } from "./urlkey.js";
+import { urlToSimpleUrlkey as urlToUrlkey } from "./urlkey.js";
 
 describe("urlToUrlkey", () => {
   it("converts a simple URL", () => {
@@ -51,12 +51,6 @@ describe("urlToUrlkey", () => {
   it("handles empty query string", () => {
     expect(urlToUrlkey("http://microsoft.com:80/games/empires/?")).toBe(
       "com,microsoft)/games/empires",
-    );
-  });
-
-  it("handles weird backslashes in hostname like wayback", () => {
-    expect(urlToUrlkey("http://\\www.example.com:80/secure/a.gif")).toBe(
-      "com,example,\\www)/secure/a.gif",
     );
   });
 });

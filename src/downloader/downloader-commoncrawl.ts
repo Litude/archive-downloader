@@ -23,12 +23,12 @@ import { parseCommonCrawlTimestamps } from "./commoncrawl/commoncrawl-timestamps
 import { sanityCheckTimestamps } from "../utils/timestamp.js";
 import { UrlMetadataFilteredEntries } from "../file-output/url-metadata.js";
 import { CommonCrawlPrefetchedIndex } from "./commoncrawl/cdx-prefetch.js";
-import { urlToUrlkey } from "../url/urlkey.js";
 import { fileURLToPath } from "url";
 import path, { dirname } from "path/win32";
 import { DateTime } from "luxon";
 import { isUrlTrailingSlashMatch, TrailingSlashParsingMode } from "../url/trailing-slash.js";
 import { getCommonCrawlCollectionSize } from "./commoncrawl/commoncrawl-collection-size.js";
+import { urlToWaybackUrlkey } from "../url/waybackurlkey.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -45,7 +45,7 @@ function filterPrefetchedEntries(
   urlEntry: UrlEntry,
   commonCrawlCollections?: string[],
 ): ExtendedCdxEntry[] {
-  const targetUrlkey = urlToUrlkey(urlEntry.url);
+  const targetUrlkey = urlToWaybackUrlkey(urlEntry.url);
   return cachedEntries
     .filter((entry) => {
       if (entry.urlkey !== targetUrlkey) {
@@ -80,7 +80,7 @@ async function fetchCommonCrawlCdxEntries(
   if (prefetchedIndex) {
     for (const [prefix, cachedEntries] of prefetchedIndex) {
       if (
-        urlToUrlkey(urlEntry.url).startsWith(urlToUrlkey(prefix)) &&
+        urlToWaybackUrlkey(urlEntry.url).startsWith(urlToWaybackUrlkey(prefix)) &&
         (!urlEntry.maxTimestamp ||
           cachedEntries.maxTimestamp === undefined ||
           cachedEntries.maxTimestamp >= urlEntry.maxTimestamp) &&

@@ -1,27 +1,30 @@
 import { describe, it, expect } from "vitest";
-import {
-  parseCommonCrawlFilename,
-  parseRecordFilename,
-  parseRecordFormat,
-} from "./record-filename-parser.js";
+import { parseCommonCrawlFilename, parseRecordFilename } from "./record-filename-parser.js";
+import { parseRecordFormatFromArchiveFilename } from "./filename-parser-common.js";
 
-describe("parseRecordFormat", () => {
+describe("parseRecordFormatFromArchiveFilename", () => {
   it("returns 'warc' for a .warc.gz filename", () => {
-    expect(parseRecordFormat("CC-MAIN-20210301000000-00000-crawler.warc.gz")).toBe("warc");
+    expect(
+      parseRecordFormatFromArchiveFilename("CC-MAIN-20210301000000-00000-crawler.warc.gz"),
+    ).toBe("warc");
   });
 
   it("returns 'arc' for a .arc filename", () => {
-    expect(parseRecordFormat("CC-MAIN-20210301000000-00000-crawler.arc")).toBe("arc");
+    expect(parseRecordFormatFromArchiveFilename("CC-MAIN-20210301000000-00000-crawler.arc")).toBe(
+      "arc",
+    );
   });
 
   it("returns 'warc' for a .warc.zst filename", () => {
-    expect(parseRecordFormat("CC-MAIN-20210301000000-00000-crawler.warc.zst")).toBe("warc");
+    expect(
+      parseRecordFormatFromArchiveFilename("CC-MAIN-20210301000000-00000-crawler.warc.zst"),
+    ).toBe("warc");
   });
 
   it("throws for an unknown extension", () => {
-    expect(() => parseRecordFormat("CC-MAIN-20210301000000-00000-crawler.zip")).toThrow(
-      "Unknown record format",
-    );
+    expect(() =>
+      parseRecordFormatFromArchiveFilename("CC-MAIN-20210301000000-00000-crawler.zip"),
+    ).toThrow("Unknown record format");
   });
 });
 

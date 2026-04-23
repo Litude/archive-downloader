@@ -16,7 +16,7 @@ import { WaybackPrefetchedCdxIndex } from "./cdx-prefetch.js";
 import { UrlMetadataFilteredEntries } from "../../file-output/url-metadata.js";
 import { resolveDuplicateSnapshots } from "./duplicate-resolver.js";
 import { TrailingSlashParsingMode } from "../../url/trailing-slash.js";
-import { urlToUrlkey } from "../../url/urlkey.js";
+import { urlToWaybackUrlkey } from "../../url/waybackurlkey.js";
 
 const WAYBACK_CDX_API_URL = "http://web.archive.org/cdx/search/cdx";
 const REQUEST_TIMEOUT = WAYBACK_REQUEST_TIMEOUT;
@@ -178,7 +178,7 @@ function filterPrefetchedWaybackEntries(
   cachedEntries: ExtendedCdxEntry[],
   url: UrlEntry,
 ): ExtendedCdxEntry[] {
-  const targetUrlkey = urlToUrlkey(url.url);
+  const targetUrlkey = urlToWaybackUrlkey(url.url);
   return cachedEntries
     .filter((entry) => {
       if (entry.urlkey !== targetUrlkey) {
@@ -208,7 +208,7 @@ async function getSnapshotsForUrl(url: UrlEntry, prefetchedIndex?: WaybackPrefet
 
   if (prefetchedIndex) {
     for (const [prefix, cachedData] of prefetchedIndex) {
-      if (!urlToUrlkey(url.url).startsWith(urlToUrlkey(prefix))) {
+      if (!urlToWaybackUrlkey(url.url).startsWith(urlToWaybackUrlkey(prefix))) {
         continue;
       }
       if (cachedData.minTimestamp && !url.minTimestamp) {

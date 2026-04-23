@@ -1,8 +1,8 @@
-import { urlToUrlkey } from "./urlkey.js";
+import { urlToSimpleUrlkey } from "./urlkey.js";
 
 export function urlCompare(url1: string, url2: string): number {
-  const urlKey1 = urlToUrlkey(url1);
-  const urlKey2 = urlToUrlkey(url2);
+  const urlKey1 = urlToSimpleUrlkey(url1);
+  const urlKey2 = urlToSimpleUrlkey(url2);
   if (urlKey1 > urlKey2) {
     return 1;
   } else if (urlKey1 < urlKey2) {

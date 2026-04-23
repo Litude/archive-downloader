@@ -6,6 +6,7 @@
   "scripts": {
     "test": "vitest",
     "etag": "tsx src/utils/iis-etag-tool.ts",
+    "parse-filename": "tsx src/archive-record/filename/filename-parser-tool.ts",
     "tsc": "tsc --noEmit --skipLibCheck",
     "lint:check": "eslint src/**/*.ts",
     "lint": "eslint src/**/*.ts --fix",
