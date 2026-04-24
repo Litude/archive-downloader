@@ -142,7 +142,7 @@ export function parseAlexa1998Filename(
 
   // Parsing:
   // Must end with an epoch timestamp (preceeded by a dash)
-  // Then might have a timestamp as YYYYMMDDhhmmss preceeding the epoch timestamp, also preceeded by a dash
+  // Then might have a timestamp as YYYYMMDDhhmmss (in tz America/Los_Angeles) preceeding the epoch timestamp, also preceeded by a dash
   // If a number still remains, it must be the serial. This too is preceeded by a dash
   // Anything that remains is the crawl identifier
 
@@ -167,8 +167,9 @@ export function parseAlexa1998Filename(
   let confidence = 0.1;
 
   const potentialTimestampPart = parts.pop();
+  // Early captures are definitely local timestamps, e.g. easlily seen from amazon 1998 crawl
   const batchTimestamp = potentialTimestampPart
-    ? DateTime.fromFormat(potentialTimestampPart, "yyyyMMddHHmmss")
+    ? DateTime.fromFormat(potentialTimestampPart, "yyyyMMddHHmmss", { zone: "America/Los_Angeles" })
     : undefined;
   if (!batchTimestamp?.isValid || batchTimestamp.year < 1998 || batchTimestamp.year > 2000) {
     // not a timestamp, not all names have one here...
@@ -202,11 +203,92 @@ export function parseAlexa1998Filename(
     details: {
       crawlIdentifier,
       batchTimestamp: batchTimestamp?.isValid
-        ? batchTimestamp?.toFormat("yyyy-MM-dd'T'HH:mm:ss")
+        ? batchTimestamp?.toUTC()?.toISO({ suppressMilliseconds: true })
         : undefined,
-      timestamp: runTimestamp.toISO({ suppressMilliseconds: true }),
+      timestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
       serialNumber,
       crawlerName: get1998CrawlerNameFromIdentifier(crawlIdentifier, timestamp),
+    },
+  };
+}
+
+export function parseAlexa200007Filename(
+  filename: string,
+  timestamp?: string,
+): ParsedRecordFilename<AlexaFilenameDetails> | undefined {
+  // Matches names such as:
+  // 20000710.000033-20000712015206-963392503.arc.gz
+  // 20000929.000068-20001005011008-970740821.arc.gz
+  // 20001024.000228-20001102144308-973205587.arc.gz
+
+  // Date range:
+  // Minimum: 20000712000000 (from 20000710-000017-20000711075301-963330128-c)
+  // Maximum: 20001104000000 (from 20001024.000211-20001102040308-973170552-c)
+
+  // Parsing:
+  // Must end with an epoch timestamp (preceeded by a dash)
+  // Then might have a timestamp as YYYYMMDDhhmmss (in tz America/Los_Angeles) preceeding the epoch timestamp, also preceeded by a dash
+  // If a number still remains, it must be the serial. This too is preceeded by a dash
+  // Anything that remains is the crawl identifier
+
+  // Add some extra days to be safe
+  const timestampMatch =
+    timestamp && timestamp >= "20000701000000" && timestamp <= "20001104000000";
+
+  const baseName = filename.split("/").pop() ?? filename;
+  const recordFormat = parseRecordFormatFromArchiveFilename(baseName);
+  if (recordFormat !== "arc") {
+    return undefined;
+  }
+  const parts = removeFileExtensionFromArchiveFilename(baseName).split("-");
+  if (parts.length !== 3) {
+    return undefined;
+  }
+
+  const finalPart = parts.pop() ?? "";
+  // this is the timestamp when the ARC file writing started?
+  const runTimestamp = DateTime.fromSeconds(+finalPart);
+  if (!runTimestamp.isValid || runTimestamp.year !== 2000) {
+    return undefined;
+  }
+
+  const timestampPart = parts.pop() ?? "";
+  if (timestampPart.length !== 14) {
+    return undefined;
+  }
+
+  // Early captures are definitely local timestamps
+  const batchTimestamp = DateTime.fromFormat(timestampPart, "yyyyMMddHHmmss", { zone: "America/Los_Angeles" });
+  if (!batchTimestamp?.isValid || batchTimestamp.year !== 2000) {
+    return undefined;
+  }
+
+  const initialPart = parts.pop() ?? "";
+  const [crawlIdentifier, serial] = initialPart.split(".");
+
+
+  if (crawlIdentifier.length !== 8 || !crawlIdentifier.startsWith("2000")) {
+    return undefined;
+  }
+  if (!serial || !/^\d{6}$/.test(serial)) {
+    return undefined;
+  }
+
+  let confidence = 0.8;
+  if (timestampMatch) {
+    confidence += 0.2;
+  }
+  return {
+    confidence,
+    filenameType: "alexa-2000-07",
+    recordFormat: "arc",
+    details: {
+      crawlIdentifier,
+      batchTimestamp: batchTimestamp?.isValid
+        ? batchTimestamp?.toUTC()?.toISO({ suppressMilliseconds: true })
+        : undefined,
+      timestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
+      serialNumber: serial,
     },
   };
 }
@@ -215,7 +297,7 @@ export function parseAlexaRecordFilename(
   filename: string,
   timestamp?: string,
 ): ParsedRecordFilename<AlexaFilenameDetails>[] {
-  const parsers = [parseAlexa1996Filename, parseAlexa1998Filename];
+  const parsers = [parseAlexa1996Filename, parseAlexa1998Filename, parseAlexa200007Filename];
 
   const results: ParsedRecordFilename<AlexaFilenameDetails>[] = [];
   for (const parser of parsers) {
