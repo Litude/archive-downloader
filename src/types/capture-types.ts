@@ -11,6 +11,7 @@ export interface CaptureWaybackMetadata {
     contributor?: string;
     creator?: string;
     sponsor?: string;
+    operator?: string;
     description: string;
     coverage?: string;
     notes?: string;
@@ -20,14 +21,25 @@ export interface CaptureWaybackMetadata {
     scanner?: string;
     source?: string;
     numPages?: number;
+    date?: string;
+    waybackPublishedDate?: string; // YYYY-MM-DD HH:MM:SS format, UTC timezone
+    itemCreatedDate?: string; // YYYY-MM-DD HH:MM:SS format, UTC timezone
     scanDate?: string; // some local time, usually YYYYMMDDHHMMSS format
     firstFileDate?: string; // some local time, usually YYYYMMDDHHMMSS format
     firstFileSerial?: string;
     lastFileDate?: string; // some local time, usually YYYYMMDDHHMMSS format
     lastFileSerial?: string;
-    addedDate?: string; // YYYY-MM-DD HH:MM:SS format
+    lastDate?: string; // some local time, usually YYYYMMDDHHMMSS format
+    boxId?: string;
     numArcs?: number;
     numWarcs?: number;
+    archiveIt?: {
+      collectionId?: string;
+      collectionName?: string;
+      accountId?: string;
+      accountOrganizationName?: string;
+      recurrence?: string;
+    }
     collections: {
       id: string;
       title: string;

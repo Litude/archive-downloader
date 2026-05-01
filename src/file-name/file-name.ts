@@ -108,9 +108,13 @@ export function determineFilenameFromUrls(
       }
     }
   }
-  throw new Error(
-    "Cannot determine filename: no filename specified and no original URL with filename found",
+  console.warn(
+    `No filename specified and no original URL with filename found for file entry with URLs: ${urls.map((u) => u.url).join(", ")}. Using default filename.`,
   );
+  return {
+    base: "_unnamed",
+    ext: ".html",
+  };
 }
 
 // Output dir: output/domain/path

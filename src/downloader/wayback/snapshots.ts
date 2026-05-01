@@ -1,4 +1,5 @@
 import axios, { AxiosResponse } from "axios";
+import { DateTime } from "luxon";
 import { DownloadFileInput, UrlEntry } from "../../types/download-input-types.js";
 import { CdxEntry, ExtendedCdxEntry } from "../../types/wayback-types.js";
 import { filenameToString } from "../../file-name/file-name.js";
@@ -101,10 +102,14 @@ export async function getSnapshotsForWebsiteFile(
     limitedCaptureFiltered += dupeLimitCapture;
     duplicateFiltered += dupeFiltered;
     let validSnapShots = availableUniqueSnapshots.filter((snapshot) =>
-      snapshot.status?.toString().startsWith("2"),
+      input.expectedStatusCodes
+        ? input.expectedStatusCodes.includes(snapshot.status || 0)
+        : snapshot.status?.toString().startsWith("2"),
     );
-    let invalidSnapshots = availableUniqueSnapshots.filter(
-      (snapshot) => !snapshot.status?.toString().startsWith("2"),
+    let invalidSnapshots = availableUniqueSnapshots.filter((snapshot) =>
+      input.expectedStatusCodes
+        ? !input.expectedStatusCodes.includes(snapshot.status || 0)
+        : !snapshot.status?.toString().startsWith("2"),
     );
     console.log(`Found ${validSnapShots.length} valid snapshots for ${url.url}`);
     if (invalidSnapshots.length > 0) {
@@ -150,9 +155,25 @@ export async function getSnapshotsForWebsiteFile(
       `Total invalid snapshots for ${filenameToString(input.filename, "simple")}: ${invalidCdxEntries.length}`,
     );
   }
+  // Filter out entries whose timestamps cannot be parsed (e.g. month 00 due to ARC clock corruption)
+  const invalidTimestampEntries: { url: string; timestamp: string }[] = [];
+  const hasValidTimestamp = (entry: ExtendedCdxEntry): boolean => {
+    const dt = DateTime.fromFormat(entry.timestamp, "yyyyLLddHHmmss", { zone: "utc" });
+    if (!dt.isValid) {
+      console.warn(`Dropping entry with unparseable timestamp: ${entry.url} @ ${entry.timestamp}`);
+      invalidTimestampEntries.push({ url: entry.url, timestamp: entry.timestamp });
+      return false;
+    }
+    return true;
+  };
+  validCdxEntries = validCdxEntries.filter(hasValidTimestamp);
+  invalidCdxEntries = invalidCdxEntries.filter(hasValidTimestamp);
+
   return {
     validCdxEntries: validCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
-    invalidCdxEntries: invalidCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
+    invalidCdxEntries: includeInvalid
+      ? invalidCdxEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+      : [],
     unavailableCdxEntries,
     metadata: {
       duplicateTimestampsRemoved: duplicateFiltered ? duplicateFiltered : undefined,
@@ -163,6 +184,10 @@ export async function getSnapshotsForWebsiteFile(
           }
         : undefined,
       trailingSlashMismatchesRemoved: redirectNonSlashTotal ? redirectNonSlashTotal : undefined,
+      invalidTimestamps:
+        invalidTimestampEntries.length > 0
+          ? { entries: invalidTimestampEntries, count: invalidTimestampEntries.length }
+          : undefined,
       unresolvableRevisits:
         unresolveableRevisits.length > 0
           ? {

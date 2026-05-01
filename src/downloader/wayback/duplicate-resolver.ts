@@ -1,9 +1,7 @@
 import { LimitedCaptureRange } from "../../types/download-input-types.js";
 import { ExtendedCdxEntry } from "../../types/wayback-types.js";
 import { isDefined } from "../../utils/ts-utils.js";
-import { WAYBACK_INITIAL_BACKOFF, WAYBACK_MAX_BACKOFF } from "./wayback-common.js";
 import { fetchWaybackFileHeaders } from "./file-download.js";
-import { DownloadedFile } from "../../types/download-types.js";
 import { parseWaybackLinkHeader } from "./utils/wayback-link.js";
 import { Context } from "../../types/context.js";
 import { isUrlTrailingSlashMatch, TrailingSlashParsingMode } from "../../url/trailing-slash.js";
@@ -137,73 +135,6 @@ function handleDuplicateCapture({
   };
 }
 
-async function fetchHeadersUntilSuccess(
-  timestamp: string,
-  url: string,
-  statusCodes: number[],
-  allow404: boolean,
-  context: Context,
-): Promise<Omit<DownloadedFile, "content" | "corrupt">> {
-  let attempt = 1;
-  // Redirects might not resolve to the actual capture, so we might not actually get x-archive-src.
-  // Hopefully such timestamps that also have 200 captures would always resolve to the 200 capture or other code
-  const potentialRedirect = statusCodes.some((code) => [301, 302].includes(code));
-  const allRedirect = statusCodes.every((code) => [301, 302].includes(code));
-  let maxRedirectAttempts = allRedirect ? 5 : potentialRedirect ? 10 : 0; // Only attempt retries for missing x-archive-src if there is a potential redirect, otherwise it is likely an actual issue
-  if (context.settings.skipOn302) {
-    maxRedirectAttempts = context.settings.skipOn302;
-  }
-  let redirectAttempts = 1;
-  let redirectBackoff = WAYBACK_INITIAL_BACKOFF;
-  let error404Attempts = 0;
-  while (true) {
-    try {
-      const result = await fetchWaybackFileHeaders(timestamp, url, undefined, context);
-      if (result.responseHeaders["x-archive-src"]) {
-        return result;
-      }
-      if (
-        context.settings.skipOn302 &&
-        attempt >= context.settings.skipOn302 &&
-        result.statusCode === 302
-      ) {
-        return result;
-      }
-      if (!allRedirect && !potentialRedirect) {
-        throw new Error(
-          `Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}`,
-        );
-      } else if (result.statusCode === 302 && redirectAttempts < maxRedirectAttempts) {
-        console.log(
-          `Missing x-archive-src header in response when fetching headers for ${timestamp}-${url}, this ${allRedirect ? "redirect only" : "potential redirect"} capture might be unavailable. Retrying in ${redirectBackoff / 1000}s... (attempt ${redirectAttempts})`,
-        );
-        await new Promise((res) => setTimeout(res, redirectBackoff));
-        redirectBackoff = Math.min(redirectBackoff * 2, WAYBACK_MAX_BACKOFF);
-        redirectAttempts++;
-      } else if (allow404 && result.statusCode === 404) {
-        ++error404Attempts;
-        if (error404Attempts >= 3) {
-          console.log(
-            `Received 404 status code when fetching headers for ${timestamp}-${url} multiple times, but skipping due to settings.`,
-          );
-          return result;
-        }
-        throw new Error(
-          `Received 404 status code when fetching headers for ${timestamp}-${url}, will attempt for ${3 - error404Attempts} more times before skipping.`,
-        );
-      } else {
-        return result;
-      }
-    } catch (error) {
-      console.log(
-        `Error fetching headers for ${timestamp}-${url}: ${error}, (attempt ${attempt}) retrying in 30s...`,
-      );
-      await new Promise((res) => setTimeout(res, 30000));
-      attempt++;
-    }
-  }
-}
-
 export async function resolveDuplicateSnapshots({
   requestUrl,
   slashMode,
@@ -293,7 +224,7 @@ export async function resolveDuplicateSnapshots({
           ...new Set(snapshotsAtTimestamp.map((s) => s.status).filter(isDefined)),
         ];
         const actualSnapShot = snapshotsAtTimestamp[0];
-        const result = await fetchHeadersUntilSuccess(
+        const result = await fetchWaybackFileHeaders(
           timestamp,
           actualSnapShot.url,
           possibleStatusCodes,

@@ -12,6 +12,8 @@ import { parseRawHeadersToPairs } from "../../headers/raw-header-parser.js";
 import { getWaybackCaptureBaseUrl } from "./utils/wayback-url.js";
 import { isUrlTrailingSlashMatch, TrailingSlashParsingMode } from "../../url/trailing-slash.js";
 import { Context } from "../../types/context.js";
+import { isWaybackCaptureResponse } from "./utils/wayback-capture.js";
+import { toDownloaderError } from "../../utils/downloader-error.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -19,7 +21,7 @@ const WEB_ARCHIVE = "web.archive.org/web";
 const REQUEST_TIMEOUT = 60_000; // 60 seconds
 const INITIAL_BACKOFF = WAYBACK_INITIAL_BACKOFF; // 30 seconds
 const MAX_BACKOFF = WAYBACK_MAX_BACKOFF; // 5 minutes
-const REDIRECT_MAX_BACKOFF = 120_000; // 2 minutes
+const REDIRECT_MAX_BACKOFF = 30_000; // 30 seconds
 
 const ERROR_STATUS_CODES = [429, 502, 503, 504];
 export const REDIRECT_STATUS_CODES = [301, 302, 303, 307, 308];
@@ -285,17 +287,19 @@ export async function fetchWaybackFileHeaders(
   timestamp: string,
   url: string,
   statusCodes: number[] | undefined,
+  allow404 = false,
   context: Context,
 ): Promise<Omit<DownloadedFile, "content" | "corrupt">> {
   let attempt = 1;
   let redirectCount = 0;
+  let error404Attempts = 0;
   let backoff = INITIAL_BACKOFF;
   while (true) {
     try {
       const waybackUrl = createWaybackDownloadUrl(timestamp, url, attempt - 1);
       console.log(`Fetching file headers for ${timestamp}-${url} (attempt ${attempt})...`);
       const response = await getResponseHeaders(waybackUrl);
-      if (!response.headers["x-archive-src"]) {
+      if (!isWaybackCaptureResponse(response)) {
         if (response.status === 302 && context?.settings.skipOn302) {
           redirectCount++;
           if (redirectCount >= context.settings.skipOn302) {
@@ -312,12 +316,35 @@ export async function fetchWaybackFileHeaders(
               statusMessage: response.statusText,
             };
           }
-          throw new Error(
-            `Unexpected redirect for ${url} (attempt ${attempt} / ${context.settings.skipOn302})`,
+          const downloadError = toDownloaderError(
+            new Error(
+              `Unexpected redirect for ${url} (attempt ${attempt} / ${context.settings.skipOn302})`,
+            ),
           );
+          downloadError.errorType = "unexpected_redirect";
+          throw downloadError;
         } else {
           throw new Error(`HTTP ${response.status} missing x-archive-src header`);
         }
+      } else if (allow404 && response.status === 404) {
+        ++error404Attempts;
+        if (error404Attempts >= 3) {
+          console.log(
+            `Received 404 status code when fetching headers for ${timestamp}-${url} multiple times, but skipping due to settings.`,
+          );
+          return {
+            url,
+            timestamp,
+            responseHeaders: {},
+            rawResponseHeaders: [],
+            classification: "unavailable",
+            statusCode: response.status,
+            statusMessage: response.statusText,
+          };
+        }
+        throw new Error(
+          `Received 404 status code when fetching headers for ${timestamp}-${url}, will attempt for ${3 - error404Attempts} more times before skipping.`,
+        );
       } else if (statusCodes && !statusCodes.includes(response.status)) {
         throw new Error(
           `HTTP ${response.status} does not match expected status codes ${statusCodes.join(", ")}`,
@@ -334,7 +361,7 @@ export async function fetchWaybackFileHeaders(
     } catch (e: unknown) {
       if (
         e instanceof Error &&
-        e.message.includes("Unexpected redirect") &&
+        toDownloaderError(e).errorType === "unexpected_redirect" &&
         context?.settings.skipOn302
       ) {
         console.log(

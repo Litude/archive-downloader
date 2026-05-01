@@ -118,6 +118,10 @@ async function processWebsiteDownloads(
     websiteOutputDirectory,
     skipOn302 = 0,
     commonCrawlEnabled = true,
+    noDeduplication = false,
+    fetchMetadata = true,
+    fetchOriginalRecord = true,
+    sanityCheckTimestamps = true,
   }: {
     includeInvalid?: boolean;
     peekAllFiles?: boolean;
@@ -127,6 +131,10 @@ async function processWebsiteDownloads(
     websiteOutputDirectory: string;
     skipOn302?: number;
     commonCrawlEnabled?: boolean;
+    noDeduplication?: boolean;
+    fetchMetadata?: boolean;
+    fetchOriginalRecord?: boolean;
+    sanityCheckTimestamps?: boolean;
   },
 ) {
   const context: Context = {
@@ -134,9 +142,11 @@ async function processWebsiteDownloads(
       includeInvalid,
       peekAllFiles,
       writeHeaders,
-      fetchMetadata: true,
-      fetchOriginalRecord: true,
+      fetchMetadata,
+      fetchOriginalRecord,
       skipOn302: skipOn302 ? skipOn302 : undefined,
+      sanityCheckTimestamps,
+      websiteOutputDirectory,
     },
     fileContext: {},
   };
@@ -153,7 +163,7 @@ async function processWebsiteDownloads(
 
     const { filteredEntries: commonCrawlEntries, metadata: commonCrawlDownloadMetadata } =
       commonCrawlEnabled && isCommonCrawlEnabledForInput(input, commonCrawlPrefetchedIndex)
-        ? await downloadCommonCrawlEntries(input, undefined, commonCrawlPrefetchedIndex)
+        ? await downloadCommonCrawlEntries(input, context, undefined, commonCrawlPrefetchedIndex)
         : { filteredEntries: [], metadata: {} };
 
     const downloadMetadata = {
@@ -183,7 +193,7 @@ async function processWebsiteDownloads(
 
     const anyValidEntries = baseEntries.some((entry) => entry.classification.type === "ok");
 
-    if (anyValidEntries && input.transformations.length > 0) {
+    if (!noDeduplication && anyValidEntries && input.transformations.length > 0) {
       // First find all unique sha256 buffers
       const seenSha256Values = new Set<string>();
       const uniqueBuffers: { sha256: string; content: Buffer }[] = [];
@@ -304,12 +314,18 @@ async function processWebsiteDownloads(
         );
         writeUnavailablePlaceholder(input.filename, input.outputDirectory);
       }
-      assignContentIndices(baseEntries);
-      writeUniqueFileEntries(baseEntries, input.filename, input.outputDirectory);
+      if (!noDeduplication) {
+        assignContentIndices(baseEntries);
+      }
+      writeUniqueFileEntries(baseEntries, input.filename, input.outputDirectory, {
+        noDeduplication,
+      });
       const summaryEntries = [...baseEntries, ...unavailableEntries, ...skippedEntries].sort(
         (a, b) => a.timestamp.localeCompare(b.timestamp),
       );
-      await writeCsvSummary(summaryEntries, input.filename, input.outputDirectory);
+      await writeCsvSummary(summaryEntries, input.filename, input.outputDirectory, {
+        noDeduplication,
+      });
       await writeGlobalSummary(
         summaryEntries,
         input.filename,
@@ -383,6 +399,27 @@ async function main() {
       default: true,
       describe: "Include invalid snapshots when downloading",
     })
+    .option("deduplication", {
+      type: "boolean",
+      default: true,
+      describe: "Write a separate file for every capture; skips deduplication and transforms",
+    })
+    .option("fetch-wayback-metadata", {
+      type: "boolean",
+      default: true,
+      describe: "Whether to fetch additional metadata from the Wayback Machine for each capture",
+    })
+    .option("fetch-wayback-original-record", {
+      type: "boolean",
+      default: true,
+      describe: "Whether to attempt to fetch the original record for Wayback Machine captures",
+    })
+    .option("check-timestamps", {
+      type: "boolean",
+      default: true,
+      describe:
+        "Whether to perform sanity checks on timestamps (capture date, memento date, server date, last modified) for each capture and abort if any inconsistencies are detected",
+    })
     .demandCommand(0)
     .parse();
 
@@ -403,6 +440,10 @@ async function main() {
     console.log(`Common Crawl enabled: ${argv["common-crawl"]}`);
     console.log(`Max timestamp: ${argv["max-timestamp"] || "None"}`);
     console.log(`Min timestamp: ${argv["min-timestamp"] || "None"}`);
+    console.log(`No deduplication: ${!argv["deduplication"]}`);
+    console.log(`Fetch Wayback metadata: ${argv["fetch-wayback-metadata"]}`);
+    console.log(`Fetch Wayback original record: ${argv["fetch-wayback-original-record"]}`);
+    console.log(`Sanity check timestamps: ${argv["check-timestamps"]}`);
     console.log("================\n");
     const commonCrawlEnabled = argv["common-crawl"];
     const {
@@ -431,6 +472,10 @@ async function main() {
       websiteOutputDirectory,
       skipOn302: argv["skip-on-302"],
       commonCrawlEnabled,
+      noDeduplication: !argv["deduplication"],
+      fetchMetadata: argv["fetch-wayback-metadata"],
+      fetchOriginalRecord: argv["fetch-wayback-original-record"],
+      sanityCheckTimestamps: argv["check-timestamps"],
     });
     return;
   } else {

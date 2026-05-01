@@ -50,6 +50,13 @@ export interface WaybackMetadata {
   numarcs?: string; // number as string, should match the count of arc.gz files in the files array (but not always filled)
   backup_location?: string; // seems to be the name of a server?
   "fail-reasons"?: string;
+
+  /** archive-it fields (in newer entries these are part of the description too) */
+  "archiveit-account-id"?: string; // number as string, e.g. "1234"
+  "archiveit-account-organization-name"?: string; // e.g. "Example University"
+  "archiveit-collection-id"?: string; // number as string, e.g. "5678"
+  "archiveit-collection-name"?: string; // e.g. "Example Collection"
+  "archiveit-recurrence"?: string; // e.g. "QUARTERLY"
   [key: string]: any; // for any additional fields that may be present
 }
 
@@ -81,6 +88,6 @@ export interface WaybackItemDetails {
 }
 
 export interface WaybackItemCachedDetails {
-  files: Pick<WaybackItemFile, "name" | "private">[];
+  files: Pick<WaybackItemFile, "name" | "private" | "mtime" | "size">[];
   metadata: WaybackMetadata;
 }

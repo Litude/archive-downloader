@@ -8,35 +8,44 @@ export function writeUniqueFileEntries(
   captureEntries: CaptureEntry[],
   filename: Filename,
   outputDirectory: string,
+  { noDeduplication = false }: { noDeduplication?: boolean } = {},
 ) {
-  // For each unique sha256 + modify timestamp combination, write the file to disk
-  // However if there is a sha256 entry that has a modify timestamp, we DO NOT write the no-timestamp version
-  const uniqueEntries = new Map<string, CaptureEntry>();
-  const shaHasModified = new Set<string>();
+  let entriesToWrite: CaptureEntry[];
 
-  // First pass: identify which sha256 have modified timestamps
-  captureEntries.forEach((entry) => {
-    if (entry.lastModified && entry.sha256) {
-      shaHasModified.add(entry.sha256);
-    }
-  });
+  if (noDeduplication) {
+    entriesToWrite = captureEntries;
+  } else {
+    // For each unique sha256 + modify timestamp combination, write the file to disk
+    // However if there is a sha256 entry that has a modify timestamp, we DO NOT write the no-timestamp version
+    const uniqueEntries = new Map<string, CaptureEntry>();
+    const shaHasModified = new Set<string>();
 
-  // Second pass: collect unique entries, skipping no-modify ones if a modified exists
-  captureEntries.forEach((entry) => {
-    if (!entry.lastModified && entry.sha256 && shaHasModified.has(entry.sha256)) {
-      return; // skip this entry
-    }
-    const key = `${entry.sha256}-${entry.lastModified ? entry.lastModified.toISO() : "no-modified"}`;
-    if (!uniqueEntries.has(key)) {
-      uniqueEntries.set(key, entry);
-    }
-  });
+    // First pass: identify which sha256 have modified timestamps
+    captureEntries.forEach((entry) => {
+      if (entry.lastModified && entry.sha256) {
+        shaHasModified.add(entry.sha256);
+      }
+    });
+
+    // Second pass: collect unique entries, skipping no-modify ones if a modified exists
+    captureEntries.forEach((entry) => {
+      if (!entry.lastModified && entry.sha256 && shaHasModified.has(entry.sha256)) {
+        return; // skip this entry
+      }
+      const key = `${entry.sha256}-${entry.lastModified ? entry.lastModified.toISO() : "no-modified"}`;
+      if (!uniqueEntries.has(key)) {
+        uniqueEntries.set(key, entry);
+      }
+    });
+
+    entriesToWrite = Array.from(uniqueEntries.values());
+  }
 
   let invalidFilesWritten = 0;
   let rawFilesWritten = 0;
   let validFilesWritten = 0;
 
-  uniqueEntries.forEach((entry) => {
+  entriesToWrite.forEach((entry) => {
     const entryFilename = structuredClone(filename);
     const entryIsValid = entry.classification.type === "ok";
 
@@ -54,12 +63,18 @@ export function writeUniqueFileEntries(
 
     const entryHasFlags = entryFilename.flags ? true : false;
 
-    const filenameTimestamp = !entryHasFlags
-      ? (entry.lastModified ?? entry.captureTimestamp)
-      : entry.captureTimestamp;
+    const filenameTimestamp = noDeduplication
+      ? entry.captureTimestamp
+      : !entryHasFlags
+        ? (entry.lastModified ?? entry.captureTimestamp)
+        : entry.captureTimestamp;
     entryFilename.timestamp = filenameTimestamp.toFormat("yyyyLLddHHmmss");
 
-    const filenameIndex = !entryHasFlags ? entry.contentIndex : entry.captureIndex;
+    const filenameIndex = noDeduplication
+      ? entry.captureIndex
+      : !entryHasFlags
+        ? entry.contentIndex
+        : entry.captureIndex;
 
     if (filenameIndex === null) {
       // This should not really happen?! Should only occur for entries that don't have a modify date but some other entry with the same sha256 does have a modify date,

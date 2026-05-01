@@ -18,6 +18,7 @@ import { commonCrawlCleanupData } from "./commoncrawl-cleanup.js";
 import { getCommonCrawlCollection } from "./collections.js";
 import { RawHeader } from "../../headers/raw-header-parser.js";
 import { fetchArcGlobalHeader } from "../../archive-record/fetch-global-header-arc.js";
+import { Context } from "../../types/context.js";
 
 function checkIfTruncated(
   content: Buffer,
@@ -70,6 +71,7 @@ function checkIfTruncated(
 // Some collections have a metadata header that is included in the content length but not in the actual content
 
 export async function downloadCommonCrawlFile(
+  context: Context,
   entry: ExtendedCdxEntry,
   options?: CommonCrawlDownloaderOptions,
 ): Promise<CommonCrawlDownloadedFile> {
@@ -121,7 +123,7 @@ export async function downloadCommonCrawlFile(
         parsed.headers,
         parsed.metadata,
       );
-      const collection = getCommonCrawlCollection(entry.collection ?? "");
+      const collection = await getCommonCrawlCollection(context, entry.collection ?? "");
       const arcHeader = await fetchArcGlobalHeader(url, fetchOptions);
       return {
         content: parsed.content,
@@ -190,7 +192,7 @@ export async function downloadCommonCrawlFile(
         parsed.headers,
         parsed.metadata,
       );
-      const collection = getCommonCrawlCollection(entry.collection ?? "");
+      const collection = await getCommonCrawlCollection(context, entry.collection ?? "");
       const warcinfoBuffer = await fetchWarcGlobalHeader(url, fetchOptions);
       const records = [
         { type: "warc-info" as const, content: warcinfoBuffer },

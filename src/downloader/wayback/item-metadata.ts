@@ -5,6 +5,7 @@ import {
   WAYBACK_MAX_BACKOFF,
   WAYBACK_REQUEST_TIMEOUT,
 } from "./wayback-common.js";
+import { DateTime } from "luxon";
 
 const WAYBACK_METADATA_API_URL = "archive.org/metadata/";
 
@@ -27,7 +28,7 @@ export async function getWaybackItemDetails(itemId: string): Promise<WaybackItem
   itemCache[itemId] = {
     files: details.files
       .filter((file) => POTENTIAL_FILENAME_EXTENSIONS.some((ext) => file.name.endsWith(ext)))
-      .map((file) => ({ name: file.name, private: file.private })),
+      .map((file) => ({ name: file.name, private: file.private, mtime: file.mtime, size: file.size })),
     metadata: details.metadata,
   };
   return itemCache[itemId];
@@ -70,5 +71,29 @@ async function fetchWaybackDetails(itemId: string): Promise<WaybackItemDetails> 
       backoff = Math.min(backoff * 2, WAYBACK_MAX_BACKOFF);
       attempt++;
     }
+  }
+}
+
+export function formatWaybackMetadataUtcDate(dateStr: string | undefined): string | undefined {
+  if (!dateStr) {
+    return undefined;
+  }
+  const date = DateTime.fromFormat(dateStr, "yyyy-MM-dd HH:mm:ss", { zone: "utc" });
+  if (date.isValid) {
+    return date.toISO({ suppressMilliseconds: true });
+  } else {
+    return dateStr; // Return the original string if parsing fails
+  }
+}
+
+export function formatWaybackMetadataDate(dateStr: string | undefined): string | undefined {
+  if (!dateStr) {
+    return undefined;
+  }
+  const date = DateTime.fromFormat(dateStr, "yyyyMMddHHmmss");
+  if (date.isValid) {
+    return date.toFormat("yyyy-MM-dd HH:mm:ss");
+  } else {
+    return dateStr; // Return the original string if parsing fails
   }
 }

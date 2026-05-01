@@ -209,6 +209,7 @@ export function readWebsiteJsonConfig(
       transformations,
       queryHashParameters: file.queryHashParameters,
       classifications: Object.keys(allClassifications).length > 0 ? allClassifications : undefined,
+      expectedStatusCodes: file.expectedStatusCodes,
       skippedCaptures:
         file.skippedCaptures && file.skippedCaptures.length > 0 ? file.skippedCaptures : undefined,
     } satisfies DownloadFileInput;

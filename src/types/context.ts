@@ -7,6 +7,8 @@ export interface Context {
     skipOn302?: number;
     fetchMetadata?: boolean;
     fetchOriginalRecord?: boolean;
+    sanityCheckTimestamps?: boolean;
+    websiteOutputDirectory: string;
   };
 }
 

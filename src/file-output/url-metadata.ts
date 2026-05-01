@@ -22,6 +22,11 @@ export interface UrlMetadataFilteredEntries {
   };
   /** Cases where requested url ends with a /, but the received url does not and is a redirect to the slash url */
   trailingSlashMismatchesRemoved?: number;
+  /** Entries whose CDX timestamp could not be parsed as a valid date (e.g. month 00) and were dropped */
+  invalidTimestamps?: {
+    entries: { url: string; timestamp: string }[];
+    count: number;
+  };
 }
 
 interface UrlMetadataArchivalRun {

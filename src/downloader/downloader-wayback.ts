@@ -20,7 +20,11 @@ import { DateTime } from "luxon";
 import { CdxEntry } from "../types/wayback-types.js";
 import { DownloadFileInput } from "../types/download-input-types.js";
 import { Context } from "../types/context.js";
-import { getWaybackItemMetadata } from "./wayback/item-metadata.js";
+import {
+  formatWaybackMetadataDate,
+  formatWaybackMetadataUtcDate,
+  getWaybackItemMetadata,
+} from "./wayback/item-metadata.js";
 import {
   checkArchiveRecordPublicAvailability,
   fetchArchiveCdx,
@@ -56,6 +60,7 @@ function classifyDigestFiles(
   uniqueDigestFiles: Map<string, DownloadedFile>,
   digestHashes: Map<string, { sha256: string; actualDigest: string }>,
   classificationOverrides?: Record<string, CaptureClassification>,
+  expectedStatusCodes?: number[],
 ) {
   const classifications = new Map<string, Classification>();
 
@@ -71,6 +76,7 @@ function classifyDigestFiles(
       file.metadata,
       file.statusCode,
       classificationOverrides,
+      expectedStatusCodes,
     );
     classifications.set(digest, classification);
   });
@@ -92,12 +98,12 @@ export async function downloadWaybackEntries(
   context: Context,
   waybackPrefetchedIndex?: WaybackPrefetchedCdxIndex,
 ) {
-  // return {
-  //   baseEntries: [] as CaptureEntry[],
-  //   unavailableEntries: [] as CaptureEntry[],
-  //   skippedEntries: [] as CaptureEntry[],
-  //   metadata: undefined as { crawler?: string; crawljob?: string; description?: string; publisher?: string; operator?: string } | undefined,
-  // }
+  //   return {
+  //     baseEntries: [] as CaptureEntry[],
+  //     unavailableEntries: [] as CaptureEntry[],
+  //     skippedEntries: [] as CaptureEntry[],
+  //     metadata: undefined as { crawler?: string; crawljob?: string; description?: string; publisher?: string; operator?: string } | undefined,
+  //   }
 
   const { validCdxEntries, invalidCdxEntries, metadata } = await getSnapshotsForWebsiteFile(
     input,
@@ -117,6 +123,7 @@ export async function downloadWaybackEntries(
     uniqueDigestFiles,
     digestFileHashes,
     input.classifications,
+    input.expectedStatusCodes,
   );
 
   let baseEntries: CaptureEntry[] = allEntries
@@ -149,6 +156,7 @@ export async function downloadWaybackEntries(
 
         const downloadIsExactMatch =
           downloadedFile &&
+          downloadedFile.classification !== "unavailable" &&
           entry.url === downloadedFile.url &&
           entry.timestamp === downloadedFile.timestamp;
         const headers = downloadIsExactMatch
@@ -167,17 +175,23 @@ export async function downloadWaybackEntries(
               mementoDate: null,
               serverDate: null,
             };
-        sanityCheckTimestamps({
-          url: entry.url,
-          lastModified: timestamps.lastModified,
-          mementoDate: timestamps.mementoDate,
-          serverDate: timestamps.serverDate,
-          captureDate: timestamps.captureDate,
-        });
+        if (context.settings.sanityCheckTimestamps) {
+          sanityCheckTimestamps({
+            url: entry.url,
+            lastModified: timestamps.lastModified,
+            mementoDate: timestamps.mementoDate,
+            serverDate: timestamps.serverDate,
+            captureDate: timestamps.captureDate,
+          });
+        }
 
         const waybackFilename =
           fetchAllHeaders && headers ? getWaybackFilename(headers) : undefined;
         const lastModified = timestamps.lastModified;
+        const content =
+          downloadedFile && downloadedFile?.classification !== "unavailable"
+            ? downloadedFile.content
+            : Buffer.alloc(0);
 
         return {
           timestamp: entry.timestamp,
@@ -195,7 +209,7 @@ export async function downloadWaybackEntries(
           },
           lastModified,
           url: entry.url,
-          statusCode: entry.status,
+          statusCode: downloadIsExactMatch ? downloadedFile.statusCode : entry.status,
           statusMessage: downloadIsExactMatch ? downloadedFile.statusMessage : undefined,
           classification: entry.digest
             ? classifiedEntries.get(entry.digest)!
@@ -204,7 +218,7 @@ export async function downloadWaybackEntries(
           actualDigest: entry.digest ? digestFileHashes.get(entry.digest)?.actualDigest : undefined,
           sha256: entry.digest ? digestFileHashes.get(entry.digest)?.sha256 : undefined,
           originalSha256: entry.digest ? digestFileHashes.get(entry.digest)?.sha256 : undefined,
-          content: downloadedFile?.content,
+          content,
           downloadStatus: downloadIsExactMatch
             ? ("downloaded" as const)
             : ("digest-match" as const),
@@ -280,28 +294,36 @@ export async function downloadWaybackEntries(
         entry.timestamp,
         entry.url,
         entry.statusCode ? [entry.statusCode] : undefined,
+        false,
         context,
       );
-      const timestamps = parseWaybackHeaderTimestamps(response.responseHeaders, entry.timestamp);
-      sanityCheckTimestamps({
-        url: entry.url,
-        lastModified: timestamps.lastModified,
-        mementoDate: timestamps.mementoDate,
-        serverDate: timestamps.serverDate,
-        captureDate: timestamps.captureDate,
-      });
-      const waybackFilename = getWaybackFilename(response.responseHeaders);
-      entry.mimetype =
-        extractMimeTypeFromContentType(response.responseHeaders["content-type"]) || entry.mimetype;
-      entry.statusCode = response.statusCode;
-      entry.statusMessage = response.statusMessage;
-      entry.mementoDateTime = timestamps.mementoDate ?? undefined;
-      entry.lastModified = timestamps.lastModified;
-      entry.responseHeaders = response.responseHeaders;
-      entry.rawResponseHeaders = response.rawResponseHeaders;
-      entry.cdxEntry.filename = waybackFilename;
-      if (entry.cdxEntry.revisitEntry) {
-        entry.cdxEntry.revisitEntry.filename = waybackFilename;
+      if (response.classification !== "unavailable") {
+        const timestamps = parseWaybackHeaderTimestamps(response.responseHeaders, entry.timestamp);
+        if (context.settings.sanityCheckTimestamps) {
+          sanityCheckTimestamps({
+            url: entry.url,
+            lastModified: timestamps.lastModified,
+            mementoDate: timestamps.mementoDate,
+            serverDate: timestamps.serverDate,
+            captureDate: timestamps.captureDate,
+          });
+        }
+        const waybackFilename = getWaybackFilename(response.responseHeaders);
+        entry.mimetype =
+          extractMimeTypeFromContentType(response.responseHeaders["content-type"]) ||
+          entry.mimetype;
+        entry.statusCode = response.statusCode;
+        entry.statusMessage = response.statusMessage;
+        entry.mementoDateTime = timestamps.mementoDate ?? undefined;
+        entry.lastModified = timestamps.lastModified;
+        entry.responseHeaders = response.responseHeaders;
+        entry.rawResponseHeaders = response.rawResponseHeaders;
+        entry.cdxEntry.filename = waybackFilename;
+        if (entry.cdxEntry.revisitEntry) {
+          entry.cdxEntry.revisitEntry.filename = waybackFilename;
+        }
+      } else {
+        entry.classification = { type: "unavailable" };
       }
     }
   }
@@ -330,6 +352,14 @@ export async function downloadWaybackEntries(
             }
           }
 
+          const archiveItData: CaptureWaybackMetadata["item"]["archiveIt"] = {
+            collectionId: metadata["archiveit-collection-id"],
+            collectionName: metadata["archiveit-collection-name"],
+            accountId: metadata["archiveit-account-id"],
+            accountOrganizationName: metadata["archiveit-account-organization-name"],
+            recurrence: metadata["archiveit-recurrence"],
+          };
+
           const parsedData: CaptureWaybackMetadata = {
             item: {
               id: metadata.identifier,
@@ -337,6 +367,7 @@ export async function downloadWaybackEntries(
               contributor: metadata.contributor,
               creator: metadata.creator,
               sponsor: metadata.sponsor,
+              operator: metadata.operator,
               description: metadata.description,
               coverage: metadata.coverage,
               notes: metadata.notes,
@@ -346,14 +377,21 @@ export async function downloadWaybackEntries(
               scanner: metadata.scanner,
               source: metadata.source,
               numPages: metadata.imagecount ? parseInt(metadata.imagecount) : undefined,
-              scanDate: metadata.scandate,
-              firstFileDate: metadata.firstfiledate,
+              date: metadata.date,
+              waybackPublishedDate: formatWaybackMetadataUtcDate(metadata.addeddate),
+              itemCreatedDate: formatWaybackMetadataUtcDate(metadata.publicdate),
+              scanDate: formatWaybackMetadataDate(metadata.scandate),
+              firstFileDate: formatWaybackMetadataDate(metadata.firstfiledate),
               firstFileSerial: metadata.firstfileserial,
-              lastFileDate: metadata.lastfiledate,
+              lastFileDate: formatWaybackMetadataDate(metadata.lastfiledate),
               lastFileSerial: metadata.lastfileserial,
-              addedDate: metadata.addeddate,
+              lastDate: formatWaybackMetadataDate(metadata.lastdate),
+              boxId: metadata.boxid,
               numWarcs: metadata.numwarcs ? parseInt(metadata.numwarcs) : undefined,
               numArcs: metadata.numarcs ? parseInt(metadata.numarcs) : undefined,
+              archiveIt: Object.values(archiveItData).some((value) => value !== undefined)
+                ? archiveItData
+                : undefined,
               collections: collections.map((col) => ({
                 id: col.identifier,
                 title: col.title,
@@ -418,7 +456,12 @@ export async function downloadWaybackEntries(
       const contentLength =
         getContentLengthHeader(entry.headerOutput) ??
         getContentLengthHeader(entry.rawResponseHeaders);
-      if (contentLength !== undefined && entry.content.length !== contentLength) {
+      // Some websites apparently sent content length -1
+      if (
+        contentLength !== undefined &&
+        contentLength !== -1 &&
+        entry.content.length !== contentLength
+      ) {
         // If the original content was gzip compressed, this could be the content-length of the compressed payload
         if (getHeaderValue(entry.headerOutput, "content-encoding") === "gzip") {
           const uncompressedLength = getUncompressedContentLength(entry.headerOutput);
@@ -437,13 +480,11 @@ export async function downloadWaybackEntries(
               entry.sha256 !== computeSha256(response.content)
             ) {
               // This should not really happen? Need to investigate manually if it does
-              console.error(
+              console.warn(
                 `Content mismatch for ${entry.url} at ${entry.timestamp} after redownloading: expected content length ${contentLength} and sha256 ${entry.sha256}, got content length ${response.content.length} and sha256 ${computeSha256(response.content)}`,
               );
-              console.error(`Response headers: ${JSON.stringify(response.responseHeaders)}`);
-              throw new Error(
-                `Content mismatch for ${entry.url} at ${entry.timestamp} after redownloading: expected content length ${contentLength} and sha256 ${entry.sha256}, got content length ${response.content.length} and sha256 ${computeSha256(response.content)}`,
-              );
+              console.warn(`Response headers: ${JSON.stringify(response.responseHeaders)}`);
+              // Since the content is gzipped, it is most likely the uncompressed length that is the cause of the difference --> ignore
             }
           } else if (
             uncompressedLength !== undefined &&

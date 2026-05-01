@@ -46,45 +46,49 @@ export async function writeCsvSummary(
   captureEntries: CaptureEntry[],
   filename: Filename,
   outputDirectory: string,
+  { noDeduplication = false }: { noDeduplication?: boolean } = {},
 ) {
-  const summaryRows: SummaryRow[] = captureEntries.map(
-    (entry) =>
-      ({
-        capture_ts: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
-        capture_index: entry.captureIndex ?? 0,
-        modification_ts: entry.lastModified
-          ? entry.lastModified.toISO({ suppressMilliseconds: true })
-          : "",
-        capture_sha256: entry.originalSha256 ?? entry.sha256,
-        output_sha256: entry.sha256,
-        output_index: entry.contentIndex === null ? undefined : entry.contentIndex,
-        url: entry.url,
-        statuscode: entry.statusCode,
-        corrections:
-          entry.corrections
-            ?.map((correction) => mapCorrectionFieldName(correction.field))
-            ?.filter(isDefined)
+  const summaryRows: SummaryRow[] = captureEntries.map((entry) => {
+    const row: SummaryRow = {
+      capture_ts: entry.captureTimestamp.toISO({ suppressMilliseconds: true }),
+      capture_index: entry.captureIndex ?? 0,
+      modification_ts: entry.lastModified
+        ? entry.lastModified.toISO({ suppressMilliseconds: true })
+        : "",
+      capture_sha256: entry.originalSha256 ?? entry.sha256,
+      output_sha256: entry.sha256,
+      output_index: entry.contentIndex === null ? undefined : entry.contentIndex,
+      url: entry.url,
+      statuscode: entry.statusCode,
+      corrections:
+        entry.corrections
+          ?.map((correction) => mapCorrectionFieldName(correction.field))
+          ?.filter(isDefined)
+          .sort()
+          .join(ARRAY_SEPARATOR) ?? "",
+      classification: entry.classification.type,
+      mimetype: entry.mimetype,
+      provider: entry.cdxEntry.source,
+      additional_providers: entry.additionalSources
+        ? entry.additionalSources
+            .map((source) => source.source)
             .sort()
-            .join(ARRAY_SEPARATOR) ?? "",
-        classification: entry.classification.type,
-        mimetype: entry.mimetype,
-        provider: entry.cdxEntry.source,
-        additional_providers: entry.additionalSources
-          ? entry.additionalSources
-              .map((source) => source.source)
-              .sort()
-              .join(ARRAY_SEPARATOR)
-          : undefined,
-        record_digest: entry.cdxEntry.digest,
-        actual_digest: entry.actualDigest,
-        archive_filename: entry.cdxEntry.filename,
-        record_available: Boolean(
-          entry.records?.find((r) => ["warc", "arc"].includes(r.type))?.type ?? undefined,
-        ),
-        record_offset: entry.cdxEntry.offset,
-        record_length: entry.cdxEntry.length,
-      }) satisfies SummaryRow,
-  );
+            .join(ARRAY_SEPARATOR)
+        : undefined,
+      record_digest: entry.cdxEntry.digest,
+      actual_digest: entry.actualDigest,
+      archive_filename: entry.cdxEntry.filename,
+      record_available: Boolean(
+        entry.records?.find((r) => ["warc", "arc"].includes(r.type))?.type ?? undefined,
+      ),
+      record_offset: entry.cdxEntry.offset,
+      record_length: entry.cdxEntry.length,
+    };
+    if (noDeduplication) {
+      delete row.output_index;
+    }
+    return row;
+  });
 
   if (summaryRows.length > 0) {
     const archivalDir = path.join(outputDirectory, ".archivaldata");

@@ -54,6 +54,7 @@ export function classifyEntryWithConfig(
   downloadMetadata: DownloadedFile["metadata"] | undefined,
   statusCode: number,
   classificationOverrides: Record<string, CaptureClassification> | undefined,
+  expectedStatusCodes: number[] | undefined,
   config: ClassifierConfig,
 ): Classification {
   if (classificationOverrides && classificationOverrides[sha256]) {
@@ -78,7 +79,13 @@ export function classifyEntryWithConfig(
     return { type: "corrupt", details: { reason: "empty_content" } };
   } else if (downloadClassification === "unavailable") {
     return { type: "unavailable" };
-  } else if (statusCode === 400) {
+  }
+
+  if (expectedStatusCodes && expectedStatusCodes.includes(statusCode)) {
+    return { type: "ok" };
+  }
+
+  if (statusCode === 400) {
     return { type: "bad_request" };
   } else if (statusCode === 404) {
     return { type: "not_found" };
@@ -119,6 +126,7 @@ export function classifyEntry(
   downloadMetadata: DownloadedFile["metadata"] | undefined,
   statusCode: number,
   classificationOverrides?: Record<string, CaptureClassification>,
+  expectedStatusCodes?: number[],
 ): Classification {
   const config = loadDefaultConfig();
   return classifyEntryWithConfig(
@@ -130,6 +138,7 @@ export function classifyEntry(
     downloadMetadata,
     statusCode,
     classificationOverrides,
+    expectedStatusCodes,
     config,
   );
 }

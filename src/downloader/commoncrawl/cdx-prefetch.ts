@@ -140,7 +140,7 @@ export async function prefetchCommonCrawlCdxIndex(
     index.set(key, value);
   });
 
-  const allCollections = await fetchAllCollections(resolvedOptions);
+  const allCollections = await fetchAllCollections(websiteOutputDirectory, resolvedOptions);
 
   for (const query of missingQueries) {
     console.log(`Pre-fetching CDX index for prefix ${query.prefix}...`);

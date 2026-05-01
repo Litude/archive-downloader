@@ -12,6 +12,7 @@ export interface DownloadFileInput {
   transformations: Transformation[];
   queryHashParameters?: QueryHashParameter[];
   classifications?: Record<string, CaptureClassification>;
+  expectedStatusCodes?: number[];
   skippedCaptures?: {
     url: string; // must match CDX index url exactly
     timestamp: string;

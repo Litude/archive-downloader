@@ -1,4 +1,4 @@
-import { parseAlexaRecordFilename } from "./alexa-filename-parser.js";
+import { parseRecordFilenameWithCandidates } from "./record-filename-parser.js";
 
 function main(argv: string[]) {
   if (argv.length < 3) {
@@ -9,7 +9,7 @@ function main(argv: string[]) {
   const filename = argv[2];
   const timestamp = argv[3];
 
-  const result = parseAlexaRecordFilename(filename, timestamp);
+  const result = parseRecordFilenameWithCandidates(filename, timestamp);
   console.log(result);
 }
 

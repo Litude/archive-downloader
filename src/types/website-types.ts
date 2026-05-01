@@ -30,6 +30,7 @@ export interface WebsiteFileEntryJson {
   additionalUrls?: (string | MirrorUrlData)[];
   classifications?: Record<string, CaptureClassification>;
   trailingSlashParsingMode?: "strict" | "strictWithValid" | "lax";
+  expectedStatusCodes?: number[];
   commonCrawlEnabled?: boolean;
   commonCrawlCollections?: string[];
   skippedCaptures?: {

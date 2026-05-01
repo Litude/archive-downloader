@@ -18,6 +18,7 @@ describe("Classifier", () => {
       undefined,
       200,
       undefined,
+      undefined,
       testConfig,
     );
     expect(result).toEqual({ type: "transient_retry" });
@@ -33,6 +34,7 @@ describe("Classifier", () => {
       undefined,
       200,
       undefined,
+      undefined,
       testConfig,
     );
     expect(result).toEqual({ type: "not_found", details: { reason: "not_found_string_detected" } });
@@ -47,6 +49,7 @@ describe("Classifier", () => {
       undefined,
       undefined,
       200,
+      undefined,
       undefined,
       testConfig,
     );

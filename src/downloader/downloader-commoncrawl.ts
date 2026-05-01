@@ -29,6 +29,7 @@ import { DateTime } from "luxon";
 import { isUrlTrailingSlashMatch, TrailingSlashParsingMode } from "../url/trailing-slash.js";
 import { getCommonCrawlCollectionSize } from "./commoncrawl/commoncrawl-collection-size.js";
 import { urlToWaybackUrlkey } from "../url/waybackurlkey.js";
+import { Context } from "../types/context.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -68,6 +69,7 @@ function filterPrefetchedEntries(
 
 async function fetchCommonCrawlCdxEntries(
   urlEntry: UrlEntry,
+  context: Context,
   options?: CommonCrawlDownloaderOptions,
   commonCrawlCollections?: string[],
   prefetchedIndex?: CommonCrawlPrefetchedIndex,
@@ -105,6 +107,7 @@ async function fetchCommonCrawlCdxEntries(
 
   const { collections, wasFetched } = await getFilteredCollections(
     urlEntry,
+    context.settings.websiteOutputDirectory,
     resolvedOptions,
     commonCrawlCollections,
   );
@@ -147,17 +150,20 @@ function cleanupCrawlName(crawlName: string) {
 async function buildCaptureEntry(
   entry: ExtendedCdxEntry,
   file: CommonCrawlDownloadedFile,
+  context?: Context,
 ): Promise<CaptureEntry> {
   const sha256 = computeSha256(file.content);
   const actualDigest = computeBase32EncodedSha1(file.content);
 
   const timestamps = parseCommonCrawlTimestamps(file.responseHeaders, entry.timestamp);
-  sanityCheckTimestamps({
-    url: entry.url,
-    lastModified: timestamps.lastModified,
-    serverDate: timestamps.serverDate,
-    captureDate: timestamps.captureDate,
-  });
+  if (context?.settings.sanityCheckTimestamps) {
+    sanityCheckTimestamps({
+      url: entry.url,
+      lastModified: timestamps.lastModified,
+      serverDate: timestamps.serverDate,
+      captureDate: timestamps.captureDate,
+    });
+  }
 
   const mimetype =
     extractMimeTypeFromContentType(file.responseHeaders["content-type"]) || entry.mimetype;
@@ -254,12 +260,14 @@ function filterNonTrailingSlashRedirects(
 
 async function downloadUrlCommonCrawlEntries(
   urlEntry: UrlEntry,
+  context: Context,
   options?: CommonCrawlDownloaderOptions,
   commonCrawlCollections?: string[],
   prefetchedIndex?: CommonCrawlPrefetchedIndex,
 ): Promise<{ filteredEntries: CaptureEntry[]; redirectNonSlashFiltered: number }> {
   const cdxEntries = await fetchCommonCrawlCdxEntries(
     urlEntry,
+    context,
     options,
     commonCrawlCollections,
     prefetchedIndex,
@@ -270,14 +278,14 @@ async function downloadUrlCommonCrawlEntries(
 
   for (const entry of cdxEntries) {
     console.log(`Downloading ${entry.url} (${entry.timestamp})...`);
-    const file = await downloadCommonCrawlFile(entry, options);
+    const file = await downloadCommonCrawlFile(context, entry, options);
     files.push({ file, entry });
   }
 
   resolveCommonCrawlRevisitRecords(files);
 
   for (const { file, entry } of files) {
-    captureEntries.push(await buildCaptureEntry(entry, file));
+    captureEntries.push(await buildCaptureEntry(entry, file, context));
   }
 
   const { filteredEntries, redirectNonSlashFiltered } = filterNonTrailingSlashRedirects(
@@ -300,6 +308,7 @@ async function downloadUrlCommonCrawlEntries(
 
 export async function downloadCommonCrawlEntries(
   input: DownloadFileInput,
+  context: Context,
   options?: CommonCrawlDownloaderOptions,
   prefetchedIndex?: CommonCrawlPrefetchedIndex,
 ): Promise<{ filteredEntries: CaptureEntry[]; metadata: UrlMetadataFilteredEntries }> {
@@ -310,6 +319,7 @@ export async function downloadCommonCrawlEntries(
     if (!urlEntry.mirrorUrl) {
       const result = await downloadUrlCommonCrawlEntries(
         urlEntry,
+        context,
         options,
         input.commonCrawlCollections,
         prefetchedIndex,
