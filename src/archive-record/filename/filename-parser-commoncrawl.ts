@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import {
+  cleanUpRecordFilenameResult,
   ParsedRecordFilenameResult,
   parseRecordFormatFromArchiveFilename,
   removeFileExtensionFromArchiveFilename,
@@ -80,14 +81,15 @@ function parseCommonCrawlFilenameInternal(
         recordFormat,
         details: {
           crawlIdentifier: collection,
-          crawlInfrastructure: "commoncrawl",
-          startTimestamp: startTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
-          endTimestamp: endTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
-          serialNumber,
-          partition,
-          subset,
-          segment: partition ? `${segmentTimestamp}.${partition}` : segmentTimestamp,
-          segmentTimestamp: DateTime.fromMillis(+segmentTimestamp).toUTC().toISO() ?? undefined,
+          crawlProvider: "commoncrawl",
+          fileWriteStartTimestamp: startTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
+          fileWriteEndTimestamp: endTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
+          fileSerialNumber: serialNumber,
+          crawlCollectionId: collection,
+          filePartition: partition,
+          crawlSubset: subset,
+          fileSegment: partition ? `${segmentTimestamp}.${partition}` : segmentTimestamp,
+          fileSegmentTimestamp: DateTime.fromMillis(+segmentTimestamp).toUTC().toISO() ?? undefined,
         },
       };
     } else if (nextPart?.length === 5) {
@@ -100,14 +102,15 @@ function parseCommonCrawlFilenameInternal(
         recordFormat,
         details: {
           crawlIdentifier: collection,
-          crawlInfrastructure: "commoncrawl",
-          startTimestamp: startTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
-          serialNumber,
+          crawlProvider: "commoncrawl",
+          fileWriteStartTimestamp: startTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
+          fileSerialNumber: serialNumber,
           crawlerName,
-          partition,
-          subset,
-          segment: partition ? `${segmentTimestamp}.${partition}` : segmentTimestamp,
-          segmentTimestamp: DateTime.fromMillis(+segmentTimestamp).toUTC().toISO() ?? undefined,
+          crawlCollectionId: collection,
+          filePartition: partition,
+          crawlSubset: subset,
+          fileSegment: partition ? `${segmentTimestamp}.${partition}` : segmentTimestamp,
+          fileSegmentTimestamp: DateTime.fromMillis(+segmentTimestamp).toUTC().toISO() ?? undefined,
         },
       };
     }
@@ -124,11 +127,12 @@ function parseCommonCrawlFilenameInternal(
       recordFormat: "arc" as const,
       details: {
         crawlIdentifier: "CC-MAIN-2012",
-        crawlInfrastructure: "commoncrawl",
-        startTimestamp: DateTime.fromMillis(+timestamp).toUTC().toISO() ?? undefined,
-        partition,
-        segment: segmentTimestamp,
-        segmentTimestamp: DateTime.fromMillis(+segmentTimestamp).toUTC().toISO() ?? undefined,
+        crawlProvider: "commoncrawl",
+        fileWriteStartTimestamp: DateTime.fromMillis(+timestamp).toUTC().toISO() ?? undefined,
+        crawlCollectionId: "CC-MAIN-2012",
+        filePartition: partition,
+        fileSegment: segmentTimestamp,
+        fileSegmentTimestamp: DateTime.fromMillis(+segmentTimestamp).toUTC().toISO() ?? undefined,
       },
     } satisfies ParsedRecordFilenameResult;
   } else if (filename.startsWith("crawl-001") || filename.startsWith("crawl-002")) {
@@ -146,10 +150,12 @@ function parseCommonCrawlFilenameInternal(
       recordFormat: "arc" as const,
       details: {
         crawlIdentifier: crawlNumber === "001" ? "CC-MAIN-2008-2009" : "CC-MAIN-2009-2010",
-        crawlInfrastructure: "commoncrawl",
-        startTimestamp: DateTime.fromMillis(+timestamp).toUTC().toISO() ?? undefined,
-        partition,
-        segment: `${year}/${month}/${day}/${hour}`,
+        crawlOriginalIdentifier: crawlNumber === "001" ? "crawl-001" : "crawl-002",
+        crawlProvider: "commoncrawl",
+        fileWriteStartTimestamp: DateTime.fromMillis(+timestamp).toUTC().toISO() ?? undefined,
+        crawlCollectionId: crawlNumber === "001" ? "CC-MAIN-2008-2009" : "CC-MAIN-2009-2010",
+        filePartition: partition,
+        fileSegment: `${year}/${month}/${day}/${hour}`,
       },
     };
   } else {
@@ -162,7 +168,7 @@ export function parseCommonCrawlFilename(
   _captureTimestamp?: string,
 ): ParsedRecordFilenameResult[] {
   const result = parseCommonCrawlFilenameInternal(filename);
-  return result ? [result] : [];
+  return result ? [cleanUpRecordFilenameResult(result)] : [];
 }
 
 export function parseCommonCrawlFilenamePickBest(

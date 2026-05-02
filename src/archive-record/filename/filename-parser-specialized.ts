@@ -1,5 +1,6 @@
 import { parseGenericRecordFilenamePickBest } from "./filename-parser-generic.js";
 import {
+  cleanUpRecordFilenameResult,
   ParsedRecordFilenameResult,
   parseRecordFormatFromArchiveFilename,
 } from "./record-filename-common.js";
@@ -20,8 +21,9 @@ function parsePortugueseWebArchiveRecordFilename(
   // portuguese-web-archive-AWP162014-159/IAH-20140911111135-13686-p12.arquivo.pt.arc.gz
   // portuguese-web-archive-AWP232017-471/IAH-20170222031632-37462-p81.arquivo.pt.arc.gz
   // portuguese-web-archive-AWP36-2020-0454/WEB-20210305041226493-p101.arquivo.pt.warc.gz
+  // portuguese-web-archive-EAWP6-2014-0416/IAH-20141129224655-41604-p12.arquivo.pt.arc.gz
 
-  if (!filename.startsWith("portuguese-web-archive-AWP")) {
+  if (!filename.startsWith("portuguese-web-archive")) {
     return undefined;
   }
 
@@ -45,7 +47,7 @@ function parsePortugueseWebArchiveRecordFilename(
     recordFormat: preliminaryResult.recordFormat,
     details: {
       ...preliminaryResult.details,
-      crawlInfrastructure: "arquivo.pt",
+      crawlProvider: "arquivo.pt",
       crawlIdentifier: actualIdentifier,
     },
   };
@@ -63,7 +65,10 @@ function parseInaRecordFilename(
   // INA-HISTORICAL-EMBEDS-2006-GROUP-ALG-20100812000000-00001.arc.gz
   // INA-HISTORICAL-EMBEDS-2008-GROUP-ANY-20100812000000-00000.arc.gz
   // INA-HISTORICAL-EMBEDS-2009-GROUP-AAC-20100812000000-00000.arc.gz
-  if (!filename.startsWith("INA-HISTORICAL-EMBEDS-")) {
+  // INA-HISTORICAL-2006-GROUP-DAE-20100812000000-00003.arc.gz
+
+  const baseName = filename.split("/").pop() ?? filename;
+  if (!baseName.startsWith("INA-HISTORICAL-")) {
     return undefined;
   }
 
@@ -76,30 +81,66 @@ function parseInaRecordFilename(
   if (!preliminaryResult) {
     return undefined;
   }
+  const parts = filename.split("-");
+  const yearPart = parts.find(part => /^(1|2)\d{3}$/.test(part));
 
-  if (!preliminaryResult.details.crawlIdentifier.startsWith("INA-HISTORICAL-EMBEDS-")) {
+  if (!preliminaryResult.details.crawlIdentifier.startsWith("INA-HISTORICAL-")) {
     return undefined;
   }
 
   return {
     confidence: 1,
-    filenameType: "ina-historical-embeds",
+    filenameType: "ina-historical",
     recordFormat,
     details: {
       ...preliminaryResult.details,
-      startTimestamp: undefined,
-      processedTimestamp: preliminaryResult.details.startTimestamp,
+      fileWriteStartTimestamp: undefined,
+      crawlProcessingTimestamp: preliminaryResult.details.fileWriteStartTimestamp,
+      crawlYear: yearPart,
       // All evidence points to these being capture by alexa infrastructure
-      crawlInfrastructure: "alexa",
+      crawlProvider: "alexa",
     },
   };
+}
+
+function parseCdlRecordFilename(
+  filename: string,
+  captureTimestamp?: string,
+): ParsedRecordFilenameResult | undefined {
+  // Matches filenames like:
+  // CDL-20081105235100-00001-vat01.cdlib.org.arc.gz
+  // CDL-20090120071925-01353-dp01.warc.gz
+  // CDL-20090120082528-00008-vat01.cdlib.org.warc.gz
+
+  const baseName = filename.split("/").pop() ?? filename;
+  if (!baseName.startsWith("CDL-")) {
+    return undefined;
+  }
+  const preliminaryResult = parseGenericRecordFilenamePickBest(filename, captureTimestamp);
+  if (!preliminaryResult) {
+    return undefined;
+  }
+  const timestamp = preliminaryResult.details.fileWriteStartTimestamp;
+  if (!timestamp || (!timestamp.startsWith("2008") && !timestamp.startsWith("2009"))) {
+    return undefined;
+  }
+
+  return {
+    confidence: 1,
+    filenameType: "cdl",
+    recordFormat: preliminaryResult.recordFormat,
+    details: {
+      ...preliminaryResult.details,
+      crawlProvider: "cdl",
+    },
+  }
 }
 
 export function parseSpecializedRecordFilename(
   filename: string,
   captureTimestamp?: string,
 ): ParsedRecordFilenameResult[] {
-  const parsers = [parsePortugueseWebArchiveRecordFilename, parseInaRecordFilename];
+  const parsers = [parsePortugueseWebArchiveRecordFilename, parseInaRecordFilename, parseCdlRecordFilename];
 
   const results: ParsedRecordFilenameResult[] = [];
   for (const parser of parsers) {
@@ -108,5 +149,6 @@ export function parseSpecializedRecordFilename(
       results.push(parsed);
     }
   }
-  return results;
+  results.sort((a, b) => b.confidence - a.confidence);
+  return results.map(cleanUpRecordFilenameResult);
 }

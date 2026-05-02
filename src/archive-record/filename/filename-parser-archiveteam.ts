@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import {
+  cleanUpRecordFilenameResult,
   ParsedRecordFilenameResult,
   parseEpochSecondsFromArchiveFilename,
   parseRecordFormatFromArchiveFilename,
@@ -65,10 +66,10 @@ function parseArchiveTeamGoPackFilename(
     details: {
       crawlIdentifier,
       crawlDepth,
-      startTimestamp: startTimestamp.toISO({ suppressMilliseconds: true }),
-      jobId: jobIdentifier,
-      serialNumber,
-      flags: flags.length > 0 ? flags : undefined,
+      fileWriteStartTimestamp: startTimestamp.toISO({ suppressMilliseconds: true }),
+      crawlJobId: jobIdentifier,
+      fileSerialNumber: serialNumber,
+      crawlFlags: flags.length > 0 ? flags : undefined,
     },
   };
 }
@@ -130,9 +131,9 @@ function parseArchiveTeamWarriorRecordFilename(
     recordFormat,
     details: {
       crawlIdentifier,
-      startTimestamp: dateTime?.toISO({ suppressMilliseconds: true }),
-      processedTimestamp: processingTimestamp.toISO({ suppressMilliseconds: true }),
-      jobId: jobHash,
+      fileWriteStartTimestamp: dateTime?.toISO({ suppressMilliseconds: true }),
+      crawlProcessingTimestamp: processingTimestamp.toISO({ suppressMilliseconds: true }),
+      crawlJobId: jobHash,
     },
   };
 }
@@ -181,11 +182,9 @@ function parseArchiveTeamEarlyWarcRecordFilename(
   }
   const crawlIdentifier = parts.join("-");
 
-  const startTimestamp = DateTime.fromFormat(
-    `${yearPart}-${monthPart}-${dayPart}`,
-    "yyyy-MM-dd",
-    { zone: "UTC" },
-  );
+  const startTimestamp = DateTime.fromFormat(`${yearPart}-${monthPart}-${dayPart}`, "yyyy-MM-dd", {
+    zone: "UTC",
+  });
   if (!startTimestamp.isValid) {
     return undefined;
   }
@@ -196,9 +195,9 @@ function parseArchiveTeamEarlyWarcRecordFilename(
     recordFormat,
     details: {
       crawlIdentifier,
-      startTimestamp: startTimestamp.toFormat("yyyy-MM-dd"),
-      jobId: jobHash,
-      serialNumber,
+      crawlStartDate: startTimestamp.toFormat("yyyy-MM-dd"),
+      crawlJobId: jobHash,
+      fileSerialNumber: serialNumber,
     },
   };
 }
@@ -207,16 +206,23 @@ export function parseArchiveTeamRecordFilename(
   filename: string,
   _captureTimestamp?: string,
 ): ParsedRecordFilenameResult[] {
-  const parsers = [parseArchiveTeamGoPackFilename, parseArchiveTeamWarriorRecordFilename, parseArchiveTeamEarlyWarcRecordFilename];
+  const parsers = [
+    parseArchiveTeamGoPackFilename,
+    parseArchiveTeamWarriorRecordFilename,
+    parseArchiveTeamEarlyWarcRecordFilename,
+  ];
 
   const results: ParsedRecordFilenameResult[] = [];
   for (const parser of parsers) {
     const result = parser(filename, _captureTimestamp);
     if (result) {
-      results.push({ ...result, details: { ...result.details, crawlInfrastructure: "archiveteam" } });
+      results.push({
+        ...result,
+        details: { ...result.details, crawlProvider: "archiveteam" },
+      });
     }
   }
 
   results.sort((a, b) => b.confidence - a.confidence);
-  return results;
+  return results.map(cleanUpRecordFilenameResult);
 }

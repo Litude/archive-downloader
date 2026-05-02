@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import {
+  cleanUpRecordFilenameResult,
   ParsedRecordFilenameResult,
   parseRecordFormatFromArchiveFilename,
   removeFileExtensionFromArchiveFilename,
@@ -66,7 +67,7 @@ function parseDecRegularCrawlFilename(
     recordFormat,
     details: {
       crawlIdentifier,
-      startTimestamp: parsedTimestamp.toISO({ suppressMilliseconds: true }),
+      fileWriteStartTimestamp: parsedTimestamp.toISO({ suppressMilliseconds: true }),
     },
   };
 }
@@ -92,12 +93,12 @@ function parseDecImageCrawlFilename(
     return undefined;
   }
   const baseName = removeFileExtensionFromArchiveFilename(filename.split("/").pop() ?? "");
-  const match = baseName.match(/^IMG_X([A-Za-z]{2})_(\d{12})$/);
+  const match = baseName.match(/^IMG_(X[A-Za-z]{2})_(\d{12})$/);
   if (!match) {
     return undefined;
   }
-  const crawlIdentifier = "IMG_X";
-  const crawlCounter = match[1];
+  const crawlGeneration = match[1];
+  const crawlIdentifier = `IMG_${crawlGeneration}`;
   const timestampPart = match[2];
   const fullTimestamp = `20${timestampPart}`;
   const parsedTimestamp = DateTime.fromFormat(fullTimestamp, "yyyyMMddHHmmss", {
@@ -117,8 +118,8 @@ function parseDecImageCrawlFilename(
     recordFormat,
     details: {
       crawlIdentifier,
-      crawlGeneration: crawlCounter,
-      startTimestamp: parsedTimestamp.toISO({ suppressMilliseconds: true }),
+      crawlGenerationCode: crawlGeneration,
+      fileWriteStartTimestamp: parsedTimestamp.toISO({ suppressMilliseconds: true }),
     },
   };
 }
@@ -171,7 +172,7 @@ function parseDecElection2000CrawlFilename(
     recordFormat,
     details: {
       crawlIdentifier: "unique",
-      processedTimestamp: parsedTimestamp.toISO({ suppressMilliseconds: true }),
+      crawlProcessingTimestamp: parsedTimestamp.toISO({ suppressMilliseconds: true }),
     },
   };
 }
@@ -190,10 +191,10 @@ export function parseDecRecordFilename(
   for (const parser of parsers) {
     const result = parser(filename, captureTimestamp);
     if (result) {
-      results.push({ ...result, details: { ...result.details, crawlInfrastructure: "dec" } });
+      results.push({ ...result, details: { ...result.details, crawlProvider: "dec" } });
     }
   }
 
   results.sort((a, b) => b.confidence - a.confidence);
-  return results;
+  return results.map(cleanUpRecordFilenameResult);
 }

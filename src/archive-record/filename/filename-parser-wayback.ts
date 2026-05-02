@@ -21,6 +21,7 @@ cgi3.archive.org.wb_urls.20021109211541.arc.gz
 
 import { DateTime } from "luxon";
 import {
+  cleanUpRecordFilenameResult,
   ParsedRecordFilenameResult,
   parseRecordFormatFromArchiveFilename,
   removeFileExtensionFromArchiveFilename,
@@ -84,9 +85,9 @@ function parseWayback2002Filename(
     recordFormat,
     details: {
       crawlIdentifier,
-      crawlInfrastructure: "internetarchive",
+      crawlProvider: "internetarchive",
       // This seems to be slightly later than capture timestamp, so it must be when the arc was closed?
-      endTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
+      fileWriteEndTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
       crawlerName,
     },
   };
@@ -165,9 +166,9 @@ function parseWayback2012Filename(
     recordFormat,
     details: {
       crawlIdentifier,
-      crawlInfrastructure: "internetarchive",
-      startTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
-      serialNumber,
+      crawlProvider: "internetarchive",
+      fileWriteStartTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
+      fileSerialNumber: serialNumber,
       crawlerName,
     },
   };
@@ -186,5 +187,7 @@ export function parseWaybackRecordFilename(
       results.push(parsed);
     }
   }
-  return results;
+  
+  results.sort((a, b) => b.confidence - a.confidence);
+  return results.map(cleanUpRecordFilenameResult);
 }

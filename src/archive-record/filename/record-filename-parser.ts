@@ -12,6 +12,10 @@ export function parseRecordFilenameWithCandidates(
   filename: string,
   captureTimestamp?: string,
 ): ParsedRecordFilenameResult[] {
+  if (!filename) {
+    return [];
+  }
+
   const parsers = [
     parseAlexaRecordFilename,
     parseDecRecordFilename,

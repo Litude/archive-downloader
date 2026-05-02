@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import {
+  cleanUpRecordFilenameResult,
   findRecordNameTimestampPartIndex,
   ParsedRecordFilenameResult,
   parseRecordFormatFromArchiveFilename,
@@ -26,7 +27,13 @@ ARCHIVEIT-2323-WEEKLY-YGXNSG-20110201001216-00213-crawling109.us.archive.org-668
 
 function isRegularArchiveItFilename(filename: string): boolean {
   const baseName = removeFileExtensionFromArchiveFilename(filename.split("/").pop() ?? "");
-  return baseName.startsWith("ARCHIVEIT-") && !baseName.match(/^ARCHIVEIT-\d+-EXTERNAL-/) && !baseName.match(/^ARCHIVEIT-\d+-CDL-/) && !baseName.match(/^ARCHIVEIT-\d+-WAYBACKFILL-/) && !baseName.match(/^ARCHIVEIT-\d+-EXTRACTION-/);
+  return (
+    baseName.startsWith("ARCHIVEIT-") &&
+    !baseName.match(/^ARCHIVEIT-\d+-EXTERNAL-/) &&
+    !baseName.match(/^ARCHIVEIT-\d+-CDL-/) &&
+    !baseName.match(/^ARCHIVEIT-\d+-WAYBACKFILL-/) &&
+    !baseName.match(/^ARCHIVEIT-\d+-EXTRACTION-/)
+  );
 }
 
 function parseArchiveItCdlFilename(
@@ -80,15 +87,14 @@ function parseArchiveItCdlFilename(
     recordFormat,
     details: {
       crawlIdentifier: `${identifier}-${collectionId}-${cdlPart}`,
-      collectionId,
-      startTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
-      serialNumber,
+      crawlCollectionId: collectionId,
+      fileWriteStartTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
+      fileSerialNumber: serialNumber,
       crawlerName,
-      crawlInfrastructure: "cdl",
+      crawlProvider: "cdl",
     },
   };
 }
-
 
 function parseArchiveItExternalFilename(
   filename: string,
@@ -124,7 +130,10 @@ function parseArchiveItExternalFilename(
   if (!processingTimestamp.isValid) {
     return undefined;
   }
-  const baseData = parseGenericRecordFilenamePickBest(`${parts.join("-")}.${recordFormat}.gz`, captureTimestamp);
+  const baseData = parseGenericRecordFilenamePickBest(
+    `${parts.join("-")}.${recordFormat}.gz`,
+    captureTimestamp,
+  );
 
   return {
     confidence: 1.0,
@@ -133,13 +142,12 @@ function parseArchiveItExternalFilename(
     details: {
       ...baseData?.details,
       crawlIdentifier: `${identifier}-${collectionId}-${externalPart}`,
-      originalCrawlIdentifier: baseData?.details.crawlIdentifier,
-      collectionId,
-      processedTimestamp: processingTimestamp.toISO({ suppressMilliseconds: true }),
+      crawlOriginalIdentifier: baseData?.details.crawlIdentifier,
+      crawlCollectionId: collectionId,
+      crawlProcessingTimestamp: processingTimestamp.toISO({ suppressMilliseconds: true }),
     },
   };
 }
-
 
 export function parseArchiveItBrozzlerFilename(
   filename: string,
@@ -213,7 +221,7 @@ export function parseArchiveItBrozzlerFilename(
   if (crawlToken.length !== 8) {
     return undefined;
   }
-  
+
   let confidence = 0.8;
   if (timestampMatch) {
     confidence = 1.0;
@@ -225,14 +233,14 @@ export function parseArchiveItBrozzlerFilename(
     recordFormat,
     details: {
       crawlIdentifier: `${archiveItPrefix}-${collectionId}-${recurrence}-${jobId}`,
-      collectionId,
-      startTimestamp: timestamp.toISO(),
-      serialNumber,
-      crawlPeriod: recurrence,
+      crawlCollectionId: collectionId,
+      fileWriteStartTimestamp: timestamp.toISO(),
+      fileSerialNumber: serialNumber,
+      crawlInterval: recurrence,
       crawlToken,
-      crawlInfrastructure: "internetarchive",
-      seedId,
-      jobId,
+      crawlProvider: "internetarchive",
+      crawlSeedId: seedId,
+      crawlJobId: jobId,
     },
   };
 }
@@ -252,7 +260,9 @@ export function parseArchiveIt2006Filename(
     return undefined;
   }
 
-  const timestampMatch = captureTimestamp ? captureTimestamp >= "20060101000000" && captureTimestamp <= "20090315000000" : false;
+  const timestampMatch = captureTimestamp
+    ? captureTimestamp >= "20060101000000" && captureTimestamp <= "20090315000000"
+    : false;
 
   const baseName = removeFileExtensionFromArchiveFilename(filename.split("/").pop() ?? "");
   const recordFormat = parseRecordFormatFromArchiveFilename(filename);
@@ -283,7 +293,7 @@ export function parseArchiveIt2006Filename(
   if (!timestamp.isValid || timestamp.year < 2006 || timestamp.year > 2009) {
     return undefined;
   }
-  
+
   const preTimestampParts = parts.slice(0, timestampIndex);
   const postTimestampParts = parts.slice(timestampIndex + 1);
 
@@ -302,7 +312,7 @@ export function parseArchiveIt2006Filename(
     return undefined;
   }
   const identifierSuffix = preTimestampParts.join("-");
-  
+
   let confidence = 0.8;
   if (timestampMatch) {
     confidence = 1.0;
@@ -314,11 +324,11 @@ export function parseArchiveIt2006Filename(
     recordFormat,
     details: {
       crawlIdentifier: `${archiveItPrefix}-${collectionId}-${identifierSuffix}`,
-      collectionId,
-      startTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
-      serialNumber,
+      crawlCollectionId: collectionId,
+      fileWriteStartTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
+      fileSerialNumber: serialNumber,
       crawlerName,
-      crawlInfrastructure: "internetarchive",
+      crawlProvider: "internetarchive",
     },
   };
 }
@@ -338,7 +348,9 @@ export function parseArchiveIt2009Filename(
     return undefined;
   }
 
-  const timestampMatch = captureTimestamp ? captureTimestamp >= "20090315000000" && captureTimestamp < "20100101000000" : false;
+  const timestampMatch = captureTimestamp
+    ? captureTimestamp >= "20090315000000" && captureTimestamp < "20100101000000"
+    : false;
 
   const baseName = removeFileExtensionFromArchiveFilename(filename.split("/").pop() ?? "");
   const recordFormat = parseRecordFormatFromArchiveFilename(filename);
@@ -371,7 +383,7 @@ export function parseArchiveIt2009Filename(
     return undefined;
   }
   const crawlerName = parts.join("-");
-  
+
   let confidence = 0.8;
   if (timestampMatch) {
     confidence = 1.0;
@@ -383,11 +395,11 @@ export function parseArchiveIt2009Filename(
     recordFormat,
     details: {
       crawlIdentifier: `${archiveItPrefix}-${collectionId}`,
-      collectionId,
-      startTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
-      serialNumber,
+      crawlCollectionId: collectionId,
+      fileWriteStartTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
+      fileSerialNumber: serialNumber,
       crawlerName,
-      crawlInfrastructure: "internetarchive",
+      crawlProvider: "internetarchive",
     },
   };
 }
@@ -408,7 +420,9 @@ export function parseArchiveIt2010Filename(
     return undefined;
   }
 
-  const timestampMatch = captureTimestamp ? captureTimestamp >= "20100101000000" && captureTimestamp < "20140101000000" : false;
+  const timestampMatch = captureTimestamp
+    ? captureTimestamp >= "20100101000000" && captureTimestamp < "20140101000000"
+    : false;
 
   const baseName = removeFileExtensionFromArchiveFilename(filename.split("/").pop() ?? "");
   const recordFormat = parseRecordFormatFromArchiveFilename(filename);
@@ -451,7 +465,7 @@ export function parseArchiveIt2010Filename(
   const crawlerPort = parts.pop() ?? "";
   const crawlerHost = parts.join("-");
   const crawlerName = `${crawlerHost}:${crawlerPort}`;
-  
+
   let confidence = 0.8;
   if (timestampMatch) {
     confidence = 1.0;
@@ -463,13 +477,13 @@ export function parseArchiveIt2010Filename(
     recordFormat,
     details: {
       crawlIdentifier: `${archiveItPrefix}-${collectionId}-${recurrence}-${jobId}`,
-      collectionId,
-      startTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
-      serialNumber,
+      crawlCollectionId: collectionId,
+      fileWriteStartTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
+      fileSerialNumber: serialNumber,
       crawlerName,
-      crawlPeriod: recurrence,
-      crawlInfrastructure: "internetarchive",
-      jobId,
+      crawlInterval: recurrence,
+      crawlProvider: "internetarchive",
+      crawlJobId: jobId,
     },
   };
 }
@@ -490,7 +504,9 @@ export function parseArchiveIt2013Filename(
     return undefined;
   }
 
-  const timestampMatch = captureTimestamp ? captureTimestamp >= "20130101000000" && captureTimestamp < "20160101000000" : false;
+  const timestampMatch = captureTimestamp
+    ? captureTimestamp >= "20130101000000" && captureTimestamp < "20160101000000"
+    : false;
 
   const baseName = removeFileExtensionFromArchiveFilename(filename.split("/").pop() ?? "");
   const recordFormat = parseRecordFormatFromArchiveFilename(filename);
@@ -533,7 +549,7 @@ export function parseArchiveIt2013Filename(
   const crawlerPort = parts.pop() ?? "";
   const crawlerHost = parts.join("-");
   const crawlerName = `${crawlerHost}:${crawlerPort}`;
-  
+
   let confidence = 0.8;
   if (timestampMatch) {
     confidence = 1.0;
@@ -545,13 +561,13 @@ export function parseArchiveIt2013Filename(
     recordFormat,
     details: {
       crawlIdentifier: `${archiveItPrefix}-${collectionId}-${recurrence}-${jobId}`,
-      collectionId,
-      startTimestamp: timestamp.toISO(),
-      serialNumber,
+      crawlCollectionId: collectionId,
+      fileWriteStartTimestamp: timestamp.toISO(),
+      fileSerialNumber: serialNumber,
       crawlerName,
-      crawlPeriod: recurrence,
-      crawlInfrastructure: "internetarchive",
-      jobId,
+      crawlInterval: recurrence,
+      crawlProvider: "internetarchive",
+      crawlJobId: jobId,
     },
   };
 }
@@ -572,7 +588,9 @@ export function parseArchiveIt2015Filename(
     return undefined;
   }
 
-  const timestampMatch = captureTimestamp ? captureTimestamp >= "20150201000000" && captureTimestamp < "20181001000000" : false;
+  const timestampMatch = captureTimestamp
+    ? captureTimestamp >= "20150201000000" && captureTimestamp < "20181001000000"
+    : false;
 
   const baseName = removeFileExtensionFromArchiveFilename(filename.split("/").pop() ?? "");
   const recordFormat = parseRecordFormatFromArchiveFilename(filename);
@@ -612,7 +630,7 @@ export function parseArchiveIt2015Filename(
   if (!serialNumber.match(/^\d+$/)) {
     return undefined;
   }
-  
+
   let confidence = 0.8;
   if (timestampMatch) {
     confidence = 1.0;
@@ -624,12 +642,12 @@ export function parseArchiveIt2015Filename(
     recordFormat,
     details: {
       crawlIdentifier: `${archiveItPrefix}-${collectionId}-${recurrence}-${jobId}`,
-      collectionId,
-      startTimestamp: timestamp.toISO(),
-      serialNumber,
-      crawlPeriod: recurrence,
-      crawlInfrastructure: "internetarchive",
-      jobId,
+      crawlCollectionId: collectionId,
+      fileWriteStartTimestamp: timestamp.toISO(),
+      fileSerialNumber: serialNumber,
+      crawlInterval: recurrence,
+      crawlProvider: "internetarchive",
+      crawlJobId: jobId,
     },
   };
 }
@@ -697,7 +715,7 @@ export function parseArchiveIt2018Filename(
   if (finalPart !== "h3") {
     return undefined;
   }
-  
+
   let confidence = 0.8;
   if (timestampMatch) {
     confidence = 1.0;
@@ -709,13 +727,13 @@ export function parseArchiveIt2018Filename(
     recordFormat,
     details: {
       crawlIdentifier: `${archiveItPrefix}-${collectionId}-${recurrence}-${jobId}`,
-      collectionId,
-      startTimestamp: timestamp.toISO(),
-      serialNumber,
-      crawlPeriod: recurrence,
-      crawlInfrastructure: "internetarchive",
-      seedId,
-      jobId,
+      crawlCollectionId: collectionId,
+      fileWriteStartTimestamp: timestamp.toISO(),
+      fileSerialNumber: serialNumber,
+      crawlInterval: recurrence,
+      crawlProvider: "internetarchive",
+      crawlSeedId: seedId,
+      crawlJobId: jobId,
     },
   };
 }
@@ -745,5 +763,5 @@ export function parseArchiveItRecordFilename(
   }
 
   results.sort((a, b) => b.confidence - a.confidence);
-  return results;
+  return results.map(cleanUpRecordFilenameResult);
 }

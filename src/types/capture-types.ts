@@ -39,7 +39,7 @@ export interface CaptureWaybackMetadata {
       accountId?: string;
       accountOrganizationName?: string;
       recurrence?: string;
-    }
+    };
     collections: {
       id: string;
       title: string;

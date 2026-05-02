@@ -7,20 +7,24 @@ describe("parseCommonCrawlFilename", () => {
       parseCommonCrawlFilenamePickBest("crawl-001/2008/06/25/11/1214440586619_11.arc.gz")?.details,
     ).toEqual({
       crawlIdentifier: "CC-MAIN-2008-2009",
-      crawlInfrastructure: "commoncrawl",
-      startTimestamp: "2008-06-26T00:36:26.619Z",
-      partition: "11",
-      segment: "2008/06/25/11",
+      crawlOriginalIdentifier: "crawl-001",
+      crawlProvider: "commoncrawl",
+      crawlCollectionId: "CC-MAIN-2008-2009",
+      fileWriteStartTimestamp: "2008-06-26T00:36:26.619Z",
+      filePartition: "11",
+      fileSegment: "2008/06/25/11",
     });
 
     expect(
       parseCommonCrawlFilenamePickBest("crawl-002/2009/09/17/41/1253233750985_41.arc.gz")?.details,
     ).toEqual({
       crawlIdentifier: "CC-MAIN-2009-2010",
-      crawlInfrastructure: "commoncrawl",
-      startTimestamp: "2009-09-18T00:29:10.985Z",
-      partition: "41",
-      segment: "2009/09/17/41",
+      crawlOriginalIdentifier: "crawl-002",
+      crawlProvider: "commoncrawl",
+      crawlCollectionId: "CC-MAIN-2009-2010",
+      fileWriteStartTimestamp: "2009-09-18T00:29:10.985Z",
+      filePartition: "41",
+      fileSegment: "2009/09/17/41",
     });
   });
 
@@ -31,11 +35,12 @@ describe("parseCommonCrawlFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "CC-MAIN-2012",
-      crawlInfrastructure: "commoncrawl",
-      startTimestamp: "2012-09-07T05:15:35.837Z",
-      partition: "1048",
-      segment: "1346981172186",
-      segmentTimestamp: "2012-09-07T01:26:12.186Z",
+      crawlProvider: "commoncrawl",
+      crawlCollectionId: "CC-MAIN-2012",
+      fileWriteStartTimestamp: "2012-09-07T05:15:35.837Z",
+      filePartition: "1048",
+      fileSegment: "1346981172186",
+      fileSegmentTimestamp: "2012-09-07T01:26:12.186Z",
     });
   });
 
@@ -46,14 +51,14 @@ describe("parseCommonCrawlFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "CC-MAIN-2013-20",
-      crawlInfrastructure: "commoncrawl",
+      crawlProvider: "commoncrawl",
+      crawlCollectionId: "CC-MAIN-2013-20",
+      crawlSubset: "warc",
       crawlerName: "ip-10-60-113-184.ec2.internal",
-      serialNumber: "00096",
-      partition: undefined,
-      startTimestamp: "2013-05-16T12:06:49Z",
-      subset: "warc",
-      segment: "1368706009988",
-      segmentTimestamp: "2013-05-16T12:06:49.988Z",
+      fileWriteStartTimestamp: "2013-05-16T12:06:49Z",
+      fileSerialNumber: "00096",
+      fileSegment: "1368706009988",
+      fileSegmentTimestamp: "2013-05-16T12:06:49.988Z",
     });
   });
 
@@ -64,14 +69,15 @@ describe("parseCommonCrawlFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "CC-MAIN-2014-15",
-      crawlInfrastructure: "commoncrawl",
+      crawlProvider: "commoncrawl",
+      crawlCollectionId: "CC-MAIN-2014-15",
+      crawlSubset: "warc",
       crawlerName: "ip-10-147-4-33.ec2.internal",
-      serialNumber: "00221",
-      partition: "11",
-      startTimestamp: "2014-04-23T03:20:06Z",
-      subset: "warc",
-      segment: "1398223206647.11",
-      segmentTimestamp: "2014-04-23T03:20:06.647Z",
+      fileWriteStartTimestamp: "2014-04-23T03:20:06Z",
+      fileSerialNumber: "00221",
+      filePartition: "11",
+      fileSegment: "1398223206647.11",
+      fileSegmentTimestamp: "2014-04-23T03:20:06.647Z",
     });
   });
 
@@ -82,14 +88,15 @@ describe("parseCommonCrawlFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "CC-MAIN-2017-39",
-      crawlInfrastructure: "commoncrawl",
-      serialNumber: "00500",
-      partition: "58",
-      startTimestamp: "2017-09-25T16:40:22Z",
-      endTimestamp: "2017-09-25T18:40:22Z",
-      subset: "robotstxt",
-      segment: "1505818692236.58",
-      segmentTimestamp: "2017-09-19T10:58:12.236Z",
+      crawlProvider: "commoncrawl",
+      crawlCollectionId: "CC-MAIN-2017-39",
+      crawlSubset: "robotstxt",
+      fileWriteStartTimestamp: "2017-09-25T16:40:22Z",
+      fileWriteEndTimestamp: "2017-09-25T18:40:22Z",
+      fileSerialNumber: "00500",
+      filePartition: "58",
+      fileSegment: "1505818692236.58",
+      fileSegmentTimestamp: "2017-09-19T10:58:12.236Z",
     });
   });
 });

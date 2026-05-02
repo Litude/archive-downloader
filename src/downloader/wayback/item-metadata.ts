@@ -28,7 +28,12 @@ export async function getWaybackItemDetails(itemId: string): Promise<WaybackItem
   itemCache[itemId] = {
     files: details.files
       .filter((file) => POTENTIAL_FILENAME_EXTENSIONS.some((ext) => file.name.endsWith(ext)))
-      .map((file) => ({ name: file.name, private: file.private, mtime: file.mtime, size: file.size })),
+      .map((file) => ({
+        name: file.name,
+        private: file.private,
+        mtime: file.mtime,
+        size: file.size,
+      })),
     metadata: details.metadata,
   };
   return itemCache[itemId];

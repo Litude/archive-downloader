@@ -15,8 +15,8 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "BNF-FOCUSEDCRAWL-001",
-      startTimestamp: "2005-10-25T21:12:53Z",
-      serialNumber: "09395",
+      fileWriteStartTimestamp: "2005-10-25T21:12:53Z",
+      fileSerialNumber: "09395",
       crawlerName: "crawling013",
     });
 
@@ -26,10 +26,10 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "TSUNAMI-07",
-      startTimestamp: "2005-02-03T03:02:20Z",
-      serialNumber: "00206",
+      fileWriteStartTimestamp: "2005-02-03T03:02:20Z",
+      fileSerialNumber: "00206",
       crawlerName: "crawling001.archive.org",
-      crawlInfrastructure: "internetarchive",
+      crawlProvider: "internetarchive",
     });
 
     expect(
@@ -38,8 +38,8 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "IAH",
-      startTimestamp: "2008-03-05T06:49:23Z",
-      serialNumber: "18702",
+      fileWriteStartTimestamp: "2008-03-05T06:49:23Z",
+      fileSerialNumber: "18702",
       crawlerName: "T1",
     });
 
@@ -49,10 +49,10 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "ARCHIVEIT-1553",
-      startTimestamp: "2009-07-30T21:33:28Z",
-      serialNumber: "00010",
+      fileWriteStartTimestamp: "2009-07-30T21:33:28Z",
+      fileSerialNumber: "00010",
       crawlerName: "crawling04.us.archive.org",
-      crawlInfrastructure: "internetarchive",
+      crawlProvider: "internetarchive",
     });
 
     expect(
@@ -61,10 +61,10 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "NLA-AU-CRAWL-005",
-      startTimestamp: "2011-04-12T08:45:03Z",
-      serialNumber: "01600",
+      fileWriteStartTimestamp: "2011-04-12T08:45:03Z",
+      fileSerialNumber: "01600",
       crawlerName: "crawling213.us.archive.org",
-      crawlInfrastructure: "internetarchive",
+      crawlProvider: "internetarchive",
     });
 
     expect(
@@ -72,8 +72,8 @@ describe("parseRecordFilename", () => {
         ?.details,
     ).toEqual({
       crawlIdentifier: "NLNZ-TI1179651",
-      startTimestamp: "2009-10-06T01:10:55Z",
-      serialNumber: "00000",
+      fileWriteStartTimestamp: "2009-10-06T01:10:55Z",
+      fileSerialNumber: "00000",
       crawlerName: "kaiwae-z11",
     });
 
@@ -83,8 +83,8 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "green-0065",
-      startTimestamp: "1999-02-01T17:01:12Z",
-      serialNumber: "918066743",
+      fileWriteStartTimestamp: "1999-02-01T17:01:12Z",
+      fileSerialNumber: "918066743",
       crawlerName: undefined,
     });
 
@@ -94,8 +94,8 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "sarah-000246",
-      startTimestamp: "2000-05-26T15:57:11Z",
-      serialNumber: "959651014",
+      fileWriteStartTimestamp: "2000-05-26T15:57:11Z",
+      fileSerialNumber: "959651014",
       crawlerName: undefined,
     });
 
@@ -105,8 +105,8 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "NLA-AU-CRAWL-005",
-      startTimestamp: "2011-03-10T03:00:10Z",
-      serialNumber: "00188",
+      fileWriteStartTimestamp: "2011-03-10T03:00:10Z",
+      fileSerialNumber: "00188",
       crawlerName: undefined,
     });
 
@@ -116,10 +116,10 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "ARCHIVEIT-969-QUARTERLY-9606",
-      startTimestamp: "2014-05-12T04:01:33.138Z",
-      serialNumber: "00007",
-      crawlerName: "wbgrp-crawl058.us.archive.org-6442",
-      crawlInfrastructure: "internetarchive",
+      fileWriteStartTimestamp: "2014-05-12T04:01:33.138Z",
+      fileSerialNumber: "00007",
+      crawlerName: "wbgrp-crawl058.us.archive.org:6442",
+      crawlProvider: "internetarchive",
     });
 
     expect(
@@ -128,8 +128,8 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "NO404-WKP",
-      startTimestamp: "2013-10-22T04:21:05Z",
-      serialNumber: "05331",
+      fileWriteStartTimestamp: "2013-10-22T04:21:05Z",
+      fileSerialNumber: "05331",
       crawlerName: undefined,
     });
 
@@ -139,8 +139,8 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "WIDE",
-      startTimestamp: "2014-09-29T19:44:02Z",
-      serialNumber: "05766",
+      fileWriteStartTimestamp: "2014-09-29T19:44:02Z",
+      fileSerialNumber: "05766",
       crawlerName: undefined,
     });
 
@@ -150,10 +150,10 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "ACC",
-      startTimestamp: "2006-03-19T17:37:15Z",
-      serialNumber: "01993",
+      fileWriteStartTimestamp: "2006-03-19T17:37:15Z",
+      fileSerialNumber: "01993",
       crawlerName: "c05.ba.accelovation.com",
-      crawlInfrastructure: "accelovation",
+      crawlProvider: "accelovation",
     });
 
     expect(
@@ -162,8 +162,8 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "WEB",
-      startTimestamp: "2020-12-02T20:30:38.195Z",
-      serialNumber: undefined,
+      fileWriteStartTimestamp: "2020-12-02T20:30:38.195Z",
+      fileSerialNumber: undefined,
       crawlerName: "p100.arquivo.pt",
     });
 
@@ -173,10 +173,11 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "IA-COLLIE-002",
-      startTimestamp: "2021-10-17T07:19:51.336Z",
-      serialNumber: "06655",
-      crawlerName: "21509~wbgrp-crawl302.us.archive.org~8443",
-      crawlInfrastructure: "internetarchive",
+      fileWriteStartTimestamp: "2021-10-17T07:19:51.336Z",
+      fileSerialNumber: "06655",
+      crawlerPid: "21509",
+      crawlerName: "wbgrp-crawl302.us.archive.org:8443",
+      crawlProvider: "internetarchive",
     });
 
     expect(
@@ -185,10 +186,11 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "WIDE",
-      startTimestamp: "2010-12-24T13:38:15.595Z",
-      serialNumber: "01909",
-      crawlerName: "29002~ia360910.us.archive.org~9443",
-      crawlInfrastructure: "internetarchive",
+      fileWriteStartTimestamp: "2010-12-24T13:38:15.595Z",
+      fileSerialNumber: "01909",
+      crawlerPid: "29002",
+      crawlerName: "ia360910.us.archive.org:9443",
+      crawlProvider: "internetarchive",
     });
 
     expect(
@@ -197,8 +199,8 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "CC-MAIN",
-      startTimestamp: "2014-04-23T03:20:06Z",
-      serialNumber: "00221",
+      fileWriteStartTimestamp: "2014-04-23T03:20:06Z",
+      fileSerialNumber: "00221",
       crawlerName: "ip-10-147-4-33.ec2.internal",
     });
   });

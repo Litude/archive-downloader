@@ -1,5 +1,6 @@
 import {
   cleanUpRecordFilenameCrawlerName,
+  cleanUpRecordFilenameResult,
   findRecordNameTimestampPartIndex,
   ParsedRecordFilenameResult,
   parseRecordFormatFromArchiveFilename,
@@ -69,9 +70,9 @@ ACC-20060512222330-09631-c04.ba.accelovation.com.arc.gz
 ACC-20060926052502-01879-c05.ba.accelovation.com.arc.gz
  */
 
-
-function parseGenericRecordFilenameInternal(
+function _parseGenericRecordFilenameInternal(
   filename: string,
+  _captureTimestamp?: string,
 ): ParsedRecordFilenameResult | undefined {
   const baseName = filename.split("/").pop() ?? filename;
   const parts = removeFileExtensionFromArchiveFilename(baseName).split("-");
@@ -127,13 +128,27 @@ function parseGenericRecordFilenameInternal(
     recordFormat,
     details: {
       crawlIdentifier,
-      startTimestamp: timestamp,
-      serialNumber,
+      fileWriteStartTimestamp: timestamp,
+      fileSerialNumber: serialNumber,
       crawlerName,
       crawlerPid,
-      crawlInfrastructure,
+      crawlProvider: crawlInfrastructure,
     },
   };
+}
+
+function parseGenericRecordFilenameInternal(
+  filename: string,
+  captureTimestamp?: string,
+): ParsedRecordFilenameResult | undefined {
+  const result = _parseGenericRecordFilenameInternal(filename, captureTimestamp);
+  if (!result) {
+    // Some files seem to mistakenly have two -- instead of one, so we try repairing such names
+    return _parseGenericRecordFilenameInternal(filename.replace(/-+/g, '-'), captureTimestamp);
+  }
+  else {
+    return result;
+  }
 }
 
 function detectCrawlInfrastructureFromCrawlerName(crawlerName: string): string | undefined {
@@ -153,33 +168,17 @@ function detectCrawlInfrastructureFromCrawlIdentifier(crawlIdentifier: string): 
   return undefined;
 }
 
-// function extractTimestampFromFilename(filename: string): string | undefined {
-//   let cleaned = removeFileExtensionFromArchiveFilename(filename.split("/").pop() ?? filename);
-//   cleaned = cleaned.replaceAll(".", "-");
-//   cleaned = cleaned.replaceAll("_", "-");
-//   const parts = cleaned.split("-");
-//   const timestampPartIndex = findTimestampPartIndex(parts, {
-//     allow8Digits: true,
-//     allow14Digits: true,
-//     allow17Digits: true,
-//   });
-//   if (timestampPartIndex === -1) {
-//     return undefined;
-//   }
-//   return parts[timestampPartIndex];
-// }
-
 export function parseGenericRecordFilename(
   filename: string,
   _captureTimestamp?: string,
 ): ParsedRecordFilenameResult[] {
   const result = parseGenericRecordFilenameInternal(filename);
-  return result ? [result] : [];
+  return result ? [cleanUpRecordFilenameResult(result)] : [];
 }
 
 export function parseGenericRecordFilenamePickBest(
   filename: string,
   _captureTimestamp?: string,
 ): ParsedRecordFilenameResult | undefined {
-  return parseGenericRecordFilenameInternal(filename);
+  return parseGenericRecordFilename(filename, _captureTimestamp)[0];
 }

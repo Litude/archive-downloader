@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import {
+  cleanUpRecordFilenameResult,
   ParsedRecordFilenameResult,
   parseEpochSecondsFromArchiveFilename,
   parseRecordFormatFromArchiveFilename,
@@ -85,7 +86,7 @@ function parseAlexa1996Filename(
       recordFormat: "arc",
       details: {
         crawlIdentifier,
-        serialNumber,
+        fileSerialNumber: serialNumber,
         crawlerName,
       },
     };
@@ -102,6 +103,7 @@ const KNOWN_1998_CRAWL_IDENTIFIERS = [
   "robots",
   "20000706",
   "20000710",
+  "amazon",
   "foo",
 ];
 
@@ -114,6 +116,7 @@ function get1998CrawlerNameFromIdentifier(
     case "title":
     case "to":
     case "to-crawl":
+    case "slash":
     case "robots":
       if (runTimestamp >= "20000229") {
         return "crawl1";
@@ -147,6 +150,7 @@ export function parseAlexa1998Filename(
   // to-crawl-000000-20000519142052-958771735.arc.gz
   // title_crawl-916550221.arc.gz
   // foo-910809268.arc.gz
+  // amazon-000006-19990921170308-937969043.arc.gz
   // 20000706-001257-20000706164701-962932469.arc.gz
   // 20000710-000017-20000711075301-963330128.arc.gz
 
@@ -184,7 +188,7 @@ export function parseAlexa1998Filename(
 
   const potentialTimestampPart = parts.pop();
   // Early captures are definitely local timestamps, e.g. easlily seen from amazon 1998 crawl
-  const batchTimestamp = potentialTimestampPart
+  let batchTimestamp = potentialTimestampPart
     ? DateTime.fromFormat(potentialTimestampPart, "yyyyMMddHHmmss", { zone: "America/Los_Angeles" })
     : undefined;
   if (!batchTimestamp?.isValid || batchTimestamp.year < 1998 || batchTimestamp.year > 2000) {
@@ -192,6 +196,20 @@ export function parseAlexa1998Filename(
     parts.push(potentialTimestampPart ?? "");
   } else {
     confidence += 0.1;
+  }
+
+  let crawlDate = parts.pop();
+  if (crawlDate?.length === 8) {
+    const date = DateTime.fromFormat(crawlDate, "yyyyMMdd", { zone: "UTC" });
+    if (!date.isValid || date.year < 1998 || date.year > 2000) {
+      parts.push(crawlDate ?? "");
+      crawlDate = undefined;
+    } else {
+      confidence += 0.1;
+    }
+  } else {
+    parts.push(crawlDate ?? "");
+    crawlDate = undefined;
   }
 
   let serialNumber = parts.pop();
@@ -203,7 +221,24 @@ export function parseAlexa1998Filename(
     confidence += 0.1;
   }
 
-  const crawlIdentifier = parts.join("-");
+  let crawlIdentifier = parts.join("-");
+  if (!crawlDate) {
+    // For some crawls, the crawl identifier is actually a date, so if we don't have a crawl date, maybe the crawl identifier is actually a date?
+    const date = DateTime.fromFormat(crawlIdentifier, "yyyyMMdd", { zone: "UTC" });
+    if (date.isValid && date.year >= 1998 && date.year <= 2000) {
+      crawlDate = crawlIdentifier;
+    }
+  }
+  // crawlIdentifier might have a timestamp at the end, check for it and remove it if so
+  if (crawlIdentifier.match(/_\d{14}$/)) {
+    const potentialTimestamp = crawlIdentifier.slice(-15).slice(1);
+    const date = DateTime.fromFormat(potentialTimestamp, "yyyyMMddHHmmss", { zone: "America/Los_Angeles" });
+    if (date.isValid && date.year >= 1998 && date.year <= 2000) {
+      crawlIdentifier = crawlIdentifier.slice(0, -15);
+      batchTimestamp = date;
+      confidence += 0.1;
+    }
+  }
 
   if (!KNOWN_1998_CRAWL_IDENTIFIERS.includes(crawlIdentifier)) {
     return undefined;
@@ -221,11 +256,12 @@ export function parseAlexa1998Filename(
     recordFormat: "arc",
     details: {
       crawlIdentifier,
-      batchTimestamp: batchTimestamp?.isValid
+      crawlStartDate: crawlDate ? DateTime.fromFormat(crawlDate, "yyyyMMdd", { zone: "UTC" }).toFormat("yyyy-MM-dd") : undefined,
+      crawlBatchStartTimestamp: batchTimestamp?.isValid
         ? batchTimestamp?.toUTC()?.toISO({ suppressMilliseconds: true })
         : undefined,
-      startTimestamp: resultTimestamp,
-      serialNumber,
+      fileWriteStartTimestamp: resultTimestamp,
+      fileSerialNumber: serialNumber,
       crawlerName: get1998CrawlerNameFromIdentifier(
         crawlIdentifier,
         runTimestamp.toUTC().toFormat("yyyyMMddHHmmss"),
@@ -272,8 +308,9 @@ export function parseAlexa200006RecyCrawl(
       recordFormat: "arc",
       details: {
         crawlIdentifier,
-        startTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
-        serialNumber,
+        crawlStartDate: "2000-06-02",
+        fileWriteStartTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
+        fileSerialNumber: serialNumber,
       },
     };
   } else {
@@ -345,6 +382,7 @@ export function parseAlexa200007Filename(
   if (!serial || !/^\d{6}$/.test(serial)) {
     return undefined;
   }
+  const crawlDate = DateTime.fromFormat(crawlIdentifier, "yyyyMMdd", { zone: "UTC" });
 
   let confidence = 0.8;
   if (timestampMatch) {
@@ -356,11 +394,12 @@ export function parseAlexa200007Filename(
     recordFormat: "arc",
     details: {
       crawlIdentifier,
-      batchTimestamp: batchTimestamp?.isValid
+      crawlStartDate: crawlDate.isValid ? crawlDate.toFormat("yyyy-MM-dd") : undefined,
+      crawlBatchStartTimestamp: batchTimestamp?.isValid
         ? batchTimestamp?.toUTC()?.toISO({ suppressMilliseconds: true })
         : undefined,
-      startTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
-      serialNumber: serial,
+      fileWriteStartTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
+      fileSerialNumber: serial,
     },
   };
 }
@@ -411,7 +450,7 @@ export function parseAlexa200011Filename(
     recordFormat: "arc",
     details: {
       crawlIdentifier: prefix,
-      startTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
+      fileWriteStartTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
       crawlerName: prefix,
     },
   };
@@ -419,6 +458,8 @@ export function parseAlexa200011Filename(
 
 export function isValidAlexa200102CrawlerName(name: string): boolean {
   if (name.match(/^arc\d+$/)) {
+    return true;
+  } else if (name.match(/^crc\d+$/)) {
     return true;
   } else if (name.match(/^crawl\d+$/)) {
     return true;
@@ -513,15 +554,17 @@ export function parseAlexa200102Filename(
       filenameType: "alexa-2002-election",
       recordFormat: "arc",
       details: {
-        crawlIdentifier,
-        crawlPeriod: period,
-        serialNumber,
-        startTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
+        crawlIdentifier: `${crawlIdentifier}_${period}`,
+        crawlInterval: period,
+        fileSerialNumber: serialNumber,
+        fileWriteStartTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
         crawlerName,
       },
     };
   } else {
-    const crawlCounter = firstPart.match(/^D|E[A-Z]\d*$/) ? firstPart : undefined;
+    const VALID_SUBSETS = ["images", "binary", "binary1", "dad", "amzn"];
+    const crawlCounter = firstPart.match(/^(D|E[A-Z]\d*)$/) ? firstPart : undefined;
+    const crawlSubset = VALID_SUBSETS.includes(prefixParts.at(-1) ?? "") ? prefixParts.at(-1) : undefined;
     const crawlIdentifier = prefixParts.join("_");
     let confidence = 0.8;
     if (timestampMatch) {
@@ -533,8 +576,9 @@ export function parseAlexa200102Filename(
       recordFormat: "arc",
       details: {
         crawlIdentifier,
-        crawlGeneration: crawlCounter,
-        startTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
+        crawlGenerationCode: crawlCounter,
+        crawlSubset: crawlSubset,
+        fileWriteStartTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
         crawlerName,
       },
     };
@@ -659,6 +703,7 @@ export function parseAlexa200508Filename(
   if (!crawlCounter) {
     return undefined;
   }
+  const crawlSubset = prefixParts.at(-1) !== crawlCounter ? prefixParts.at(-1) : undefined;
   const crawlIdentifier = prefixParts.join("_");
   let confidence = 0.8;
   if (timestampMatch) {
@@ -669,11 +714,12 @@ export function parseAlexa200508Filename(
     filenameType: "alexa-2005-08",
     recordFormat: "arc",
     details: {
-      crawlIdentifier,
-      crawlGeneration: crawlCounter,
-      crawlSequence: mainSequence,
-      crawlRun: subSequence,
-      startTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
+      crawlIdentifier: `${crawlIdentifier}_${mainSequence}_${subSequence}`,
+      crawlGenerationCode: crawlCounter,
+      crawlSequence: +mainSequence,
+      crawlRun: +subSequence,
+      crawlSubset: crawlSubset,
+      fileWriteStartTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
       crawlerName,
     },
   };
@@ -747,9 +793,10 @@ export function parseAlexa200606Filename(
     recordFormat: "arc",
     details: {
       crawlIdentifier,
-      crawlSequence: mainSequence,
-      crawlRun: subSequence,
-      startTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
+      crawlSequence: +mainSequence,
+      crawlRun: +subSequence,
+      crawlSubset: finalPart,
+      fileWriteStartTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
       crawlerName,
     },
   };
@@ -830,10 +877,10 @@ export function parseAlexa200004ImageFilename(
     details: {
       crawlIdentifier,
       crawlerName: crawlIdentifierPrefix === "crc" ? crawlIdentifier : undefined,
-      startTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
-      serialNumber,
-      tuningParameter,
-      node,
+      fileWriteStartTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
+      fileSerialNumber: serialNumber,
+      crawlTuningParameter: tuningParameter,
+      crawlerNode: node,
     },
   };
 }
@@ -847,6 +894,7 @@ export function parseAlexa200007ImageFilename(
   // IMG_AAB_SUBaa-964743122.arc.gz
   // IMG_AAR_SUBad-967330605.arc.gz
   // IMG_ABE_SUBae-971359721.arc.gz
+  // IMG_AAL_SUBaa_1-967018030.arc.gz
 
   // Date range:
   // Minimum: 20000727224017 (from IMG_AAA_SUBaj-965455412-c)
@@ -864,7 +912,7 @@ export function parseAlexa200007ImageFilename(
   if (recordFormat !== "arc") {
     return undefined;
   }
-  const match = baseName.match(/^(IMG_A[A-Za-z]{2}_SUB[a-z]{2})-(\d{9})$/);
+  const match = baseName.match(/^(IMG_A[A-Za-z]{2}_SUB[a-z]{2})(?:_\d+)?-(\d{9})$/);
   if (!match) {
     return undefined;
   }
@@ -873,10 +921,13 @@ export function parseAlexa200007ImageFilename(
   if (!runTimestamp?.isValid || runTimestamp.year !== 2000) {
     return undefined;
   }
-  const [imgPrefix, mainIdentifier, subIdentifier] = crawlBasename.split("_");
-  const crawlIdentifier = `${imgPrefix}_${mainIdentifier[0]}`;
-  const crawlCounter = mainIdentifier.slice(1);
-  const serialNumber = subIdentifier.slice(3);
+  const [imgPrefix, mainIdentifier, subIdentifier, subIdentifierNumber] = crawlBasename.split("_");
+  const crawlIdentifier = `${imgPrefix}_${mainIdentifier}`;
+  const crawlCounter = mainIdentifier;
+  let serialNumber = subIdentifier.slice(3);
+  if (subIdentifierNumber) {
+    serialNumber += `_${subIdentifierNumber}`;
+  }
 
   let confidence = 0.8;
   if (timestampMatch) {
@@ -888,9 +939,9 @@ export function parseAlexa200007ImageFilename(
     recordFormat: "arc",
     details: {
       crawlIdentifier,
-      crawlGeneration: crawlCounter,
-      startTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
-      serialNumber,
+      crawlGenerationCode: crawlCounter,
+      fileWriteStartTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
+      fileSerialNumber: serialNumber,
     },
   };
 }
@@ -916,9 +967,10 @@ export function parseAlexaRecordFilename(
   for (const parser of parsers) {
     const result = parser(filename, captureTimestamp);
     if (result) {
-      results.push({ ...result, details: { ...result.details, crawlInfrastructure: "alexa" } });
+      results.push({ ...result, details: { ...result.details, crawlProvider: "alexa" } });
     }
   }
 
-  return results;
+  results.sort((a, b) => b.confidence - a.confidence);
+  return results.map(cleanUpRecordFilenameResult);
 }
