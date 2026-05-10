@@ -32,7 +32,8 @@ function get1996CrawlerNameFromAbbreviation(abbreviation: string): string | unde
     case "IA": // Generic IA crawler which is known to actually only have been widener (still plausible that it could also have been some other crawler, but we have no evidence for that)
     case "IA-E96": // Election 1996 crawl, probably done by the same crawler?
       return "widener";
-    case "BK": // Brewster Kahle's test crawler(???), or backup(???)
+    case "BK":
+      return "berkeley";
     case "TS": // Test(???)
     case "F2": // Only two arcs, probably some test again (e.g. firestone v2 test?)
     default:
@@ -733,6 +734,7 @@ export function parseAlexa200606Filename(
   // 26_0_20060610014940_crawl23.arc.gz
   // 51_78_20200814002231_crawl301.arc.gz
   // 52_19_20110109163559_crawl103_IndexOnly.arc.gz
+  // alexa20151227-26/51_50_20151227035627_crawl303.arc.gz
 
   // Date range:
   // Minimum: 20060610014940 (from 26_0_20060610014940_crawl23-c)
@@ -787,6 +789,12 @@ export function parseAlexa200606Filename(
   if (timestampMatch) {
     confidence += 0.2;
   }
+
+
+  const collectionName = filename.split("/")[0];
+  const crawlDateRaw = collectionName.match(/^alexa(\d{8})-\d{2}$/) ? collectionName.match(/^alexa(\d{8})-\d{2}$/)![1] : undefined;
+  const crawlDate = crawlDateRaw ? DateTime.fromFormat(crawlDateRaw, "yyyyMMdd", { zone: "UTC" }) : undefined;
+
   return {
     confidence,
     filenameType: "alexa-2005-08",
@@ -796,6 +804,7 @@ export function parseAlexa200606Filename(
       crawlSequence: +mainSequence,
       crawlRun: +subSequence,
       crawlSubset: finalPart,
+      crawlStartDate: crawlDate?.isValid ? crawlDate.toFormat("yyyy-MM-dd") : undefined,
       fileWriteStartTimestamp: runTimestamp.toUTC().toISO({ suppressMilliseconds: true }),
       crawlerName,
     },
@@ -973,4 +982,12 @@ export function parseAlexaRecordFilename(
 
   results.sort((a, b) => b.confidence - a.confidence);
   return results.map(cleanUpRecordFilenameResult);
+}
+
+export function parseAlexaRecordFilenamePickBest(
+  filename: string,
+  captureTimestamp?: string,
+): ParsedRecordFilenameResult | undefined {
+  const results = parseAlexaRecordFilename(filename, captureTimestamp);
+  return results[0];
 }

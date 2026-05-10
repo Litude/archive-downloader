@@ -5,6 +5,7 @@ import { CaptureClassification, Classification } from "../types/capture-types.js
 import { DownloadedFile } from "../types/download-types.js";
 import { fileURLToPath } from "url";
 import { REDIRECT_STATUS_CODES } from "../downloader/wayback/file-download.js";
+import { toDownloaderError } from "../utils/downloader-error.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -42,7 +43,13 @@ function decodeHtml(buffer: Buffer): string {
   if (match) {
     encoding = match[1];
   }
-  return new TextDecoder(encoding).decode(buffer);
+  try {
+    return new TextDecoder(encoding).decode(buffer);
+  } catch (err: unknown) {
+    const error = toDownloaderError(err);
+    console.warn(`Failed to decode (error ${error.message}) with encoding ${encoding}, falling back to windows-1252`);
+    return new TextDecoder("windows-1252").decode(buffer);
+  }
 }
 
 export function classifyEntryWithConfig(

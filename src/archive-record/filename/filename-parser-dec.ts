@@ -6,6 +6,18 @@ import {
   removeFileExtensionFromArchiveFilename,
 } from "./record-filename-common.js";
 
+
+function getCrawlerNameFromCrawlIdentifier(crawlIdentifier: string): string | undefined {
+  switch (crawlIdentifier) {
+    case "aug":
+      return "crawler0";
+    case "image":
+      return "crawler1";
+    default:
+      return undefined;
+  }
+}
+
 function parseDecRegularCrawlFilename(
   filename: string,
   captureTimestamp?: string,
@@ -45,6 +57,8 @@ function parseDecRegularCrawlFilename(
     return undefined;
   }
 
+  const crawlerName = getCrawlerNameFromCrawlIdentifier(crawlIdentifier);
+
   if (timestampPart.length !== 12) {
     return undefined;
   }
@@ -67,6 +81,7 @@ function parseDecRegularCrawlFilename(
     recordFormat,
     details: {
       crawlIdentifier,
+      crawlerName,
       fileWriteStartTimestamp: parsedTimestamp.toISO({ suppressMilliseconds: true }),
     },
   };

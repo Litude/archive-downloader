@@ -1,0 +1,163 @@
+{
+  "widener": [
+    {
+      "from": "19961101000000",
+      "to": "19970304000000",
+      "protocol": "HTTP/1.0",
+      "crawlerHostname": "widener.archive.org",
+      "crawlerIpAddress": "206.14.154.182"
+    },
+    {
+      "from": "19961101000000",
+      "to": "19961113000000",
+      "headers": [
+        ["Accept", "*/*"],
+        ["User-Agent", "ia_archiver/1.3"]
+      ]
+    },
+    {
+      "from": "19961219000000",
+      "to": "19961224000000",
+      "headers": [
+        ["Accept", "*/*"],
+        ["User-Agent", "ia_archiver/1.5"],
+        ["From", "crawler@archive.org"]
+      ]
+    },
+    {
+      "from": "19970111000000",
+      "to": "19970304000000",
+      "headers": [
+        ["Accept", "text/plain, text/html"],
+        ["User-Agent", "ia_archiver/1.5"],
+        ["From", "crawler@archive.org"]
+      ]
+    }
+  ],
+  "berkeley": [
+    {
+      "from": "19961121000000",
+      "to": "19961123000000",
+      "crawlerHostname": "sunsite.berkeley.edu",
+      "crawlerIpAddress": "169.229.32.30",
+      "headers": [
+        ["Accept", "*/*"], // inferred
+        ["User-Agent", "ia_archiver/1.4"]
+      ]
+    }
+  ],
+  "firestone": [
+    {
+      "from": "19961201000000",
+      "to": "19970701000000",
+      "crawlerHostname": "firestone.archive.org",
+      "crawlerIpAddress": "206.14.154.183"
+    },
+    {
+      "from": "19970709000000",
+      "to": "19980801000000",
+      "crawlerHostname": "firestone.alexa.com",
+      "crawlerIpAddress": "206.14.154.183"
+    },
+    {
+      "from": "19970311000000",
+      "to": "19970412000000",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["Accept", "*/*"],
+        ["User-Agent", "ia_archiver/1.6"],
+        ["From", "crawler@archive.org"]
+      ]
+    },
+    {
+      "from": "19970513000000",
+      "to": "19980801000000",
+      "protocol": "HTTP/1.1",
+      "headers": [
+        ["Host"],
+        ["User-Agent", "ia_archiver/1.6"],
+        ["From", "crawler@alexa.com"]
+      ]
+    }
+  ],
+  "sterling": [
+    {
+      "from": "19970401000000",
+      "to": "19970501000000",
+      "crawlerHostname": "sterling.alexa.com",
+      "crawlerIpAddress": "204.123.8.1",
+      "protocol": "HTTP/1.1",
+      "headers": [
+        ["Host"],
+        ["User-Agent", "ia_archiver/1.6"],
+        ["From", "crawler@alexa.com"]
+      ]
+    }
+  ],
+  "green": [
+    {
+      "from": "19970501000000",
+      "to": "19980801000000",
+      "crawlerHostname": "green.alexa.com",
+      "crawlerIpAddress": "206.14.154.191"
+    },
+    {
+      "from": "19981201000000",
+      "to": "20000229150000",
+      "crawlerHostname": "green.alexa.com",
+      "crawlerIpAddress": "206.132.186.131"
+    },
+    {
+      "from": "20000229150001",
+      "to": "20000229150000",
+      "crawlerHostname": "crawl1.alexa.com",
+      "crawlerIpAddress": "206.132.186.131"
+    },
+    {
+      "from": "19970513000000",
+      "to": "19980801000000",
+      "protocol": "HTTP/1.1",
+      "headers": [
+        ["Host"],
+        ["User-Agent", "ia_archiver/1.6"],
+        ["From", "crawler@alexa.com"]
+      ]
+    },
+    {
+      "from": "19981201000000",
+      "to": "20000701000000",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["Connection", "close"],
+        ["Host"],
+        ["User-Agent", "ia_archiver"],
+        ["From", "crawler@alexa.com"]
+      ]
+    }
+  ],
+  "sarah": [
+    {
+      "from": "19991001000000",
+      "to": "20000229114500",
+      "crawlerHostname": "sarah.alexa.com",
+      "crawlerIpAddress": "206.132.186.140"
+    },
+    {
+      "from": "20000229114501",
+      "to": "20000701000000",
+      "crawlerHostname": "crawl2.alexa.com",
+      "crawlerIpAddress": "206.132.186.140"
+    },
+    {
+      "from": "19991001000000",
+      "to": "20000701000000",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["Connection", "close"],
+        ["Host"],
+        ["User-Agent", "ia_archiver"],
+        ["From", "crawler@alexa.com"]
+      ]
+    }
+  ]
+}

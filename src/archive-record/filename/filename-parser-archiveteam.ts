@@ -7,7 +7,67 @@ import {
   removeFileExtensionFromArchiveFilename,
 } from "./record-filename-common.js";
 
-function parseArchiveTeamGoPackFilename(
+
+function parseArchiveTeamGoPack2013Filename(
+  filename: string,
+  _captureTimestamp?: string,
+): ParsedRecordFilenameResult | undefined {
+  // Matches names such as:
+  // archiveteam_archivebot_go_003/buttcoin.org-inf-20131109-132944.warc.gz
+  // archiveteam_archivebot_go_015/clanbase.org-inf-20131223-082144.warc.gz
+  // archiveteam_archivebot_go_015/4pda.ru-inf-20131213-210327-aborted.warc.gz
+
+  if (!filename.startsWith("archiveteam_archivebot_go_")) {
+    return undefined;
+  }
+
+  const recordFormat = parseRecordFormatFromArchiveFilename(filename);
+  if (recordFormat !== "warc") {
+    return undefined;
+  }
+
+  const baseName = removeFileExtensionFromArchiveFilename(filename.split("/").pop() ?? "");
+  const parts = baseName.split("-");
+
+  const flags: string[] = [];
+  const abortedTag = parts.pop();
+  if (abortedTag !== "aborted") {
+    parts.push(abortedTag ?? "");
+  } else {
+    flags.push("aborted");
+  }
+  const time = parts.pop();
+  if (!time?.match(/^\d{6}$/)) {
+    return undefined;
+  }
+  const date = parts.pop();
+  if (!date?.match(/^\d{8}$/)) {
+    return undefined;
+  }
+
+  const startTimestamp = DateTime.fromFormat(date + time, "yyyyMMddHHmmss", { zone: "UTC" });
+  if (!startTimestamp.isValid) {
+    return undefined;
+  }
+
+  const crawlDepth = parts.pop();
+  const crawlIdentifier = parts.join("-");
+
+  return {
+    confidence: 1.0,
+    filenameType: "archiveteam-go-pack-2013",
+    recordFormat,
+    details: {
+      crawlIdentifier,
+      crawlDepth,
+      fileWriteStartTimestamp: startTimestamp.toISO({ suppressMilliseconds: true }),
+      crawlFlags: flags.length > 0 ? flags : undefined,
+    },
+  };
+}
+
+
+function parseArchiveTeamGoPack2014Filename(
   filename: string,
   _captureTimestamp?: string,
 ): ParsedRecordFilenameResult | undefined {
@@ -61,7 +121,7 @@ function parseArchiveTeamGoPackFilename(
 
   return {
     confidence: 1.0,
-    filenameType: "archiveteam-go-pack",
+    filenameType: "archiveteam-go-pack-2014",
     recordFormat,
     details: {
       crawlIdentifier,
@@ -207,7 +267,8 @@ export function parseArchiveTeamRecordFilename(
   _captureTimestamp?: string,
 ): ParsedRecordFilenameResult[] {
   const parsers = [
-    parseArchiveTeamGoPackFilename,
+    parseArchiveTeamGoPack2013Filename,
+    parseArchiveTeamGoPack2014Filename,
     parseArchiveTeamWarriorRecordFilename,
     parseArchiveTeamEarlyWarcRecordFilename,
   ];

@@ -105,7 +105,7 @@ export async function downloadWaybackEntries(
   //     metadata: undefined as { crawler?: string; crawljob?: string; description?: string; publisher?: string; operator?: string } | undefined,
   //   }
 
-  const { validCdxEntries, invalidCdxEntries, metadata } = await getSnapshotsForWebsiteFile(
+  const { validCdxEntries, invalidCdxEntries, unavailableCdxEntries, metadata } = await getSnapshotsForWebsiteFile(
     input,
     context,
     waybackPrefetchedIndex,
@@ -113,9 +113,16 @@ export async function downloadWaybackEntries(
   const fetchAllHeaders = context.settings.peekAllFiles;
   const fetchMetadata = context.settings.fetchMetadata;
   const fetchOriginalRecord = context.settings.fetchOriginalRecord;
-  const allEntries = [...validCdxEntries, ...invalidCdxEntries];
+  const allEntries = [...validCdxEntries, ...invalidCdxEntries, ...unavailableCdxEntries];
+  // We must ensure that every file has some sort of digest 
+  allEntries.forEach((entry) => {
+    if (entry.unavailable !== true && !entry.digest) {
+      entry.digest = `TEMP-${crypto.randomUUID()}`;
+    }
+  });
+
   const uniqueDigestFiles = await downloadUniqueDigestsForSnapshots(
-    allEntries.filter((entry) => !isEntrySkipped(entry, input.skippedCaptures)),
+    allEntries.filter((entry) => !isEntrySkipped(entry, input.skippedCaptures) && !entry.unavailable),
     context,
   );
   const digestFileHashes = computeDigestHashes(uniqueDigestFiles);
@@ -211,9 +218,7 @@ export async function downloadWaybackEntries(
           url: entry.url,
           statusCode: downloadIsExactMatch ? downloadedFile.statusCode : entry.status,
           statusMessage: downloadIsExactMatch ? downloadedFile.statusMessage : undefined,
-          classification: entry.digest
-            ? classifiedEntries.get(entry.digest)!
-            : { type: "unavailable" as const },
+          classification: entry.digest && classifiedEntries.get(entry.digest) || { type: "unavailable" as const },
           mimetype: extractMimeTypeFromContentType(headers?.["content-type"]) || entry.mimetype,
           actualDigest: entry.digest ? digestFileHashes.get(entry.digest)?.actualDigest : undefined,
           sha256: entry.digest ? digestFileHashes.get(entry.digest)?.sha256 : undefined,
@@ -327,6 +332,12 @@ export async function downloadWaybackEntries(
       }
     }
   }
+
+  baseEntries.forEach((entry) => {
+    if (entry.cdxEntry.digest?.startsWith("TEMP-")) {
+      delete entry.cdxEntry.digest;
+    }
+  });
 
   if (fetchMetadata) {
     console.log("Fetching metadata for all entries...");

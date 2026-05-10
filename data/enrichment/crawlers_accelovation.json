@@ -1,0 +1,102 @@
+[
+  {
+    "from": "20060311000000",
+    "to": "20060629235959",
+    "knownCrawlers": [
+      {
+        "crawlerName": "c01",
+        "crawlerIpAddress": "209.128.119.41",
+        "crawlerHostname": "c01.ba.accelovation.com",
+        "crawlerHostnameSecondary": "209-128-119-041.bayarea.net"
+      },
+      {
+        "crawlerName": "c02",
+        "crawlerIpAddress": "209.128.119.42",
+        "crawlerHostname": "c02.ba.accelovation.com",
+        "crawlerHostnameSecondary": "209-128-119-042.bayarea.net"
+      },
+      {
+        "crawlerName": "c03",
+        "crawlerIpAddress": "209.128.119.43",
+        "crawlerHostname": "c03.ba.accelovation.com",
+        "crawlerHostnameSecondary": "209-128-119-043.bayarea.net"
+      },
+      {
+        "crawlerName": "c04",
+        "crawlerIpAddress": "209.128.119.44",
+        "crawlerHostname": "c04.ba.accelovation.com",
+        "crawlerHostnameSecondary": "209-128-119-044.bayarea.net"
+      },
+      {
+        "crawlerName": "c05",
+        "crawlerIpAddress": "209.128.119.45",
+        "crawlerHostname": "c05.ba.accelovation.com",
+        "crawlerHostnameSecondary": "209-128-119-045.bayarea.net"
+      },
+      {
+        "crawlerName": "c06",
+        "crawlerIpAddress": "209.128.119.46",
+        "crawlerHostname": "c06.ba.accelovation.com",
+        "crawlerHostnameSecondary": "209-128-119-046.bayarea.net"
+      },
+      {
+        "crawlerName": "c07",
+        "crawlerIpAddress": "209.128.119.47",
+        "crawlerHostname": "c07.ba.accelovation.com",
+        "crawlerHostnameSecondary": "209-128-119-047.bayarea.net"
+      },
+      {
+        "crawlerName": "c08",
+        "crawlerIpAddress": "209.128.119.48",
+        "crawlerHostname": "c08.ba.accelovation.com",
+        "crawlerHostnameSecondary": "209-128-119-048.bayarea.net"
+      }
+    ]
+  },
+  {
+    "from": "20060827000000",
+    "to": "20070108000000",
+    "knownCrawlers": [
+      {
+        "crawlerName": "c01",
+        "crawlerIpAddress": "72.20.99.41",
+        "crawlerHostname": "c01.ba.accelovation.com"
+      },
+      {
+        "crawlerName": "c02",
+        "crawlerIpAddress": "72.20.99.42",
+        "crawlerHostname": "c02.ba.accelovation.com"
+      },
+      {
+        "crawlerName": "c03",
+        "crawlerIpAddress": "72.20.99.43",
+        "crawlerHostname": "c03.ba.accelovation.com"
+      },
+      {
+        "crawlerName": "c04",
+        "crawlerIpAddress": "72.20.99.44",
+        "crawlerHostname": "c04.ba.accelovation.com"
+      },
+      {
+        "crawlerName": "c05",
+        "crawlerIpAddress": "72.20.99.45",
+        "crawlerHostname": "c05.ba.accelovation.com"
+      },
+      {
+        "crawlerName": "c06",
+        "crawlerIpAddress": "72.20.99.46",
+        "crawlerHostname": "c06.ba.accelovation.com"
+      },
+      {
+        "crawlerName": "c07",
+        "crawlerIpAddress": "72.20.99.47",
+        "crawlerHostname": "c07.ba.accelovation.com"
+      },
+      {
+        "crawlerName": "c08",
+        "crawlerIpAddress": "72.20.99.48",
+        "crawlerHostname": "c08.ba.accelovation.com"
+      }
+    ]
+  }
+]

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { urlToSimpleUrlkey as urlToUrlkey } from "./urlkey.js";
+import { urlKeyToUrl, urlToSimpleUrlkey as urlToUrlkey } from "./urlkey.js";
 
 describe("urlToUrlkey", () => {
   it("converts a simple URL", () => {
@@ -52,5 +52,33 @@ describe("urlToUrlkey", () => {
     expect(urlToUrlkey("http://microsoft.com:80/games/empires/?")).toBe(
       "com,microsoft)/games/empires",
     );
+  });
+});
+
+describe("urlKeyToUrl", () => {
+  it("converts a simple urlkey", () => {
+    expect(urlKeyToUrl("com,example)/")).toBe("http://example.com/");
+  });
+
+  it("reconstructs multi-part hostname", () => {
+    expect(urlKeyToUrl("com,microsoft)/games/empires")).toBe(
+      "http://microsoft.com/games/empires",
+    );
+  });
+
+  it("includes path and filename", () => {
+    expect(urlKeyToUrl("com,microsoft)/games/empires/default.htm")).toBe(
+      "http://microsoft.com/games/empires/default.htm",
+    );
+  });
+  
+  it("includes query string", () => {
+    expect(urlKeyToUrl("com,microsoft)/games/empires/?rld=69")).toBe(
+      "http://microsoft.com/games/empires/?rld=69",
+    );
+  });
+
+  it("handles non-standard port", () => {
+    expect(urlKeyToUrl("com,example:8080)/path")).toBe("http://example.com:8080/path");
   });
 });

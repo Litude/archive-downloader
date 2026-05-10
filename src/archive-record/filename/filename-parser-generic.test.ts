@@ -15,6 +15,7 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "BNF-FOCUSEDCRAWL-001",
+      crawlProvider: "internetarchive",
       fileWriteStartTimestamp: "2005-10-25T21:12:53Z",
       fileSerialNumber: "09395",
       crawlerName: "crawling013",
@@ -28,7 +29,8 @@ describe("parseRecordFilename", () => {
       crawlIdentifier: "TSUNAMI-07",
       fileWriteStartTimestamp: "2005-02-03T03:02:20Z",
       fileSerialNumber: "00206",
-      crawlerName: "crawling001.archive.org",
+      crawlerName: "crawling001",
+      crawlerHostname: "crawling001.archive.org",
       crawlProvider: "internetarchive",
     });
 
@@ -51,7 +53,8 @@ describe("parseRecordFilename", () => {
       crawlIdentifier: "ARCHIVEIT-1553",
       fileWriteStartTimestamp: "2009-07-30T21:33:28Z",
       fileSerialNumber: "00010",
-      crawlerName: "crawling04.us.archive.org",
+      crawlerName: "crawling04",
+      crawlerHostname: "crawling04.us.archive.org",
       crawlProvider: "internetarchive",
     });
 
@@ -63,7 +66,8 @@ describe("parseRecordFilename", () => {
       crawlIdentifier: "NLA-AU-CRAWL-005",
       fileWriteStartTimestamp: "2011-04-12T08:45:03Z",
       fileSerialNumber: "01600",
-      crawlerName: "crawling213.us.archive.org",
+      crawlerName: "crawling213",
+      crawlerHostname: "crawling213.us.archive.org",
       crawlProvider: "internetarchive",
     });
 
@@ -118,7 +122,8 @@ describe("parseRecordFilename", () => {
       crawlIdentifier: "ARCHIVEIT-969-QUARTERLY-9606",
       fileWriteStartTimestamp: "2014-05-12T04:01:33.138Z",
       fileSerialNumber: "00007",
-      crawlerName: "wbgrp-crawl058.us.archive.org:6442",
+      crawlerName: "wbgrp-crawl058",
+      crawlerHostname: "wbgrp-crawl058.us.archive.org:6442",
       crawlProvider: "internetarchive",
     });
 
@@ -152,7 +157,8 @@ describe("parseRecordFilename", () => {
       crawlIdentifier: "ACC",
       fileWriteStartTimestamp: "2006-03-19T17:37:15Z",
       fileSerialNumber: "01993",
-      crawlerName: "c05.ba.accelovation.com",
+      crawlerName: "c05",
+      crawlerHostname: "c05.ba.accelovation.com",
       crawlProvider: "accelovation",
     });
 
@@ -163,8 +169,7 @@ describe("parseRecordFilename", () => {
     ).toEqual({
       crawlIdentifier: "WEB",
       fileWriteStartTimestamp: "2020-12-02T20:30:38.195Z",
-      fileSerialNumber: undefined,
-      crawlerName: "p100.arquivo.pt",
+      crawlerHostname: "p100.arquivo.pt",
     });
 
     expect(
@@ -176,7 +181,8 @@ describe("parseRecordFilename", () => {
       fileWriteStartTimestamp: "2021-10-17T07:19:51.336Z",
       fileSerialNumber: "06655",
       crawlerPid: "21509",
-      crawlerName: "wbgrp-crawl302.us.archive.org:8443",
+      crawlerName: "wbgrp-crawl302",
+      crawlerHostname: "wbgrp-crawl302.us.archive.org:8443",
       crawlProvider: "internetarchive",
     });
 
@@ -189,7 +195,8 @@ describe("parseRecordFilename", () => {
       fileWriteStartTimestamp: "2010-12-24T13:38:15.595Z",
       fileSerialNumber: "01909",
       crawlerPid: "29002",
-      crawlerName: "ia360910.us.archive.org:9443",
+      crawlerName: "ia360910",
+      crawlerHostname: "ia360910.us.archive.org:9443",
       crawlProvider: "internetarchive",
     });
 
@@ -201,7 +208,20 @@ describe("parseRecordFilename", () => {
       crawlIdentifier: "CC-MAIN",
       fileWriteStartTimestamp: "2014-04-23T03:20:06Z",
       fileSerialNumber: "00221",
-      crawlerName: "ip-10-147-4-33.ec2.internal",
+      crawlerHostnameInternal: "ip-10-147-4-33.ec2.internal",
+      crawlerIpAddressInternal: "10.147.4.33"
+    });
+
+    expect(
+      parseGenericRecordFilenamePickBest(
+        "web_osi-01-20100223191850-00656-domU-12-31-39-01-65-B1.compute-1.internal/web_osi-01-20100223222334-00698-domU-12-31-39-01-65-B1.compute-1.internal.warc.gz",
+      )?.details,
+    ).toEqual({
+      crawlIdentifier: "web_osi-01",
+      fileWriteStartTimestamp: "2010-02-23T22:23:34Z",
+      fileSerialNumber: "00698",
+      crawlerHostnameInternal: "domU-12-31-39-01-65-B1.compute-1.internal",
+      crawlerMacAddress: "12:31:39:01:65:B1",
     });
   });
 

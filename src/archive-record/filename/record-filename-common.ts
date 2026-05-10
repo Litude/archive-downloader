@@ -29,6 +29,11 @@ export interface ParsedRecordFilename {
 
   /** Crawler information */
   crawlerName?: string;
+  crawlerHostname?: string;
+  crawlerHostnameInternal?: string;
+  crawlerIpAddress?: string;
+  crawlerIpAddressInternal?: string;
+  crawlerMacAddress?: string;
   crawlerPid?: string;
   crawlerNode?: string;
     
@@ -59,27 +64,32 @@ const crawlOrdering: Record<keyof ParsedRecordFilename, number> = {
   crawlSeedId: 9,
   crawlToken: 10,
 
-  crawlInterval: 11,
-  crawlDepth: 12,
-  crawlTuningParameter: 13,
-  crawlSubset: 14,
-  crawlFlags: 15,
+  crawlInterval: 20,
+  crawlDepth: 21,
+  crawlTuningParameter: 22,
+  crawlSubset: 23,
+  crawlFlags: 24,
 
-  crawlerName: 16,
-  crawlerPid: 17,
-  crawlerNode: 18,
+  crawlerName: 40,
+  crawlerHostname: 41,
+  crawlerHostnameInternal: 42,
+  crawlerIpAddress: 43,
+  crawlerIpAddressInternal: 44,
+  crawlerMacAddress: 45,
+  crawlerPid: 46,
+  crawlerNode: 47,
 
-  crawlStartDate: 19,
-  crawlYear: 20,
-  crawlBatchStartTimestamp: 21,
-  fileWriteStartTimestamp: 22,
-  fileWriteEndTimestamp: 23,
-  crawlProcessingTimestamp: 24,
+  crawlStartDate: 60,
+  crawlYear: 61,
+  crawlBatchStartTimestamp: 62,
+  fileWriteStartTimestamp: 63,
+  fileWriteEndTimestamp: 64,
+  crawlProcessingTimestamp: 65,
 
-  fileSerialNumber: 25,
-  filePartition: 26,
-  fileSegment: 27,
-  fileSegmentTimestamp: 28,
+  fileSerialNumber: 80,
+  filePartition: 81,
+  fileSegment: 82,
+  fileSegmentTimestamp: 83,
 };
 
 export function removeFileExtensionFromArchiveFilename(part: string): string {
@@ -166,28 +176,75 @@ export function parseRecordNameTimestamp(timestamp: string): string | undefined 
 }
 
 export function cleanUpRecordFilenameCrawlerName(crawlerName: string): {
-  crawlerName: string;
-  crawlerPid: string | undefined;
+  crawlerName?: string;
+  crawlerHostname?: string;
+  crawlerHostnameInternal?: string;
+  crawlerIpAddress?: string;
+  crawlerIpAddressInternal?: string;
+  crawlerMacAddress?: string;
+  crawlerPid?: string;
 } {
   // Format might be {pid}~{hostname}~{port}, e.g. 06655~wbgrp-crawl302.us.archive.org~8443
   // Or it might be {hostname}-{port}
+  let pid: string | undefined;
+  let resolved: string;
+
   const parts = crawlerName.split("~");
   if (parts.length === 3) {
-    return {
-      crawlerPid: parts[0],
-      crawlerName: `${parts[1]}:${parts[2]}`,
-    };
+    pid = parts[0];
+    resolved = `${parts[1]}:${parts[2]}`;
   } else if (crawlerName.match(/-\d+$/)) {
     const lastDashIndex = crawlerName.lastIndexOf("-");
-    const port = crawlerName.slice(lastDashIndex + 1);
-    const hostname = crawlerName.slice(0, lastDashIndex);
-    return {
-      crawlerPid: undefined,
-      crawlerName: `${hostname}:${port}`,
-    };
+    resolved = `${crawlerName.slice(0, lastDashIndex)}:${crawlerName.slice(lastDashIndex + 1)}`;
   } else {
-    return { crawlerName, crawlerPid: undefined };
+    resolved = crawlerName;
   }
+
+  // Extract just the host part for pattern matching (before any :port)
+  const colonIdx = resolved.indexOf(":");
+  const hostOnly = colonIdx !== -1 ? resolved.slice(0, colonIdx) : resolved;
+
+  // EC2 internal hostname: ip-A-B-C-D.ec2.internal → extract embedded IP
+  const ec2IpMatch = hostOnly.match(/^ip-(\d+)-(\d+)-(\d+)-(\d+)\.ec2\.internal$/i);
+  if (ec2IpMatch) {
+    return {
+      crawlerHostnameInternal: resolved,
+      crawlerIpAddressInternal: `${ec2IpMatch[1]}.${ec2IpMatch[2]}.${ec2IpMatch[3]}.${ec2IpMatch[4]}`,
+      ...(pid !== undefined && { crawlerPid: pid }),
+    };
+  }
+
+  // EC2 Xen internal hostname: domU-HH-HH-HH-HH-HH-HH.compute-1.internal → extract embedded MAC address
+  const domUMatch = hostOnly.match(/^domU-([0-9a-f]{2})-([0-9a-f]{2})-([0-9a-f]{2})-([0-9a-f]{2})-([0-9a-f]{2})-([0-9a-f]{2})\.compute-\d+\.internal$/i);
+  if (domUMatch) {
+    return {
+      crawlerHostnameInternal: resolved,
+      crawlerMacAddress: `${domUMatch[1]}:${domUMatch[2]}:${domUMatch[3]}:${domUMatch[4]}:${domUMatch[5]}:${domUMatch[6]}`.toUpperCase(),
+      ...(pid !== undefined && { crawlerPid: pid }),
+    };
+  }
+
+  // Any other .internal hostname
+  if (/\.internal$/i.test(hostOnly)) {
+    return {
+      crawlerHostnameInternal: resolved,
+      ...(pid !== undefined && { crawlerPid: pid }),
+    };
+  }
+
+  // Regular domain hostname: has a dot followed by an alphabetic TLD
+  if (/\.[a-z]+$/i.test(hostOnly)) {
+    return {
+      crawlerHostname: resolved,
+      ...(pid !== undefined && { crawlerPid: pid }),
+    };
+  }
+
+  // Plain identifier (e.g. short node name, no dots)
+  return {
+    crawlerName: resolved,
+    ...(pid !== undefined && { crawlerPid: pid }),
+  };
 }
 
 export function cleanUpRecordFilenameResult(result: ParsedRecordFilenameResult): ParsedRecordFilenameResult {

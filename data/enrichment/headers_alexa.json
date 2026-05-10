@@ -1,0 +1,51 @@
+[
+  // TODO: Also add earlier crawlers(?)
+  {
+    "from": "19970513000000",
+    "to": "19980801000000",
+    "protocol": "HTTP/1.1",
+    "headers": [
+      ["Host"],
+      ["User-Agent", "ia_archiver/1.6"],
+      ["From", "crawler@alexa.com"]
+    ]
+  },
+  {
+    "from": "19981201000000",
+    "to": "20081114000000",
+    "protocol": "HTTP/1.0",
+    "headers": [
+      ["Cookie"],
+      ["Connection", "close"],
+      ["Host"],
+      ["User-Agent", "ia_archiver"],
+      ["From", "crawler@alexa.com"]
+    ]
+  },
+  // It seems that most Alexa records between 20081114-20081201 have encountered an indexing error and are not available on wayback
+  {
+    "from": "20081201000000",
+    "to": "20150205030828",
+    "protocol": "HTTP/1.0",
+    "headers": [
+      ["Cookie"],
+      ["Connection", "close"],
+      ["Host"],
+      ["User-Agent", "ia_archiver (+http://www.alexa.com/site/help/webmasters; crawler@alexa.com)"],
+      ["From", "crawler@alexa.com"]
+    ]
+  },
+  {
+    // probably if prefix date is >= 20150206
+    "from": "20150205094017",
+    "to": "20200901000000", // the final alexa crawl occured on 20200814061637
+    "protocol": "HTTP/1.0",
+    "headers": [
+      ["Cookie"],
+      ["Connection", "close"],
+      ["Host"],
+      ["User-Agent", "ia_archiver"],
+      ["From", "crawler@alexa.com"]
+    ]
+  }
+]

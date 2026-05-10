@@ -36,7 +36,7 @@ const __dirname = dirname(__filename);
 
 const commonCrawlCollectionInfo: CommonCrawlCollectionInfo[] = JSON5.parse(
   fs.readFileSync(
-    path.join(__dirname, "../../data/settings/common_crawl_collections.json"),
+    path.join(__dirname, "../../data/enrichment/commoncrawl_collections.json"),
     "utf-8",
   ),
 );

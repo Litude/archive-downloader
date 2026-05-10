@@ -403,6 +403,15 @@ async function fetchWaybackCdxIndex(
       }));
       return snapshots;
     } catch (e) {
+      if (axios.isAxiosError(e) && e.response?.status === 403) {
+        const errorMessage = e.response.headers['x-archive-wayback-runtime-error']
+        if (errorMessage?.includes("Blocked Site Error")) {
+          console.error(
+            `Received 403 Forbidden with Blocked Site Error for ${url}. This indicates that the URL has been excluded from the Wayback Machine. Returning empty result.`,
+          );
+          return [];
+        }
+      }
       console.log(`Error fetching CDX index for ${url}: ${e}, retrying in ${backoff / 1000}s...`);
       await new Promise((res) => setTimeout(res, backoff));
       backoff = Math.min(backoff * 2, WAYBACK_MAX_BACKOFF);

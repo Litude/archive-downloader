@@ -1,0 +1,1145 @@
+[
+  // TODO: Also add earlier crawlers(?)
+  {
+    "from": "19970709000000",
+    "to": "19980801000000",
+    "knownCrawlers": [
+      {
+        "crawlerName": "green",
+        "crawlerHostname": "green.alexa.com",
+        "crawlerIpAddress": "206.14.154.191"
+      },
+      {
+        "crawlerName": "firestone",
+        "crawlerHostname": "firestone.alexa.com",
+        "crawlerIpAddress": "206.14.154.183"
+      }
+    ]
+  },
+  {
+    "from": "19981201000000",
+    "to": "19990930235959",
+    "knownCrawlers": [
+      {
+        "crawlerName": "green",
+        "crawlerHostname": "green.alexa.com",
+        "crawlerIpAddress": "206.132.186.131"
+      }
+    ]
+  },
+  {
+    "from": "19991001000000",
+    "to": "20000228235959",
+    "knownCrawlers": [
+      {
+        "crawlerName": "green",
+        "crawlerHostname": "green.alexa.com",
+        "crawlerIpAddress": "206.132.186.131"
+      },
+      {
+        "crawlerName": "sarah",
+        "crawlerHostname": "sarah.alexa.com",
+        "crawlerIpAddress": "206.132.186.140"
+      }
+    ]
+  },
+  {
+    "from": "20000229080000",
+    "to": "20000701000000",
+    "knownCrawlers": [
+      {
+        "crawlerName": "green",
+        "crawlerHostname": "crawl1.alexa.com",
+        "crawlerIpAddress": "206.132.186.131"
+      },
+      {
+        "crawlerName": "sarah",
+        "crawlerHostname": "crawl2.alexa.com",
+        "crawlerIpAddress": "206.132.186.140"
+      }
+    ]
+  },
+  {
+    "from": "20000706000000",
+    "to": "20001103000000",
+    "knownCrawlers": [
+      {
+        "crawlerName": "crawl1",
+        "crawlerHostname": "crawl1.alexa.com",
+        "crawlerIpAddress": "209.247.40.101"
+      },
+      {
+        "crawlerName": "crawl2",
+        "crawlerHostname": "crawl2.alexa.com",
+        "crawlerIpAddress": "209.247.40.102"
+      },
+      {
+        "crawlerName": "crawl3",
+        "crawlerHostname": "crawl3.alexa.com",
+        "crawlerIpAddress": "209.247.40.103"
+      }
+    ]
+  },
+  {
+    "from": "20010208000000",
+    "to": "20010228235959",
+    "knownCrawlers": [
+      {
+        "crawlerName": "arc15",
+        "crawlerHostname": "arc15.alexa.com",
+        "crawlerIpAddress": "209.247.40.165"
+      },
+      {
+        "crawlerName": "arc16",
+        "crawlerHostname": "arc16.alexa.com",
+        "crawlerIpAddress": "209.247.40.166"
+      },
+      {
+        "crawlerName": "arc17",
+        "crawlerHostname": "arc17.alexa.com",
+        "crawlerIpAddress": "209.247.40.167"
+      },
+      {
+        "crawlerName": "arc18",
+        "crawlerHostname": "arc18.alexa.com",
+        "crawlerIpAddress": "209.247.40.168"
+      },
+      {
+        "crawlerName": "arc19",
+        "crawlerHostname": "arc19.alexa.com",
+        "crawlerIpAddress": "209.247.40.169"
+      },
+      {
+        "crawlerName": "arc20",
+        "crawlerHostname": "arc20.alexa.com",
+        "crawlerIpAddress": "209.247.40.170"
+      },
+      {
+        "crawlerName": "arc21",
+        "crawlerHostname": "arc21.alexa.com",
+        "crawlerIpAddress": "209.247.40.171"
+      },
+      {
+        "crawlerName": "arc22",
+        "crawlerHostname": "arc22.alexa.com",
+        "crawlerIpAddress": "209.247.40.172"
+      },
+      {
+        "crawlerName": "arc23",
+        "crawlerHostname": "arc23.alexa.com",
+        "crawlerIpAddress": "209.247.40.173"
+      },
+      {
+        "crawlerName": "arc24",
+        "crawlerHostname": "arc24.alexa.com",
+        "crawlerIpAddress": "209.247.40.174"
+      },
+      {
+        "crawlerName": "arc25",
+        "crawlerHostname": "arc25.alexa.com",
+        "crawlerIpAddress": "209.247.40.175"
+      }
+    ]
+  },
+  {
+    "from": "20010301000000",
+    "to": "20020110235959",
+    "knownCrawlers": [
+      {
+        "crawlerName": "arc15",
+        "crawlerHostname": "arc15-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.165"
+      },
+      {
+        "crawlerName": "arc16",
+        "crawlerHostname": "arc16-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.166"
+      },
+      {
+        "crawlerName": "arc17",
+        "crawlerHostname": "arc17-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.167"
+      },
+      {
+        "crawlerName": "arc18",
+        "crawlerHostname": "arc18-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.168"
+      },
+      {
+        "crawlerName": "arc19",
+        "crawlerHostname": "arc19-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.169"
+      },
+      {
+        "crawlerName": "arc20",
+        "crawlerHostname": "arc20-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.170"
+      },
+      {
+        "crawlerName": "arc21",
+        "crawlerHostname": "arc21-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.171"
+      },
+      {
+        "crawlerName": "arc22",
+        "crawlerHostname": "arc22-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.172"
+      },
+      {
+        "crawlerName": "arc23",
+        "crawlerHostname": "arc23-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.173"
+      },
+      {
+        "crawlerName": "arc24",
+        "crawlerHostname": "arc24-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.174"
+      },
+      {
+        "crawlerName": "arc25",
+        "crawlerHostname": "arc25-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.175"
+      },
+      {
+        "crawlerName": "crawl1",
+        "crawlerHostname": "crawl1-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.104"
+      },
+      {
+        "crawlerName": "crawl2",
+        "crawlerHostname": "crawl2-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.105"
+      },
+      {
+        "crawlerName": "crawl3",
+        "crawlerHostname": "crawl3-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.106"
+      },
+      {
+        "crawlerName": "crawl4",
+        "crawlerHostname": "crawl4-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.107"
+      },
+      {
+        "crawlerName": "crawl5",
+        "crawlerHostname": "crawl5-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.108"
+      },
+      {
+        "crawlerName": "crawl6",
+        "crawlerHostname": "crawl6-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.109"
+      },
+      {
+        "crawlerName": "crawl7",
+        "crawlerHostname": "crawl7-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.98"
+      },
+      {
+        "crawlerName": "crawl8",
+        "crawlerHostname": "crawl8-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.99"
+      },
+      {
+        "crawlerName": "alexa0",
+        "crawlerHostname": "crawler0.archive.org",
+        "crawlerIpAddress": "204.123.28.40"
+      },
+      {
+        "crawlerName": "alexa1",
+        "crawlerHostname": "crawler1.archive.org",
+        "crawlerIpAddress": "204.123.28.41"
+      },
+      {
+        "crawlerName": "alexa2",
+        "crawlerHostname": "crawler2.archive.org",
+        "crawlerIpAddress": "204.123.28.42"
+      },
+      {
+        "crawlerName": "alexa3",
+        "crawlerHostname": "crawler3.archive.org",
+        "crawlerIpAddress": "204.123.28.43"
+      }
+    ]
+  },
+  {
+    "from": "20020111000000",
+    "to": "20020120235959",
+    "knownCrawlers": [
+      {
+        "crawlerName": "crawl7",
+        "crawlerHostname": "crawl7-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.98"
+      },
+      {
+        "crawlerName": "crawl8",
+        "crawlerHostname": "crawl8-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.99"
+      },
+      {
+        "crawlerName": "alexa0",
+        "crawlerHostname": "crawler0.archive.org",
+        "crawlerIpAddress": "204.123.28.40"
+      },
+      {
+        "crawlerName": "alexa1",
+        "crawlerHostname": "crawler1.archive.org",
+        "crawlerIpAddress": "204.123.28.41"
+      },
+      {
+        "crawlerName": "alexa2",
+        "crawlerHostname": "crawler2.archive.org",
+        "crawlerIpAddress": "204.123.28.42"
+      },
+      {
+        "crawlerName": "alexa3",
+        "crawlerHostname": "crawler3.archive.org",
+        "crawlerIpAddress": "204.123.28.43"
+      }
+    ]
+  },
+  {
+    "from": "20020121000000",
+    "to": "20020408235959",
+    "knownCrawlers": [
+      {
+        "crawlerName": "crawl1",
+        "crawlerHostname": "crawl1-public.alexa.com",
+        "crawlerIpAddress": "66.28.98.1"
+      },
+      {
+        "crawlerName": "crawl2",
+        "crawlerHostname": "crawl2-public.alexa.com",
+        "crawlerIpAddress": "66.28.98.2"
+      },
+      {
+        "crawlerName": "crawl3",
+        "crawlerHostname": "crawl3-public.alexa.com",
+        "crawlerIpAddress": "66.28.98.3"
+      },
+      {
+        "crawlerName": "crawl4",
+        "crawlerHostname": "crawl4-public.alexa.com",
+        "crawlerIpAddress": "66.28.98.4"
+      },
+      {
+        "crawlerName": "crawl5",
+        "crawlerHostname": "crawl5-public.alexa.com",
+        "crawlerIpAddress": "66.28.98.5"
+      },
+      {
+        "crawlerName": "crawl6",
+        "crawlerHostname": "crawl6-public.alexa.com",
+        "crawlerIpAddress": "66.28.98.6"
+      },
+      {
+        "crawlerName": "crawl7",
+        "crawlerHostname": "crawl7-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.98"
+      },
+      {
+        "crawlerName": "crawl8",
+        "crawlerHostname": "crawl8-public.alexa.com",
+        "crawlerIpAddress": "209.247.40.99"
+      },
+      {
+        "crawlerName": "alexa0",
+        "crawlerHostname": "crawler0.archive.org",
+        "crawlerIpAddress": "204.123.28.40"
+      },
+      {
+        "crawlerName": "alexa1",
+        "crawlerHostname": "crawler1.archive.org",
+        "crawlerIpAddress": "204.123.28.41"
+      },
+      {
+        "crawlerName": "alexa2",
+        "crawlerHostname": "crawler2.archive.org",
+        "crawlerIpAddress": "204.123.28.42"
+      },
+      {
+        "crawlerName": "alexa3",
+        "crawlerHostname": "crawler3.archive.org",
+        "crawlerIpAddress": "204.123.28.43"
+      }
+    ]
+  },
+  {
+    "from": "20020409000000",
+    "to": "20020826235959",
+    "knownCrawlers": [
+      {
+        "crawlerName": "crawl1",
+        "crawlerHostname": "crawl1-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.171"
+      },
+      {
+        "crawlerName": "crawl2",
+        "crawlerHostname": "crawl2-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.172"
+      },
+      {
+        "crawlerName": "crawl3",
+        "crawlerHostname": "crawl3-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.173"
+      },
+      {
+        "crawlerName": "crawl4",
+        "crawlerHostname": "crawl4-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.174"
+      },
+      {
+        "crawlerName": "crawl5",
+        "crawlerHostname": "crawl5-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.175"
+      },
+      {
+        "crawlerName": "crawl6",
+        "crawlerHostname": "crawl6-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.176"
+      },
+      {
+        "crawlerName": "crawl7",
+        "crawlerHostname": "crawl7-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.177"
+      },
+      {
+        "crawlerName": "crawl8",
+        "crawlerHostname": "crawl8-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.178"
+      },
+      {
+        "crawlerName": "crawl9",
+        "crawlerHostname": "crawl9-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.179"
+      },
+      {
+        "crawlerName": "crawl10",
+        "crawlerHostname": "crawl10-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.180"
+      }
+    ]
+  },
+  {
+    "from": "20020827000000",
+    "to": "20020904235959",
+    "knownCrawlers": [
+      {
+        "crawlerName": "crawl1",
+        "crawlerHostname": "crawl1-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.171"
+      },
+      {
+        "crawlerName": "crawl2",
+        "crawlerHostname": "crawl2-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.172"
+      },
+      {
+        "crawlerName": "crawl3",
+        "crawlerHostname": "crawl3-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.173"
+      },
+      {
+        "crawlerName": "crawl4",
+        "crawlerHostname": "crawl4-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.174"
+      },
+      {
+        "crawlerName": "crawl5",
+        "crawlerHostname": "crawl5-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.175"
+      },
+      {
+        "crawlerName": "crawl6",
+        "crawlerHostname": "crawl6-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.176"
+      },
+      {
+        "crawlerName": "crawl7",
+        "crawlerHostname": "crawl7-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.177"
+      },
+      {
+        "crawlerName": "crawl8",
+        "crawlerHostname": "crawl8-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.178"
+      },
+      {
+        "crawlerName": "crawl9",
+        "crawlerHostname": "crawl9-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.179"
+      },
+      {
+        "crawlerName": "crawl10",
+        "crawlerHostname": "crawl10-public.alexa.com",
+        "crawlerIpAddress": "66.28.250.180"
+      },
+      {
+        "crawlerName": "crawl11",
+        "crawlerHostname": "crawl11-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.161"
+      },
+      {
+        "crawlerName": "crawl12",
+        "crawlerHostname": "crawl12-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.162"
+      },
+      {
+        "crawlerName": "crawl13",
+        "crawlerHostname": "crawl13-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.163"
+      },
+      {
+        "crawlerName": "crawl14",
+        "crawlerHostname": "crawl14-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.164"
+      },
+      {
+        "crawlerName": "crawl15",
+        "crawlerHostname": "crawl15-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.165"
+      },
+      {
+        "crawlerName": "crawl16",
+        "crawlerHostname": "crawl16-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.166"
+      }
+    ]
+  },
+  {
+    "from": "20020905000000",
+    "to": "20060118235959",
+    "knownCrawlers": [
+      {
+        "crawlerName": "crawl1",
+        "crawlerHostname": "crawl1-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.151"
+      },
+      {
+        "crawlerName": "crawl2",
+        "crawlerHostname": "crawl2-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.152"
+      },
+      {
+        "crawlerName": "crawl3",
+        "crawlerHostname": "crawl3-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.153"
+      },
+      {
+        "crawlerName": "crawl4",
+        "crawlerHostname": "crawl4.alexa.com",
+        "crawlerIpAddress": "209.237.237.154"
+      },
+      {
+        "crawlerName": "crawl5",
+        "crawlerHostname": "crawl5-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.155"
+      },
+      {
+        "crawlerName": "crawl6",
+        "crawlerHostname": "crawl6-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.156"
+      },
+      {
+        "crawlerName": "crawl7",
+        "crawlerHostname": "crawl7-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.157"
+      },
+      {
+        "crawlerName": "crawl8",
+        "crawlerHostname": "crawl8-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.158"
+      },
+      {
+        "crawlerName": "crawl9",
+        "crawlerHostname": "crawl9-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.159"
+      },
+      {
+        "crawlerName": "crawl10",
+        "crawlerHostname": "crawl10-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.160"
+      },
+      {
+        "crawlerName": "crawl11",
+        "crawlerHostname": "crawl11-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.161"
+      },
+      {
+        "crawlerName": "crawl12",
+        "crawlerHostname": "crawl12-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.162"
+      },
+      {
+        "crawlerName": "crawl13",
+        "crawlerHostname": "crawl13-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.163"
+      },
+      {
+        "crawlerName": "crawl14",
+        "crawlerHostname": "crawl14-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.164"
+      },
+      {
+        "crawlerName": "crawl15",
+        "crawlerHostname": "crawl15-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.165"
+      },
+      {
+        "crawlerName": "crawl16",
+        "crawlerHostname": "crawl16-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.166"
+      },
+      {
+        "crawlerName": "crawl17",
+        "crawlerHostname": "crawl17-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.167"
+      },
+      {
+        "crawlerName": "crawl18",
+        "crawlerHostname": "crawl18-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.168"
+      },
+      {
+        "crawlerName": "crawl19",
+        "crawlerHostname": "crawl19-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.169"
+      },
+      {
+        "crawlerName": "crawl20",
+        "crawlerHostname": "crawl20-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.170"
+      },
+      {
+        "crawlerName": "crawl21",
+        "crawlerHostname": "crawl21-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.171"
+      },
+      {
+        "crawlerName": "crawl22",
+        "crawlerHostname": "crawl22-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.172"
+      },
+      {
+        "crawlerName": "crawl23",
+        "crawlerHostname": "crawl23-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.173"
+      },
+      {
+        "crawlerName": "crawl24",
+        "crawlerHostname": "crawl24-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.174"
+      },
+      {
+        "crawlerName": "crawl25",
+        "crawlerHostname": "crawl25-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.175"
+      },
+      {
+        "crawlerName": "crawl26",
+        "crawlerHostname": "crawl26-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.176"
+      },
+      {
+        "crawlerName": "crawl27",
+        "crawlerHostname": "crawl27-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.177"
+      },
+      {
+        "crawlerName": "crawl28",
+        "crawlerHostname": "crawl28-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.178"
+      },
+      {
+        "crawlerName": "crawl29",
+        "crawlerHostname": "crawl29-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.179"
+      },
+      {
+        "crawlerName": "crawl30",
+        "crawlerHostname": "crawl30-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.180"
+      },
+      {
+        "crawlerName": "crawl31",
+        "crawlerHostname": "crawl31-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.181"
+      },
+      {
+        "crawlerName": "crawl32",
+        "crawlerHostname": "crawl32-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.182"
+      },
+      {
+        "crawlerName": "crawl33",
+        "crawlerHostname": "crawl33-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.183"
+      },
+      {
+        "crawlerName": "crawl34",
+        "crawlerHostname": "crawl34-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.184"
+      },
+      {
+        "crawlerName": "crawl35",
+        "crawlerHostname": "crawl35-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.185"
+      }
+    ]
+  },
+  {
+    "from": "20060816030653",
+    "to": "20061003235959",
+    "knownCrawlers": [
+      {
+        "crawlerName": "crawl1",
+        "crawlerHostname": "crawl1-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.151"
+      },
+      {
+        "crawlerName": "crawl2",
+        "crawlerHostname": "crawl2-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.152"
+      },
+      {
+        "crawlerName": "crawl3",
+        "crawlerHostname": "crawl3-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.153"
+      },
+      {
+        "crawlerName": "crawl4",
+        "crawlerHostname": "crawl4.alexa.com",
+        "crawlerIpAddress": "209.237.237.154"
+      },
+      {
+        "crawlerName": "crawl5",
+        "crawlerHostname": "crawl5-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.155"
+      },
+      {
+        "crawlerName": "crawl6",
+        "crawlerHostname": "crawl6-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.156"
+      },
+      {
+        "crawlerName": "crawl7",
+        "crawlerHostname": "crawl7-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.157"
+      },
+      {
+        "crawlerName": "crawl8",
+        "crawlerHostname": "crawl8-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.158"
+      },
+      {
+        "crawlerName": "crawl9",
+        "crawlerHostname": "crawl9-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.159"
+      },
+      {
+        "crawlerName": "crawl10",
+        "crawlerHostname": "crawl10-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.160"
+      },
+      {
+        "crawlerName": "crawl11",
+        "crawlerHostname": "crawl11-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.161"
+      },
+      {
+        "crawlerName": "crawl12",
+        "crawlerHostname": "crawl12-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.162"
+      },
+      {
+        "crawlerName": "crawl13",
+        "crawlerHostname": "crawl13-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.163"
+      },
+      {
+        "crawlerName": "crawl14",
+        "crawlerHostname": "crawl14-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.164"
+      },
+      {
+        "crawlerName": "crawl15",
+        "crawlerHostname": "crawl15-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.165"
+      },
+      {
+        "crawlerName": "crawl16",
+        "crawlerHostname": "crawl16-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.166"
+      },
+      {
+        "crawlerName": "crawl17",
+        "crawlerHostname": "crawl17-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.167"
+      },
+      {
+        "crawlerName": "crawl18",
+        "crawlerHostname": "crawl18-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.168"
+      },
+      {
+        "crawlerName": "crawl19",
+        "crawlerHostname": "crawl19-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.169"
+      },
+      {
+        "crawlerName": "crawl20",
+        "crawlerHostname": "crawl20-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.170"
+      },
+      {
+        "crawlerName": "crawl21",
+        "crawlerHostname": "crawl21-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.171"
+      },
+      {
+        "crawlerName": "crawl22",
+        "crawlerHostname": "crawl22-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.172"
+      },
+      {
+        "crawlerName": "crawl23",
+        "crawlerHostname": "crawl23-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.173"
+      },
+      {
+        "crawlerName": "crawl24",
+        "crawlerHostname": "crawl24-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.174"
+      },
+      {
+        "crawlerName": "crawl25",
+        "crawlerHostname": "crawl25-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.175"
+      },
+      {
+        "crawlerName": "crawl26",
+        "crawlerHostname": "crawl26-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.176"
+      },
+      {
+        "crawlerName": "crawl27",
+        "crawlerHostname": "crawl27-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.177"
+      },
+      {
+        "crawlerName": "crawl28",
+        "crawlerHostname": "crawl28-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.178"
+      },
+      {
+        "crawlerName": "crawl29",
+        "crawlerHostname": "crawl29-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.179"
+      },
+      {
+        "crawlerName": "crawl30",
+        "crawlerHostname": "crawl30-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.180"
+      },
+      {
+        "crawlerName": "crawl31",
+        "crawlerHostname": "crawl31-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.181"
+      },
+      {
+        "crawlerName": "crawl32",
+        "crawlerHostname": "crawl32-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.182"
+      },
+      {
+        "crawlerName": "crawl33",
+        "crawlerHostname": "crawl33-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.183"
+      },
+      {
+        "crawlerName": "crawl34",
+        "crawlerHostname": "crawl34-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.184"
+      },
+      {
+        "crawlerName": "crawl35",
+        "crawlerHostname": "crawl35-public.alexa.com",
+        "crawlerIpAddress": "209.237.238.185"
+      }
+    ]
+  },
+  {
+    "from": "20061023000000",
+    "to": "20070802235959",
+    "knownCrawlers": [
+      {
+        "crawlerName": "crawl22",
+        "crawlerHostname": "xcrawl22.alexa.com",
+        "crawlerIpAddress": "64.208.172.172"
+      },
+      {
+        "crawlerName": "crawl23",
+        "crawlerHostname": "xcrawl23.alexa.com",
+        "crawlerIpAddress": "64.208.172.173"
+      },
+      {
+        "crawlerName": "crawl24",
+        "crawlerHostname": "xcrawl24.alexa.com",
+        "crawlerIpAddress": "64.208.172.174"
+      },
+      {
+        "crawlerName": "crawl25",
+        "crawlerHostname": "xcrawl25.alexa.com",
+        "crawlerIpAddress": "64.208.172.175"
+      },
+      {
+        "crawlerName": "crawl26",
+        "crawlerHostname": "xcrawl26.alexa.com",
+        "crawlerIpAddress": "64.208.172.176"
+      },
+      {
+        "crawlerName": "crawl27",
+        "crawlerHostname": "xcrawl27.alexa.com",
+        "crawlerIpAddress": "64.208.172.177"
+      },
+      {
+        "crawlerName": "crawl28",
+        "crawlerHostname": "xcrawl28.alexa.com",
+        "crawlerIpAddress": "64.208.172.178"
+      },
+      {
+        "crawlerName": "crawl29",
+        "crawlerHostname": "xcrawl29.alexa.com",
+        "crawlerIpAddress": "64.208.172.179"
+      },
+      {
+        "crawlerName": "crawl30",
+        "crawlerHostname": "xcrawl30.alexa.com",
+        "crawlerIpAddress": "64.208.172.180"
+      },
+      {
+        "crawlerName": "crawl31",
+        "crawlerHostname": "xcrawl31.alexa.com",
+        "crawlerIpAddress": "64.208.172.181"
+      }
+    ]
+  },
+  {
+    "from": "20070803000000",
+    "to": "20080403235959",
+    "knownCrawlers": [
+      {
+        "crawlerName": "crawl100",
+        "crawlerHostname": "xcrawl100.alexa.com",
+        "crawlerIpAddress": "64.208.172.172"
+      },
+      {
+        "crawlerName": "crawl101",
+        "crawlerHostname": "xcrawl101.alexa.com",
+        "crawlerIpAddress": "64.208.172.173"
+      },
+      {
+        "crawlerName": "crawl102",
+        "crawlerHostname": "xcrawl102.alexa.com",
+        "crawlerIpAddress": "64.208.172.174"
+      },
+      {
+        "crawlerName": "crawl103",
+        "crawlerHostname": "xcrawl103.alexa.com",
+        "crawlerIpAddress": "64.208.172.175"
+      },
+      {
+        "crawlerName": "crawl104",
+        "crawlerHostname": "xcrawl104.alexa.com",
+        "crawlerIpAddress": "64.208.172.176"
+      },
+      {
+        "crawlerName": "crawl105",
+        "crawlerHostname": "xcrawl105.alexa.com",
+        "crawlerIpAddress": "64.208.172.177"
+      },
+      {
+        "crawlerName": "crawl106",
+        "crawlerHostname": "xcrawl106.alexa.com",
+        "crawlerIpAddress": "64.208.172.178"
+      },
+      {
+        "crawlerName": "crawl107",
+        "crawlerHostname": "xcrawl107.alexa.com",
+        "crawlerIpAddress": "64.208.172.179"
+      },
+      {
+        "crawlerName": "crawl108",
+        "crawlerHostname": "xcrawl108.alexa.com",
+        "crawlerIpAddress": "64.208.172.180"
+      },
+      {
+        "crawlerName": "crawl109",
+        "crawlerHostname": "xcrawl109.alexa.com",
+        "crawlerIpAddress": "64.208.172.181"
+      }
+    ]
+  },
+  // It seems that most Alexa records between 20081114-20081201 have encountered an indexing error and are not available on wayback
+  {
+    "from": "20081201000000",
+    "to": "20090914235959",
+    "knownCrawlers": [
+      {
+        "crawlerName": "crawl100",
+        "crawlerHostname": "ec2-67-202-59-141.compute-1.amazonaws.com",
+        "crawlerIpAddress": "67.202.59.141"
+      },
+      {
+        "crawlerName": "crawl101",
+        "crawlerHostname": "ec2-67-202-41-3.compute-1.amazonaws.com",
+        "crawlerIpAddress": "67.202.41.3"
+      },
+      {
+        "crawlerName": "crawl102",
+        "crawlerHostname": "ec2-67-202-54-191.compute-1.amazonaws.com",
+        "crawlerIpAddress": "67.202.54.191"
+      },
+      {
+        "crawlerName": "crawl103",
+        "crawlerHostname": "ec2-67-202-55-193.compute-1.amazonaws.com",
+        "crawlerIpAddress": "67.202.55.193"
+      },
+      {
+        "crawlerName": "crawl104",
+        "crawlerHostname": "ec2-67-202-62-173.compute-1.amazonaws.com",
+        "crawlerIpAddress": "67.202.62.173"
+      },
+      {
+        "crawlerName": "crawl105",
+        "crawlerHostname": "ec2-67-202-56-179.compute-1.amazonaws.com",
+        "crawlerIpAddress": "67.202.56.179"
+      },
+      {
+        "crawlerName": "crawl106",
+        "crawlerHostname": "ec2-67-202-43-229.compute-1.amazonaws.com",
+        "crawlerIpAddress": "67.202.43.229"
+      },
+      {
+        "crawlerName": "crawl107",
+        "crawlerHostname": "ec2-67-202-27-173.compute-1.amazonaws.com",
+        "crawlerIpAddress": "67.202.27.173"
+      },
+      {
+        "crawlerName": "crawl108",
+        "crawlerHostname": "ec2-72-44-39-21.compute-1.amazonaws.com",
+        "crawlerIpAddress": "72.44.39.21"
+      },
+      {
+        "crawlerName": "crawl109",
+        "crawlerHostname": "ec2-67-202-35-13.compute-1.amazonaws.com",
+        "crawlerIpAddress": "67.202.35.13"
+      }
+    ]
+  },
+  {
+    "from": "20090916000000",
+    "to": "20100204235959",
+    "knownCrawlers": [
+      {
+        "crawlerName": "crawl100",
+        "crawlerHostname": "ec2-174-129-121-101.compute-1.amazonaws.com",
+        "crawlerIpAddress": "174.129.121.101"
+      },
+      {
+        "crawlerName": "crawl101",
+        "crawlerHostname": "ec2-67-202-15-176.compute-1.amazonaws.com",
+        "crawlerIpAddress": "67.202.15.176"
+      },
+      {
+        "crawlerName": "crawl102",
+        "crawlerHostname": "ec2-75-101-221-99.compute-1.amazonaws.com",
+        "crawlerIpAddress": "75.101.221.99"
+      },
+      {
+        "crawlerName": "crawl103",
+        "crawlerHostname": "ec2-75-101-246-104.compute-1.amazonaws.com",
+        "crawlerIpAddress": "75.101.246.104"
+      }
+    ]
+  },
+  {
+    "from": "20100206000000",
+    "to": "20150205220146",
+    "knownCrawlers": [
+      {
+        "crawlerName": "crawl100",
+        "crawlerHostname": "ec2-174-129-228-67.compute-1.amazonaws.com",
+        "crawlerIpAddress": "174.129.228.67"
+      },
+      {
+        "crawlerName": "crawl101",
+        "crawlerHostname": "ec2-174-129-237-157.compute-1.amazonaws.com",
+        "crawlerIpAddress": "174.129.237.157"
+      },
+      {
+        "crawlerName": "crawl102",
+        "crawlerHostname": "ec2-204-236-226-210.compute-1.amazonaws.com",
+        "crawlerIpAddress": "204.236.226.210"
+      },
+      {
+        "crawlerName": "crawl103",
+        "crawlerHostname": "ec2-204-236-235-245.compute-1.amazonaws.com",
+        "crawlerIpAddress": "204.236.235.245"
+      }
+    ]
+  },
+  {
+    "from": "20150205220147",
+    "to": "20150206005311",
+    "knownCrawlers": [
+      {
+        "crawlerName": "crawl300",
+        "crawlerHostname": "ec2-54-226-151-209.compute-1.amazonaws.com",
+        "crawlerIpAddress": "54.226.151.209"
+      },
+      {
+        "crawlerName": "crawl301",
+        "crawlerHostname": "ec2-54-87-176-206.compute-1.amazonaws.com",
+        "crawlerIpAddress": "54.87.176.206"
+      },
+      {
+        "crawlerName": "crawl302",
+        "crawlerHostname": "ec2-23-22-162-98.compute-1.amazonaws.com",
+        "crawlerIpAddress": "23.22.162.98"
+      },
+      {
+        "crawlerName": "crawl303",
+        "crawlerHostname": "ec2-107-20-65-55.compute-1.amazonaws.com",
+        "crawlerIpAddress": "107.20.65.55"
+      }
+    ]
+  },
+  {
+    "from": "20150206030048",
+    "to": "20151231235959", // likely later, no crawler info for later dates yet...
+    "knownCrawlers": [
+      {
+        "crawlerName": "crawl300",
+        "crawlerHostname": "ec2-174-129-228-67.compute-1.amazonaws.com",
+        "crawlerIpAddress": "174.129.228.67"
+      },
+      {
+        "crawlerName": "crawl301",
+        "crawlerHostname": "ec2-174-129-237-157.compute-1.amazonaws.com",
+        "crawlerIpAddress": "174.129.237.157"
+      },
+      {
+        "crawlerName": "crawl302",
+        "crawlerHostname": "ec2-204-236-226-210.compute-1.amazonaws.com",
+        "crawlerIpAddress": "204.236.226.210"
+      },
+      {
+        "crawlerName": "crawl303",
+        "crawlerHostname": "ec2-204-236-235-245.compute-1.amazonaws.com",
+        "crawlerIpAddress": "204.236.235.245"
+      }
+    ]
+  }
+  // TODO: Crawlers until end of August 2020
+]

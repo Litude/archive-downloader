@@ -1,0 +1,20 @@
+[
+  {
+    "from": "20000701000000",
+    "to": "20010601000000",
+    "knownCrawlers": [
+      {
+        "crawlerName": "crawler0",
+        "crawlerHostname": "crawler0-complaints-to-admin.webresearch.pa-x.dec.com",
+        "crawlerIpAddress": "204.123.28.10"
+      },
+      // TODO: At some point, this was also called
+      // crawler1.webresearch.pa-x.dec.com (?)
+      {
+        "crawlerName": "crawler1",
+        "crawlerHostname": "election2000crawl-complaints-to-admin.webresearch.pa-x.dec.com",
+        "crawlerIpAddress": "204.123.28.11"
+      }
+    ]
+  }
+]

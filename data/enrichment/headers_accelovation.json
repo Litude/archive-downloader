@@ -1,0 +1,28 @@
+[
+  {
+    "from": "20060311000000",
+    "to": "20060629235959",
+    "protocol": "HTTP/1.0",
+    "headers": [
+      ["User-Agent", "Mozilla/5.0 (compatible; heritrix/1.6.0 +http://innovationblog.com)"],
+      ["From", "contactus@innovationblog.com"],
+      ["Connection", "close"],
+      ["Referer"],
+      ["Host"],
+      ["Cookie"]
+    ]
+  },
+  {
+    "from": "20060827000000",
+    "to": "20070108000000",
+    "protocol": "HTTP/1.0",
+    "headers": [
+      ["User-Agent", "Mozilla/5.0 (compatible; heritrix/1.8.0 +http://www.accelobot.com)"],
+      ["From", "nobot@accelovation.com"],
+      ["Connection", "close"],
+      ["Referer"],
+      ["Host"],
+      ["Cookie"]
+    ]
+  }
+]

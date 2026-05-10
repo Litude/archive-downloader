@@ -21,6 +21,7 @@ cgi3.archive.org.wb_urls.20021109211541.arc.gz
 
 import { DateTime } from "luxon";
 import {
+  cleanUpRecordFilenameCrawlerName,
   cleanUpRecordFilenameResult,
   ParsedRecordFilenameResult,
   parseRecordFormatFromArchiveFilename,
@@ -72,7 +73,12 @@ function parseWayback2002Filename(
     return undefined;
   }
   const crawlIdentifier = parts[typeIndex];
-  const crawlerName = [...parts.slice(0, typeIndex), ...parts.slice(typeIndex + 1)].join(".");
+  const crawlerName = [...parts.slice(0, typeIndex), ...parts.slice(typeIndex + 1)].join(".") || undefined;
+  const cleanedCrawlerName = crawlerName ? cleanUpRecordFilenameCrawlerName(crawlerName) : undefined;
+  if (!cleanedCrawlerName?.crawlerName && cleanedCrawlerName?.crawlerHostname) {
+    // Crawler name is first part of hostname
+    cleanedCrawlerName.crawlerName = cleanedCrawlerName.crawlerHostname.split(".")[0];
+  }
 
   let confidence = 0.8;
   if (timestampMatch) {
@@ -87,6 +93,63 @@ function parseWayback2002Filename(
       crawlIdentifier,
       crawlProvider: "internetarchive",
       // This seems to be slightly later than capture timestamp, so it must be when the arc was closed?
+      fileWriteEndTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
+      ...cleanedCrawlerName,
+    },
+  };
+}
+
+function parseWayback2005Filename(
+  filename: string,
+  captureTimestamp?: string,
+): ParsedRecordFilenameResult | undefined {
+  // Matches names such as:
+  // BNF-FRAGMENT-ia108634.20050307091502.arc.gz
+  // IA-WORLDWARS-ia371310.20080626045145.arc.gz
+  // IA-WORLDWARS-PATCH-ia400103.20080808003459.arc.gz
+
+  const timestampMatch =
+    captureTimestamp &&
+    captureTimestamp >= "20050101000000" &&
+    captureTimestamp <= "20100101000000";
+
+  const baseName = removeFileExtensionFromArchiveFilename(filename.split("/").pop() ?? "");
+  const recordFormat = parseRecordFormatFromArchiveFilename(filename);
+  if (recordFormat !== "arc") {
+    return undefined;
+  }
+  const parts = baseName.split(".");
+  if (parts.length < 2) {
+    return undefined;
+  }
+  const rawTimestamp = parts.pop() ?? "";
+  if (rawTimestamp.length !== 14) {
+    return undefined;
+  }
+  const timestamp = DateTime.fromFormat(rawTimestamp, "yyyyMMddHHmmss", { zone: "UTC" });
+  if (!timestamp.isValid || timestamp.year < 2005 || timestamp.year > 2009) {
+    return undefined;
+  }
+
+  const subParts = parts[0].split("-");
+  const crawlerName = subParts.pop() ?? "";
+  if (!crawlerName.match(/^ia\d+$/)) {
+    return undefined;
+  }
+  const crawlIdentifier = subParts.join("-");
+
+  let confidence = 0.8;
+  if (timestampMatch) {
+    confidence += 0.2;
+  }
+
+  return {
+    confidence,
+    filenameType: "wayback-2005",
+    recordFormat,
+    details: {
+      crawlIdentifier,
+      crawlProvider: "internetarchive",
       fileWriteEndTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
       crawlerName,
     },
@@ -178,7 +241,7 @@ export function parseWaybackRecordFilename(
   filename: string,
   captureTimestamp?: string,
 ): ParsedRecordFilenameResult[] {
-  const parsers = [parseWayback2002Filename, parseWayback2012Filename];
+  const parsers = [parseWayback2002Filename, parseWayback2005Filename, parseWayback2012Filename];
 
   const results: ParsedRecordFilenameResult[] = [];
   for (const parser of parsers) {

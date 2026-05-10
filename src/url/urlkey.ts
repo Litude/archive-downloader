@@ -11,3 +11,11 @@ export function urlToSimpleUrlkey(url: string): string {
       : parsed.pathname;
   return `${reversedHost}${port})${(path + query).toLowerCase()}`;
 }
+
+export function urlKeyToUrl(urlkey: string): string {
+  const [hostPart, ...pathParts] = urlkey.split(")");
+  const [reversedHost, port] = hostPart.split(":");
+  const hostname = reversedHost.split(",").reverse().join(".");
+  const pathAndQuery = pathParts.join(")");
+  return `http://${hostname}${port ? `:${port}` : ""}${pathAndQuery}`;
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "from": "20000701000000",
+    "to": "20010601000000",
+    "protocol": "HTTP/1.0",
+    "headers": [
+      ["User-Agent", "Mercator-1.0"],
+      ["Host"],
+      ["From", "admin@webresearch.pa-x.dec.com"]
+    ]
+  }
+]

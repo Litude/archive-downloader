@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { parse as csvParse } from "csv-parse/sync";
 import { CaptureEntry } from "../types/capture-types.js";
 import { createObjectCsvWriter } from "csv-writer";
 import { Filename } from "../types/download-input-types.js";
@@ -19,6 +20,7 @@ interface GlobalSummaryRow {
   provider: string;
   archive_filename: string;
   record_available: string;
+  validation_errors: string;
 }
 
 const GLOBAL_SUMMARY_HEADER: (keyof GlobalSummaryRow)[] = [
@@ -34,75 +36,12 @@ const GLOBAL_SUMMARY_HEADER: (keyof GlobalSummaryRow)[] = [
   "provider",
   "archive_filename", // gives a clue about the source collection and also the archive format
   "record_available",
+  "validation_errors", // optional field to indicate if there were validation errors during processing
 ];
-
-/**
- * Parse a single CSV line that was written by csv-writer.
- * Handles double-quote escaping and quoted fields containing commas.
- */
-function parseCsvLine(line: string): string[] {
-  const fields: string[] = [];
-  let i = 0;
-  while (i < line.length) {
-    if (line[i] === '"') {
-      // Quoted field
-      let field = "";
-      i++; // skip opening quote
-      while (i < line.length) {
-        if (line[i] === '"' && line[i + 1] === '"') {
-          field += '"';
-          i += 2;
-        } else if (line[i] === '"') {
-          i++; // skip closing quote
-          break;
-        } else {
-          field += line[i];
-          i++;
-        }
-      }
-      fields.push(field);
-      if (line[i] === ",") {
-        i++;
-      } // skip comma separator
-    } else {
-      // Unquoted field
-      const end = line.indexOf(",", i);
-      if (end === -1) {
-        fields.push(line.slice(i));
-        break;
-      } else {
-        fields.push(line.slice(i, end));
-        i = end + 1;
-      }
-    }
-  }
-  return fields;
-}
 
 function parseExistingCsv(csvPath: string): GlobalSummaryRow[] {
   const content = fs.readFileSync(csvPath, "utf-8");
-  const lines = content.split("\n").filter((l) => l.trim() !== "");
-  if (lines.length < 2) {
-    return [];
-  } // only header or empty
-
-  const rows: GlobalSummaryRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const fields = parseCsvLine(lines[i]);
-    if (fields.length !== GLOBAL_SUMMARY_HEADER.length) {
-      continue;
-    }
-    const row = {} as GlobalSummaryRow;
-    GLOBAL_SUMMARY_HEADER.forEach((key, idx) => {
-      if (key === "capture_index") {
-        (row[key] as number) = Number(fields[idx]);
-      } else {
-        (row[key] as string) = fields[idx];
-      }
-    });
-    rows.push(row);
-  }
-  return rows;
+  return csvParse<GlobalSummaryRow>(content, { columns: true }); // validate header and basic CSV structure
 }
 
 function compareRows(a: GlobalSummaryRow, b: GlobalSummaryRow): number {
@@ -146,6 +85,7 @@ export async function writeGlobalSummary(
         record_available: String(
           Boolean(entry.records?.find((r) => ["warc", "arc"].includes(r.type))?.type ?? undefined),
         ),
+        validation_errors: entry.metadata?.validationErrors?.map((e) => e.type).join("|") ?? "",
       }) satisfies GlobalSummaryRow,
   );
 

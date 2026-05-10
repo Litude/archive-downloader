@@ -104,23 +104,22 @@ function _parseGenericRecordFilenameInternal(
     }
   }
   const crawlerNameInfo = crawlerName ? cleanUpRecordFilenameCrawlerName(crawlerName) : undefined;
-  crawlerName = crawlerNameInfo?.crawlerName ?? crawlerName;
-  const crawlerPid = crawlerNameInfo?.crawlerPid;
   const recordFormat = parseRecordFormatFromArchiveFilename(filename);
   if (!recordFormat) {
     return undefined;
   }
 
   let confidence = 0.4;
-  let crawlInfrastructure = crawlerName
-    ? detectCrawlInfrastructureFromCrawlerName(crawlerName)
-    : undefined;
-  if (!crawlInfrastructure) {
-    crawlInfrastructure = detectCrawlInfrastructureFromCrawlIdentifier(crawlIdentifier);
-  }
+  const crawlInfrastructure = detectCrawlInfrastructure(crawlerName ?? "", crawlIdentifier);
   if (crawlInfrastructure) {
     confidence += 0.2;
   }
+
+  if (["internetarchive", "accelovation"].includes(crawlInfrastructure ?? "") && crawlerNameInfo?.crawlerHostname && !crawlerNameInfo.crawlerName) {
+    // Crawler name is first part of hostname for ia and accelovation
+    crawlerNameInfo.crawlerName = crawlerNameInfo.crawlerHostname.split(".")[0];
+  }
+
   return {
     // This is low confidence since it tries to parse pretty much anything, and more specific parsers should be preferred
     confidence,
@@ -130,8 +129,7 @@ function _parseGenericRecordFilenameInternal(
       crawlIdentifier,
       fileWriteStartTimestamp: timestamp,
       fileSerialNumber: serialNumber,
-      crawlerName,
-      crawlerPid,
+      ...crawlerNameInfo,
       crawlProvider: crawlInfrastructure,
     },
   };
@@ -151,9 +149,17 @@ function parseGenericRecordFilenameInternal(
   }
 }
 
+function detectCrawlInfrastructure(crawlerName: string, crawlIdentifier: string): string | undefined {
+  const fromCrawlerName = detectCrawlInfrastructureFromCrawlerName(crawlerName);
+  if (fromCrawlerName) {
+    return fromCrawlerName;
+  }
+  return detectCrawlInfrastructureFromCrawlIdentifier(crawlIdentifier);
+}
+
 function detectCrawlInfrastructureFromCrawlerName(crawlerName: string): string | undefined {
   const lower = crawlerName.toLowerCase();
-  if (lower.includes("archive.org")) {
+  if (lower.includes("archive.org") || (lower.match(/^crawling\d{2,3}$/)) || lower.match(/^ia\d{5,6}$/)) {
     return "internetarchive";
   } else if (lower.includes("accelovation.com")) {
     return "accelovation";

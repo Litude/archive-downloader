@@ -163,6 +163,8 @@ export function readWebsiteJsonConfig(
 
   const files: WebsiteFileEntryJson[] = config.files;
 
+  const encounteredUrls = new Set<string>();
+
   const result: DownloadFileInput[] = files.map((file) => {
     const urls = getEntryUrls(file, maxTimestamp, minTimestamp);
 
@@ -179,6 +181,20 @@ export function readWebsiteJsonConfig(
     const allUrls = noMirrors
       ? urls
       : createAllMirrorUrls(urls, file, mirrors, { maxTimestamp, minTimestamp });
+      
+    const newUrls = new Set<string>();
+    allUrls.forEach((u) => {
+      const normalized = new URL(u.url).toString()
+        .replace(/^https?:\/\//, "")
+        .replace(/^www\d*\./, "");
+      if (encounteredUrls.has(normalized)) {
+        console.warn(`Warning: URL "${u.url}" is duplicated across file entries`);
+      } else {
+        newUrls.add(normalized);
+      }
+    });
+    // We don't want to warn for duplicates in the same file entry
+    newUrls.forEach((u) => encounteredUrls.add(u));
 
     const transformations = parseJsonTransformations(file.transformations || []);
 

@@ -7,23 +7,27 @@ import { writeCsvRecordsSafe } from "../../utils/file-write.js";
 
 interface FilenameSummaryRow {
   capture_ts: string;
+  capture_url: string;
   archive_filename: string;
   filename_crawl_id: string;
   filename_type: string;
+  filename_provider: string;
   filename_confidence: number;
 }
 
 const FILENAME_SUMMARY_HEADER: (keyof FilenameSummaryRow)[] = [
   "capture_ts",
+  "capture_url",
   "archive_filename",
   "filename_crawl_id",
   "filename_type",
+  "filename_provider",
   "filename_confidence",
 ];
 
 async function processCsvFile(csvPath: string, outputDir: string): Promise<void> {
   const content = fs.readFileSync(csvPath, "utf-8");
-  const records = csvParse<{ archive_filename: string; capture_ts?: string }>(content, {
+  const records = csvParse<{ archive_filename: string; capture_ts?: string; url?: string }>(content, {
     columns: true,
   });
 
@@ -40,15 +44,18 @@ async function processCsvFile(csvPath: string, outputDir: string): Promise<void>
   const summaryRows: FilenameSummaryRow[] = records.filter((record) => record.archive_filename).map((record) => {
     const archiveFilename = record.archive_filename ?? "";
     const captureTs = record.capture_ts ?? "";
+    const captureUrl = record.url ?? "";
 
     const results = parseRecordFilenameWithCandidates(archiveFilename, captureTs || undefined);
     const best = results[0];
 
     return {
       capture_ts: captureTs,
+      capture_url: captureUrl,
       archive_filename: archiveFilename,
       filename_crawl_id: best?.details.crawlIdentifier ?? "",
       filename_type: best?.filenameType ?? "",
+      filename_provider: best?.details.crawlProvider ?? "",
       filename_confidence: best?.confidence ?? 0,
     };
   });
