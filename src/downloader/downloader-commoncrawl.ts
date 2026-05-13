@@ -36,7 +36,7 @@ const __dirname = dirname(__filename);
 
 const commonCrawlCollectionInfo: CommonCrawlCollectionInfo[] = JSON5.parse(
   fs.readFileSync(
-    path.join(__dirname, "../../data/enrichment/commoncrawl_collections.json"),
+    path.join(__dirname, "../../data/enrichment/collections_commoncrawl.json"),
     "utf-8",
   ),
 );
@@ -316,7 +316,7 @@ export async function downloadCommonCrawlEntries(
 
   let redirectNonSlashTotal = 0;
   for (const urlEntry of input.urls) {
-    if (!urlEntry.mirrorUrl) {
+    if (!urlEntry.mirrorUrl || urlEntry.additionalUrl) {
       const result = await downloadUrlCommonCrawlEntries(
         urlEntry,
         context,

@@ -2,7 +2,7 @@ import { parseAlexaRecordFilename } from "./filename-parser-alexa.js";
 import { parseArchiveItRecordFilename } from "./filename-parser-archiveit.js";
 import { parseArchiveTeamRecordFilename } from "./filename-parser-archiveteam.js";
 import { parseCommonCrawlFilename } from "./filename-parser-commoncrawl.js";
-import { parseDecRecordFilename } from "./filename-parser-dec.js";
+import { parseCompaqSrcRecordFilename } from "./filename-parser-compaqsrc.js";
 import { parseGenericRecordFilename } from "./filename-parser-generic.js";
 import { parseSpecializedRecordFilename } from "./filename-parser-specialized.js";
 import { parseWaybackRecordFilename } from "./filename-parser-wayback.js";
@@ -18,7 +18,7 @@ export function parseRecordFilenameWithCandidates(
 
   const parsers = [
     parseAlexaRecordFilename,
-    parseDecRecordFilename,
+    parseCompaqSrcRecordFilename,
     parseCommonCrawlFilename,
     parseGenericRecordFilename,
     parseWaybackRecordFilename,

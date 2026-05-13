@@ -37,6 +37,7 @@ export interface LimitedCaptureConfig {
 export interface UrlEntry {
   url: string;
   mirrorUrl?: boolean;
+  additionalUrl?: boolean;
   excludeInvalid?: boolean;
   maxTimestamp?: string;
   minTimestamp?: string;

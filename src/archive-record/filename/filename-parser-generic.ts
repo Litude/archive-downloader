@@ -1,3 +1,4 @@
+import { createWaybackCrawlerHostname } from "./filename-parser-wayback.js";
 import {
   cleanUpRecordFilenameCrawlerName,
   cleanUpRecordFilenameResult,
@@ -118,6 +119,10 @@ function _parseGenericRecordFilenameInternal(
   if (["internetarchive", "accelovation"].includes(crawlInfrastructure ?? "") && crawlerNameInfo?.crawlerHostname && !crawlerNameInfo.crawlerName) {
     // Crawler name is first part of hostname for ia and accelovation
     crawlerNameInfo.crawlerName = crawlerNameInfo.crawlerHostname.split(".")[0];
+  }
+
+  if (crawlInfrastructure === "internetarchive" && crawlerNameInfo?.crawlerName && !crawlerNameInfo.crawlerHostname) {
+    crawlerNameInfo.crawlerHostname = createWaybackCrawlerHostname(crawlerNameInfo.crawlerName, timestamp);
   }
 
   return {

@@ -18,6 +18,7 @@ export function getArchivedRecord(entry: CaptureEntry) {
           ? {
               contentLengthIncludesTrailingNewline:
                 collectionCleanupData?.contentLengthIncludesTrailingNewline ?? false,
+              alreadyDechunked: collectionCleanupData?.alreadyDechunked ?? false,
             }
           : undefined,
       );

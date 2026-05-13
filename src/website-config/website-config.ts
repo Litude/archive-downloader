@@ -220,7 +220,7 @@ export function readWebsiteJsonConfig(
       urls: allUrls,
       filename,
       outputDirectory: outputDir,
-      commonCrawlEnabled: file.commonCrawlEnabled ?? (!!file.commonCrawlCollections || undefined),
+      commonCrawlEnabled: file.commonCrawlEnabled ?? (!!file.commonCrawlCollections || undefined) ?? config.commonSettings?.commonCrawlEnabled,
       commonCrawlCollections: file.commonCrawlCollections,
       transformations,
       queryHashParameters: file.queryHashParameters,

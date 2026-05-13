@@ -96,6 +96,7 @@ export async function downloadCommonCrawlFile(
     metadataPrefixes: collectionCleanupData?.metadataHeaderPrefixes,
     contentLengthIncludesTrailingNewline:
       collectionCleanupData?.contentLengthIncludesTrailingNewline ?? false,
+      alreadyDechunked: collectionCleanupData?.alreadyDechunked ?? false,
   };
 
   if (isArc) {

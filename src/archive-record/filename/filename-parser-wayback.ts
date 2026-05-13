@@ -30,6 +30,15 @@ import {
 
 const WAYBACK_2002_TYPES = ["wb_robots", "wb_urls"];
 
+export function createWaybackCrawlerHostname(crawlerName: string, timestamp: string): string {
+  if (timestamp >= "20060615000000") {
+    return `${crawlerName}.us.archive.org`;
+  }
+  else {
+    return `${crawlerName}.archive.org`;
+  }
+}
+
 function parseWayback2002Filename(
   filename: string,
   captureTimestamp?: string,
@@ -78,6 +87,10 @@ function parseWayback2002Filename(
   if (!cleanedCrawlerName?.crawlerName && cleanedCrawlerName?.crawlerHostname) {
     // Crawler name is first part of hostname
     cleanedCrawlerName.crawlerName = cleanedCrawlerName.crawlerHostname.split(".")[0];
+  }
+
+  if (cleanedCrawlerName?.crawlerName && !cleanedCrawlerName.crawlerHostname) {
+    cleanedCrawlerName.crawlerHostname = createWaybackCrawlerHostname(cleanedCrawlerName.crawlerName, rawTimestamp);
   }
 
   let confidence = 0.8;
@@ -142,6 +155,7 @@ function parseWayback2005Filename(
   if (timestampMatch) {
     confidence += 0.2;
   }
+  const crawlerHostname = createWaybackCrawlerHostname(crawlerName, rawTimestamp);
 
   return {
     confidence,
@@ -152,6 +166,7 @@ function parseWayback2005Filename(
       crawlProvider: "internetarchive",
       fileWriteEndTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
       crawlerName,
+      crawlerHostname,
     },
   };
 }
@@ -222,6 +237,7 @@ function parseWayback2012Filename(
   if (timestampMatch) {
     confidence += 0.2;
   }
+  const crawlerHostname = createWaybackCrawlerHostname(crawlerName, timestampRaw);
 
   return {
     confidence,
@@ -233,6 +249,67 @@ function parseWayback2012Filename(
       fileWriteStartTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
       fileSerialNumber: serialNumber,
       crawlerName,
+      crawlerHostname,
+    },
+  };
+}
+
+export function parseWaybackLiveFilename(
+  filename: string,
+  captureTimestamp?: string,
+): ParsedRecordFilenameResult | undefined {
+  // Matches names such as:
+  // live-20110420091159490-01054.arc.gz
+  // live-20120510111350053-00211.arc.gz
+  // live-20130815163657338-03439.arc.gz
+
+  // Date range:
+  // Minimum: 20110101000000
+  // Maximum: 20130901000000
+
+  const timestampMatch =
+    captureTimestamp &&
+    captureTimestamp >= "20110101000000" &&
+    captureTimestamp <= "20130901000000";
+
+  const baseName = removeFileExtensionFromArchiveFilename(filename.split("/").pop() ?? "");
+  const recordFormat = parseRecordFormatFromArchiveFilename(filename);
+  if (recordFormat !== "arc") {
+    return undefined;
+  }
+  const parts = baseName.split("-");
+  if (parts.length < 3) {
+    return undefined;
+  }
+  if (parts[0] !== "live") {
+    return undefined;
+  }
+  const serialNumber = parts.pop();
+  if (!serialNumber?.match(/^\d{5}$/)) {
+    return undefined;
+  }
+  const timestampRaw = parts.pop();
+  if (!timestampRaw || timestampRaw.length !== 17) {
+    return undefined;
+  }
+  const timestamp = DateTime.fromFormat(timestampRaw, "yyyyMMddHHmmssSSS", { zone: "UTC" });
+  if (!timestamp.isValid || timestamp.year < 2011 || timestamp.year > 2013) {
+    return undefined;
+  }
+
+  let confidence = 0.8;
+  if (timestampMatch) {
+    confidence += 0.2;
+  }
+  return {
+    confidence,
+    filenameType: "wayback-live",
+    recordFormat,
+    details: {
+      crawlIdentifier: "live",
+      crawlProvider: "internetarchive",
+      fileWriteStartTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
+      fileSerialNumber: serialNumber,
     },
   };
 }
@@ -241,7 +318,7 @@ export function parseWaybackRecordFilename(
   filename: string,
   captureTimestamp?: string,
 ): ParsedRecordFilenameResult[] {
-  const parsers = [parseWayback2002Filename, parseWayback2005Filename, parseWayback2012Filename];
+  const parsers = [parseWayback2002Filename, parseWayback2005Filename, parseWayback2012Filename, parseWaybackLiveFilename];
 
   const results: ParsedRecordFilenameResult[] = [];
   for (const parser of parsers) {

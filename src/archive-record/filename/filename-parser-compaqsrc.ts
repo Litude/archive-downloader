@@ -18,7 +18,7 @@ function getCrawlerNameFromCrawlIdentifier(crawlIdentifier: string): string | un
   }
 }
 
-function parseDecRegularCrawlFilename(
+function parseCompaqSrcRegularCrawlFilename(
   filename: string,
   captureTimestamp?: string,
 ): ParsedRecordFilenameResult | undefined {
@@ -77,7 +77,7 @@ function parseDecRegularCrawlFilename(
 
   return {
     confidence,
-    filenameType: "dec-regular",
+    filenameType: "compaqsrc-regular",
     recordFormat,
     details: {
       crawlIdentifier,
@@ -87,7 +87,7 @@ function parseDecRegularCrawlFilename(
   };
 }
 
-function parseDecImageCrawlFilename(
+function parseCompaqSrcImageCrawlFilename(
   filename: string,
   captureTimestamp?: string,
 ): ParsedRecordFilenameResult | undefined {
@@ -129,7 +129,7 @@ function parseDecImageCrawlFilename(
 
   return {
     confidence,
-    filenameType: "dec-image",
+    filenameType: "compaqsrc-image",
     recordFormat,
     details: {
       crawlIdentifier,
@@ -139,7 +139,7 @@ function parseDecImageCrawlFilename(
   };
 }
 
-function parseDecElection2000CrawlFilename(
+function parseCompaqSrcElection2000CrawlFilename(
   filename: string,
   captureTimestamp?: string,
 ): ParsedRecordFilenameResult | undefined {
@@ -153,7 +153,7 @@ function parseDecElection2000CrawlFilename(
   // Date range:
   // It seems that the timestamp in the filename is somekind of processing timestamp that is much later than the content itself
   // Acc to news the crawl happened from August 1, 2000 to January 14, 2001. But we make the check a bit more lenient since the timestamps
-  // inside the files are not really known... Covers complete range from earliest known dec crawls to when final archive was processed
+  // inside the files are not really known... Covers complete range from earliest known compaqsrc crawls to when final archive was processed
   // Minimum: 20000801000000 (from news about crawl)
   // Maximum: 20010215000000 (from news about crawl)
 
@@ -183,7 +183,7 @@ function parseDecElection2000CrawlFilename(
   }
   return {
     confidence,
-    filenameType: "dec-election2000",
+    filenameType: "compaqsrc-election2000",
     recordFormat,
     details: {
       crawlIdentifier: "unique",
@@ -192,21 +192,21 @@ function parseDecElection2000CrawlFilename(
   };
 }
 
-export function parseDecRecordFilename(
+export function parseCompaqSrcRecordFilename(
   filename: string,
   captureTimestamp?: string,
 ): ParsedRecordFilenameResult[] {
   const parsers = [
-    parseDecRegularCrawlFilename,
-    parseDecImageCrawlFilename,
-    parseDecElection2000CrawlFilename,
+    parseCompaqSrcRegularCrawlFilename,
+    parseCompaqSrcImageCrawlFilename,
+    parseCompaqSrcElection2000CrawlFilename,
   ];
 
   const results: ParsedRecordFilenameResult[] = [];
   for (const parser of parsers) {
     const result = parser(filename, captureTimestamp);
     if (result) {
-      results.push({ ...result, details: { ...result.details, crawlProvider: "dec" } });
+      results.push({ ...result, details: { ...result.details, crawlProvider: "compaqsrc" } });
     }
   }
 

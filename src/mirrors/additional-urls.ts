@@ -15,6 +15,7 @@ export function createAdditionalUrls(
       parsed.push({
         url,
         mirrorUrl: true,
+        additionalUrl: true,
         excludeInvalid: urlIsIpv4Address(url),
         maxTimestamp: maxTimestamp,
         minTimestamp: minTimestamp,
@@ -24,6 +25,7 @@ export function createAdditionalUrls(
       parsed.push({
         url: url.url,
         mirrorUrl: true,
+        additionalUrl: true,
         excludeInvalid: url.excludeInvalid ?? urlIsIpv4Address(url.url),
         maxTimestamp: url.maxTimestamp ?? maxTimestamp,
         minTimestamp: url.minTimestamp ?? minTimestamp,

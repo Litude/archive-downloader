@@ -117,6 +117,7 @@ async function processWebsiteDownloads(
     waybackPrefetchedIndex,
     websiteOutputDirectory,
     skipOn302 = 0,
+    waybackEnabled = true,
     commonCrawlEnabled = true,
     noDeduplication = false,
     fetchMetadata = true,
@@ -130,6 +131,7 @@ async function processWebsiteDownloads(
     waybackPrefetchedIndex?: WaybackPrefetchedCdxIndex;
     websiteOutputDirectory: string;
     skipOn302?: number;
+    waybackEnabled?: boolean;
     commonCrawlEnabled?: boolean;
     noDeduplication?: boolean;
     fetchMetadata?: boolean;
@@ -159,7 +161,7 @@ async function processWebsiteDownloads(
       unavailableEntries,
       skippedEntries,
       metadata: waybackDownloadMetadata,
-    } = await downloadWaybackEntries(input, context, waybackPrefetchedIndex);
+    } = waybackEnabled ? await downloadWaybackEntries(input, context, waybackPrefetchedIndex) : { baseEntries: [], unavailableEntries: [], skippedEntries: [], metadata: {} };
 
     const { filteredEntries: commonCrawlEntries, metadata: commonCrawlDownloadMetadata } =
       commonCrawlEnabled && isCommonCrawlEnabledForInput(input, commonCrawlPrefetchedIndex)
@@ -372,6 +374,11 @@ async function main() {
       default: true,
       describe: "Use mirrors and additional URLs",
     })
+    .option("wayback", {
+      type: "boolean",
+      default: true,
+      describe: "Disable Wayback downloads for all inputs",
+    })
     .option("common-crawl", {
       type: "boolean",
       default: true,
@@ -437,6 +444,7 @@ async function main() {
     console.log(`Write headers: ${argv["headers"]}`);
     console.log(`Include invalid: ${argv["include-invalid"]}`);
     console.log(`Skip on 302: ${argv["skip-on-302"] ? argv["skip-on-302"] : "infinite"} retries`);
+    console.log(`Wayback enabled: ${argv["wayback"]}`);
     console.log(`Common Crawl enabled: ${argv["common-crawl"]}`);
     console.log(`Max timestamp: ${argv["max-timestamp"] || "None"}`);
     console.log(`Min timestamp: ${argv["min-timestamp"] || "None"}`);
@@ -445,6 +453,7 @@ async function main() {
     console.log(`Fetch Wayback original record: ${argv["fetch-wayback-original-record"]}`);
     console.log(`Sanity check timestamps: ${argv["check-timestamps"]}`);
     console.log("================\n");
+    const waybackEnabled = argv["wayback"];
     const commonCrawlEnabled = argv["common-crawl"];
     const {
       downloadInputs,
@@ -460,7 +469,7 @@ async function main() {
           })
         : undefined;
     const waybackPrefetchedIndex =
-      waybackCdxIndexQueries.length > 0
+      waybackEnabled && waybackCdxIndexQueries.length > 0
         ? await prefetchWaybackCdxIndex(waybackCdxIndexQueries, websiteOutputDirectory)
         : undefined;
     await processWebsiteDownloads(downloadInputs, {
@@ -471,6 +480,7 @@ async function main() {
       waybackPrefetchedIndex,
       websiteOutputDirectory,
       skipOn302: argv["skip-on-302"],
+      waybackEnabled,
       commonCrawlEnabled,
       noDeduplication: !argv["deduplication"],
       fetchMetadata: argv["fetch-wayback-metadata"],

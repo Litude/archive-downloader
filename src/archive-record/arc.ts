@@ -5,6 +5,7 @@ import { dechunkChunkedResponse } from "./dechunk.js";
 export interface ArcParsingOptions {
   metadataPrefixes?: string[];
   contentLengthIncludesTrailingNewline?: boolean;
+  alreadyDechunked?: boolean; // If true, will not attempt to dechunk even if Transfer-Encoding: chunked is present. Used for Arc files where the content is not actually chunked, but still has the header for some reason.
 }
 
 function parseArcHeaderLine(headerLine: string): {
@@ -106,7 +107,7 @@ export function parseArcFile(
     ([name, value]) =>
       name.toLowerCase() === "transfer-encoding" && value.toLowerCase() === "chunked",
   );
-  if (isChunked) {
+  if (isChunked && !parsingOptions?.alreadyDechunked) {
     payloadBuffer = dechunkChunkedResponse(payloadBuffer);
   }
 

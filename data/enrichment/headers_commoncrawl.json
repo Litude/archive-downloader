@@ -1,0 +1,60 @@
+[
+  {
+    // CC-MAIN-2008-2009
+    "from": "20080501000000",
+    "to": "20090131235959",
+    "protocol": "HTTP/1.1",
+    "headers": [
+      ["Host"],
+      ["User-Agent", "CCBot/1.0 (+http://www.commoncrawl.org/bot.html)"],
+      ["Accept", "Accept: application/xhtml+xml,text/html;q=0.9,text/plain;"],
+      ["Accept-Language", "en-us,en;q=0.5"],
+      ["Accept-Encoding", "gzip"],
+      ["Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.7"],
+      ["Connection", "close"],
+      ["Cache-Control", "no-cache"],
+      ["Pragma", "no-cache"],
+      ["Cookie"]
+    ]
+  },
+  {
+    // first month of CC-MAIN-2009-2010
+    "from": "20090701000000",
+    "to": "20090705235959",
+    "protocol": "HTTP/1.1",
+    "headers": [
+      ["x-cc-list"], // values such as: "List:1 For:219.94.192.83" (probably crawler seed list?)
+      ["Host"],
+      ["User-Agent", "CCBot/1.0 (+http://www.commoncrawl.org/bot.html)"],
+      ["Accept", "Accept: application/xhtml+xml,text/html;q=0.9,text/plain;"],
+      ["Accept-Language", "en-us,en;q=0.5"],
+      ["Accept-Encoding", "gzip"],
+      ["Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.7"],
+      ["Connection", "close"],
+      ["Cache-Control", "no-cache"],
+      ["Pragma", "no-cache"],
+      ["Cookie"]
+    ]
+  },
+  {
+    // CC-MAIN-2009-2010, excl first few months
+    // and CC-MAIN-2012
+    "from": "20091102000000",
+    "to": "20121231235959",
+    "protocol": "HTTP/1.1",
+    "headers": [
+      ["x-cc-id"], // values such as: "ccc01-01", "ccc02-02", "ccc04-01" (original internal hostname of crawler)
+      ["If-Modified-Since"],
+      ["Host"],
+      ["User-Agent", "CCBot/1.0 (+http://www.commoncrawl.org/bot.html)"],
+      ["Accept", "text/html,application/xhtml+xml,text/xml;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5"],
+      ["Accept-Language", "en-us,en;q=0.5"],
+      ["Accept-Encoding", "gzip"],
+      ["Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.7"],
+      ["Connection", "close"],
+      ["Cache-Control", "no-cache"],
+      ["Pragma", "no-cache"],
+      ["Cookie"]
+    ]
+  }
+]

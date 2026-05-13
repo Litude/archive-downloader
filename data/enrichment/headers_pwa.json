@@ -1,0 +1,16 @@
+[
+  {
+    // TODO: Check dates...
+    "from": "20080101000000",
+    "to": "20081231235959",
+    "protocol": "HTTP/1.0",
+    "headers": [
+      ["User-Agent", "Arquivo-web-crawler (compatible; heritrix/1.12.1 +http://arquivo-web.fccn.pt)"],
+      ["From", "contacto-tomba@fccn.pt"],
+      ["Connection", "close"],
+      ["Referer"],
+      ["Host"],
+      ["Cookie"]
+    ]
+  }
+]
