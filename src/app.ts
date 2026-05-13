@@ -184,7 +184,7 @@ async function processWebsiteDownloads(
     skippedEntries.sort(compareCaptureEntries);
 
     for (const entry of baseEntries) {
-      enrichCaptureEntryData(entry);
+      await enrichCaptureEntryData(entry);
     }
 
     for (const entry of baseEntries) {

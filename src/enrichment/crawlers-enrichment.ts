@@ -19,18 +19,24 @@ export interface CrawlerEnrichment {
   crawlerHostnameSecondary?: string;
   knownCrawlers?: KnownCrawlerEntry[];
   crawlerIpRange?: string;
+  fileSize?: number;
+  fileMd5?: string;
+  fileModificationTime?: string;
 }
 
-export type ArchiveFileInfo = ParsedRecordFilename & CrawlerEnrichment;
+export type ArchiveFileInfo = Partial<ParsedRecordFilename> & CrawlerEnrichment;
 
 const archiveFileInfoOrdering: Record<string, number> = {
   ...(crawlOrdering as Record<string, number>),
   crawlerHostnameSecondary: 41.5,
   knownCrawlers: 48,
   crawlerIpRange: 49,
+  fileSize: 90,
+  fileModificationTime: 91,
+  fileMd5: 92,
 };
 
-function sortArchiveFileInfo(info: ArchiveFileInfo): ArchiveFileInfo {
+export function sortArchiveFileInfo(info: ArchiveFileInfo): ArchiveFileInfo {
   return Object.fromEntries(
     Object.entries(info).sort(
       ([a], [b]) => (archiveFileInfoOrdering[a] ?? 999) - (archiveFileInfoOrdering[b] ?? 999),
