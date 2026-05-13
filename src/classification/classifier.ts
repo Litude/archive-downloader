@@ -47,7 +47,9 @@ function decodeHtml(buffer: Buffer): string {
     return new TextDecoder(encoding).decode(buffer);
   } catch (err: unknown) {
     const error = toDownloaderError(err);
-    console.warn(`Failed to decode (error ${error.message}) with encoding ${encoding}, falling back to windows-1252`);
+    console.warn(
+      `Failed to decode (error ${error.message}) with encoding ${encoding}, falling back to windows-1252`,
+    );
     return new TextDecoder("windows-1252").decode(buffer);
   }
 }

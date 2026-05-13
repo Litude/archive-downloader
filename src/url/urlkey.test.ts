@@ -61,9 +61,7 @@ describe("urlKeyToUrl", () => {
   });
 
   it("reconstructs multi-part hostname", () => {
-    expect(urlKeyToUrl("com,microsoft)/games/empires")).toBe(
-      "http://microsoft.com/games/empires",
-    );
+    expect(urlKeyToUrl("com,microsoft)/games/empires")).toBe("http://microsoft.com/games/empires");
   });
 
   it("includes path and filename", () => {
@@ -71,7 +69,7 @@ describe("urlKeyToUrl", () => {
       "http://microsoft.com/games/empires/default.htm",
     );
   });
-  
+
   it("includes query string", () => {
     expect(urlKeyToUrl("com,microsoft)/games/empires/?rld=69")).toBe(
       "http://microsoft.com/games/empires/?rld=69",

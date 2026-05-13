@@ -24,7 +24,7 @@ import {
  * crawl-data/CC-MAIN-2018-13/segments/1521257647498.68/warc/CC-MAIN-20180320150533-20180320170533-00380.warc.gz
  * crawl-data/CC-MAIN-2020-50/segments/1606141181179.12/crawldiagnostics/CC-MAIN-20201125041943-20201125071943-00291.warc.gz
  * crawl-data/CC-MAIN-2026-12/segments/1772687277331.4/warc/CC-MAIN-20260305223500-20260306013500-00868.warc.gz
- * 
+ *
  * 1224162134459_31-c/1224162306946_26.arc.gz (CC-MAIN-2008-2009 IA version)
  */
 
@@ -174,7 +174,7 @@ function parseCommonCrawlFilenameInternal(
         filenameType: "commoncrawl-2008-ia",
         recordFormat: "arc" as const,
         details: {
-          crawlIdentifier:"CC-MAIN-2008-2009",
+          crawlIdentifier: "CC-MAIN-2008-2009",
           crawlOriginalIdentifier: "crawl-001",
           crawlProvider: "commoncrawl",
           fileWriteStartTimestamp: DateTime.fromMillis(+timestamp).toUTC().toISO() ?? undefined,

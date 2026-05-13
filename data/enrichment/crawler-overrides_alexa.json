@@ -103,14 +103,8 @@
     },
     {
       "from": "19981201000000",
-      "to": "20000229150000",
+      "to": "20000229075959",
       "crawlerHostname": "green.alexa.com",
-      "crawlerIpAddress": "206.132.186.131"
-    },
-    {
-      "from": "20000229150001",
-      "to": "20000229150000",
-      "crawlerHostname": "crawl1.alexa.com",
       "crawlerIpAddress": "206.132.186.131"
     },
     {
@@ -138,14 +132,8 @@
   "sarah": [
     {
       "from": "19991001000000",
-      "to": "20000229114500",
+      "to": "20000229075959",
       "crawlerHostname": "sarah.alexa.com",
-      "crawlerIpAddress": "206.132.186.140"
-    },
-    {
-      "from": "20000229114501",
-      "to": "20000701000000",
-      "crawlerHostname": "crawl2.alexa.com",
       "crawlerIpAddress": "206.132.186.140"
     },
     {

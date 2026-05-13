@@ -22,6 +22,7 @@ const IisServerHeaderNames: Record<string, string> = {
   "www-authenticate": "WWW-Authenticate",
   "x-ccc": "X-CCC",
   "x-cid": "X-CID",
+  "x-meta-ms.locale": "X-Meta-MS.Locale",
 };
 
 function headerToSentenceCase(header: string): string {

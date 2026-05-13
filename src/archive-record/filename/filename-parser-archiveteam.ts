@@ -7,7 +7,6 @@ import {
   removeFileExtensionFromArchiveFilename,
 } from "./record-filename-common.js";
 
-
 function parseArchiveTeamGoPack2013Filename(
   filename: string,
   _captureTimestamp?: string,
@@ -65,7 +64,6 @@ function parseArchiveTeamGoPack2013Filename(
     },
   };
 }
-
 
 function parseArchiveTeamGoPack2014Filename(
   filename: string,

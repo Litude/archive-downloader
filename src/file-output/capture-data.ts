@@ -7,6 +7,7 @@ import {
   CaptureWaybackMetadata,
   Classification,
 } from "../types/capture-types.js";
+import { ArchiveFileInfo } from "../enrichment/crawlers-enrichment.js";
 import { Filename } from "../types/download-input-types.js";
 import { filenameToString } from "../file-name/file-name.js";
 import { CdxEntry } from "../types/wayback-types.js";
@@ -15,8 +16,6 @@ import { DataCorrection } from "../data-corrections/data-correction.js";
 import { getContentLengthHeader, getHeaderValue } from "../headers/headers.js";
 import { ValidationError } from "../validation/validate-capture.js";
 import { parseWarcFile } from "../archive-record/warc.js";
-import { parseArcHeader } from "../archive-record/arc-header.js";
-import { parseWarcinfoFile } from "../archive-record/warc-info.js";
 
 /** CdxEntry as written to capture JSON files — optional fields are serialized as null rather than omitted */
 export interface CdxEntryJson {
@@ -81,6 +80,7 @@ export interface CaptureDataJson {
     crawlInfo?: CrawlInfoMetadata;
     wayback?: CaptureWaybackMetadata;
     commonCrawl?: CaptureCommonCrawlMetadata;
+    archiveFileInfo?: ArchiveFileInfo;
   };
 }
 
@@ -130,49 +130,14 @@ function stringifyWithInlineTuples(data: unknown, inlineElementsOf: Set<unknown[
 
 function getRequestHeaders(
   captureEntry: CaptureEntry,
-): { headers: RawHeader[]; partial: boolean } | undefined {
+): { headers: RawHeader[]; partial?: boolean } | undefined {
   const warcRequestRecord = captureEntry.records?.find((r) => r.type === "warc-request");
   if (warcRequestRecord) {
     const parsedRequestRecord = parseWarcFile(warcRequestRecord.content);
-    return parsedRequestRecord?.headers
-      ? { headers: parsedRequestRecord.headers, partial: false }
-      : undefined;
+    return parsedRequestRecord?.headers ? { headers: parsedRequestRecord.headers } : undefined;
   }
-
-  const headers: RawHeader[] = [];
-  const arcHeaderRecord = captureEntry.records?.find((r) => r.type === "arc-header");
-  if (arcHeaderRecord) {
-    const parsedArcHeader = parseArcHeader(arcHeaderRecord.content);
-    const userAgent = getHeaderValue(parsedArcHeader, "http-header-user-agent");
-    const from = getHeaderValue(parsedArcHeader, "http-header-from");
-    if (userAgent || from) {
-      if (userAgent) {
-        headers.push(["User-Agent", userAgent]);
-      }
-      if (from) {
-        headers.push(["From", from]);
-      }
-    }
-  }
-  const warcInfoRecord = captureEntry.records?.find((r) => r.type === "warc-info");
-  if (warcInfoRecord) {
-    const parsedWarcInfo = parseWarcinfoFile(warcInfoRecord.content);
-    const userAgent = getHeaderValue(parsedWarcInfo.lines, "http-header-user-agent");
-    const from = getHeaderValue(parsedWarcInfo.lines, "http-header-from");
-    const headers: RawHeader[] = [];
-    if (userAgent || from) {
-      if (userAgent) {
-        headers.push(["User-Agent", userAgent]);
-      }
-      if (from) {
-        headers.push(["From", from]);
-      }
-    }
-  }
-  if (captureEntry.derivedHeaders) {
-    headers.push(...captureEntry.derivedHeaders);
-  }
-  return headers.length ? { headers, partial: true } : undefined;
+  const derived = captureEntry.metadata?.derivedRequestHeaders;
+  return derived?.length ? { headers: derived, partial: true } : undefined;
 }
 
 function getRequestMethodAndProtocol(
@@ -182,6 +147,10 @@ function getRequestMethodAndProtocol(
   if (warcRequestRecord) {
     const parsedRequestRecord = parseWarcFile(warcRequestRecord.content);
     return { method: parsedRequestRecord.method, protocol: parsedRequestRecord.protocol };
+  }
+  const derivedProtocol = captureEntry.metadata?.derivedRequestProtocol;
+  if (derivedProtocol) {
+    return { method: "GET", protocol: derivedProtocol };
   }
   return undefined;
 }
@@ -295,6 +264,7 @@ export function writeCaptureData(
           cdxEntry: cdxToOutputData(source.cdxEntry),
         })),
         crawlInfo: entry.metadata?.crawlInfo,
+        archiveFileInfo: entry.metadata?.archiveFileInfo,
         wayback: entry.metadata?.wayback,
         commonCrawl: entry.metadata?.commonCrawl,
       },

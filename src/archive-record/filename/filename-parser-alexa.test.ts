@@ -52,7 +52,9 @@ describe("parseAlexaRecordFilename", () => {
     });
 
     // With batch timestamp
-    expect(parseAlexaRecordFilenamePickBest("green-0030-19990417120238-924396460.arc.gz")?.details).toEqual({
+    expect(
+      parseAlexaRecordFilenamePickBest("green-0030-19990417120238-924396460.arc.gz")?.details,
+    ).toEqual({
       crawlIdentifier: "green",
       crawlProvider: "alexa",
       crawlerName: "green",
@@ -61,7 +63,9 @@ describe("parseAlexaRecordFilename", () => {
       fileSerialNumber: "0030",
     });
 
-    expect(parseAlexaRecordFilenamePickBest("sarah-000072-19991113205559-942601339.arc.gz")?.details).toEqual({
+    expect(
+      parseAlexaRecordFilenamePickBest("sarah-000072-19991113205559-942601339.arc.gz")?.details,
+    ).toEqual({
       crawlIdentifier: "sarah",
       crawlProvider: "alexa",
       crawlerName: "sarah",
@@ -88,7 +92,9 @@ describe("parseAlexaRecordFilename", () => {
     });
 
     // Hyphenated identifier with serial, batch timestamp
-    expect(parseAlexaRecordFilenamePickBest("to-crawl-000000-20000519142052-958771735.arc.gz")?.details).toEqual({
+    expect(
+      parseAlexaRecordFilenamePickBest("to-crawl-000000-20000519142052-958771735.arc.gz")?.details,
+    ).toEqual({
       crawlIdentifier: "to-crawl",
       crawlProvider: "alexa",
       crawlerName: "crawl1",
@@ -97,7 +103,9 @@ describe("parseAlexaRecordFilename", () => {
       fileSerialNumber: "000000",
     });
 
-    expect(parseAlexaRecordFilenamePickBest("amazon-000006-19990921170308-937969043.arc.gz")?.details).toEqual({
+    expect(
+      parseAlexaRecordFilenamePickBest("amazon-000006-19990921170308-937969043.arc.gz")?.details,
+    ).toEqual({
       crawlIdentifier: "amazon",
       crawlProvider: "alexa",
       crawlBatchStartTimestamp: "1999-09-22T00:03:08Z",
@@ -117,7 +125,9 @@ describe("parseAlexaRecordFilename", () => {
   });
 
   it("parses 2000-07 crawl filenames correctly", () => {
-    expect(parseAlexaRecordFilenamePickBest("20000710.000033-20000712015206-963392503.arc.gz")?.details).toEqual({
+    expect(
+      parseAlexaRecordFilenamePickBest("20000710.000033-20000712015206-963392503.arc.gz")?.details,
+    ).toEqual({
       crawlIdentifier: "20000710",
       crawlProvider: "alexa",
       crawlStartDate: "2000-07-10",
@@ -126,7 +136,9 @@ describe("parseAlexaRecordFilename", () => {
       fileSerialNumber: "000033",
     });
 
-    expect(parseAlexaRecordFilenamePickBest("20000929.000068-20001005011008-970740821.arc.gz")?.details).toEqual({
+    expect(
+      parseAlexaRecordFilenamePickBest("20000929.000068-20001005011008-970740821.arc.gz")?.details,
+    ).toEqual({
       crawlIdentifier: "20000929",
       crawlProvider: "alexa",
       crawlStartDate: "2000-09-29",
@@ -167,15 +179,19 @@ describe("parseAlexaRecordFilename", () => {
       fileWriteStartTimestamp: "2001-04-13T15:16:35Z",
     });
 
-    expect(parseAlexaRecordFilenamePickBest("NEWS0_crawl3.20011108131420.arc.gz")?.details).toEqual({
-      crawlIdentifier: "NEWS0",
-      crawlProvider: "alexa",
-      crawlerName: "crawl3",
-      fileWriteStartTimestamp: "2001-11-08T13:14:20Z",
-    });
+    expect(parseAlexaRecordFilenamePickBest("NEWS0_crawl3.20011108131420.arc.gz")?.details).toEqual(
+      {
+        crawlIdentifier: "NEWS0",
+        crawlProvider: "alexa",
+        crawlerName: "crawl3",
+        fileWriteStartTimestamp: "2001-11-08T13:14:20Z",
+      },
+    );
 
     // With subset
-    expect(parseAlexaRecordFilenamePickBest("DX_images_crawl30.20040608014709.arc.gz")?.details).toEqual({
+    expect(
+      parseAlexaRecordFilenamePickBest("DX_images_crawl30.20040608014709.arc.gz")?.details,
+    ).toEqual({
       crawlIdentifier: "DX_images",
       crawlProvider: "alexa",
       crawlSubset: "images",
@@ -183,7 +199,9 @@ describe("parseAlexaRecordFilename", () => {
       fileWriteStartTimestamp: "2004-06-08T01:47:09Z",
     });
 
-    expect(parseAlexaRecordFilenamePickBest("DX_dad_crawl31.20040611073353.arc.gz")?.details).toEqual({
+    expect(
+      parseAlexaRecordFilenamePickBest("DX_dad_crawl31.20040611073353.arc.gz")?.details,
+    ).toEqual({
       crawlIdentifier: "DX_dad",
       crawlProvider: "alexa",
       crawlSubset: "dad",
@@ -193,7 +211,9 @@ describe("parseAlexaRecordFilename", () => {
   });
 
   it("parses 2002 election crawl filenames correctly", () => {
-    expect(parseAlexaRecordFilenamePickBest("E02_1h_0371_crawl3.20021118200003.arc.gz")?.details).toEqual({
+    expect(
+      parseAlexaRecordFilenamePickBest("E02_1h_0371_crawl3.20021118200003.arc.gz")?.details,
+    ).toEqual({
       crawlIdentifier: "E02_1h",
       crawlProvider: "alexa",
       crawlInterval: "1h",
@@ -202,7 +222,9 @@ describe("parseAlexaRecordFilename", () => {
       fileSerialNumber: "0371",
     });
 
-    expect(parseAlexaRecordFilenamePickBest("E02_1w_08_crawl8.20020808183624.arc.gz")?.details).toEqual({
+    expect(
+      parseAlexaRecordFilenamePickBest("E02_1w_08_crawl8.20020808183624.arc.gz")?.details,
+    ).toEqual({
       crawlIdentifier: "E02_1w",
       crawlProvider: "alexa",
       crawlInterval: "1w",
@@ -213,7 +235,9 @@ describe("parseAlexaRecordFilename", () => {
   });
 
   it("parses 2005-08 crawl filenames correctly", () => {
-    expect(parseAlexaRecordFilenamePickBest("EE_1_0_crawl26_.20050816083846.arc.gz")?.details).toEqual({
+    expect(
+      parseAlexaRecordFilenamePickBest("EE_1_0_crawl26_.20050816083846.arc.gz")?.details,
+    ).toEqual({
       crawlIdentifier: "EE_1_0",
       crawlProvider: "alexa",
       crawlGenerationCode: "EE",
@@ -223,7 +247,9 @@ describe("parseAlexaRecordFilename", () => {
       fileWriteStartTimestamp: "2005-08-16T08:38:46Z",
     });
 
-    expect(parseAlexaRecordFilenamePickBest("EE_dad_4_0_crawl25_.20051004072013.arc.gz")?.details).toEqual({
+    expect(
+      parseAlexaRecordFilenamePickBest("EE_dad_4_0_crawl25_.20051004072013.arc.gz")?.details,
+    ).toEqual({
       crawlIdentifier: "EE_dad_4_0",
       crawlProvider: "alexa",
       crawlGenerationCode: "EE",
@@ -234,7 +260,9 @@ describe("parseAlexaRecordFilename", () => {
       fileWriteStartTimestamp: "2005-10-04T07:20:13Z",
     });
 
-    expect(parseAlexaRecordFilenamePickBest("EE_images_2_0_crawl28_.20051001132702.arc.gz")?.details).toEqual({
+    expect(
+      parseAlexaRecordFilenamePickBest("EE_images_2_0_crawl28_.20051001132702.arc.gz")?.details,
+    ).toEqual({
       crawlIdentifier: "EE_images_2_0",
       crawlProvider: "alexa",
       crawlGenerationCode: "EE",
@@ -247,17 +275,21 @@ describe("parseAlexaRecordFilename", () => {
   });
 
   it("parses 2006-06 crawl filenames correctly", () => {
-    expect(parseAlexaRecordFilenamePickBest("26_0_20060610014940_crawl23.arc.gz")?.details).toEqual({
-      crawlIdentifier: "26_0",
-      crawlProvider: "alexa",
-      crawlSequence: 26,
-      crawlRun: 0,
-      crawlerName: "crawl23",
-      fileWriteStartTimestamp: "2006-06-10T01:49:40Z",
-    });
+    expect(parseAlexaRecordFilenamePickBest("26_0_20060610014940_crawl23.arc.gz")?.details).toEqual(
+      {
+        crawlIdentifier: "26_0",
+        crawlProvider: "alexa",
+        crawlSequence: 26,
+        crawlRun: 0,
+        crawlerName: "crawl23",
+        fileWriteStartTimestamp: "2006-06-10T01:49:40Z",
+      },
+    );
 
     // IndexOnly subset
-    expect(parseAlexaRecordFilenamePickBest("52_19_20110109163559_crawl103_IndexOnly.arc.gz")?.details).toEqual({
+    expect(
+      parseAlexaRecordFilenamePickBest("52_19_20110109163559_crawl103_IndexOnly.arc.gz")?.details,
+    ).toEqual({
       crawlIdentifier: "52_19_IndexOnly",
       crawlProvider: "alexa",
       crawlSequence: 52,

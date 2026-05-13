@@ -27,9 +27,12 @@ const FILENAME_SUMMARY_HEADER: (keyof FilenameSummaryRow)[] = [
 
 async function processCsvFile(csvPath: string, outputDir: string): Promise<void> {
   const content = fs.readFileSync(csvPath, "utf-8");
-  const records = csvParse<{ archive_filename: string; capture_ts?: string; url?: string }>(content, {
-    columns: true,
-  });
+  const records = csvParse<{ archive_filename: string; capture_ts?: string; url?: string }>(
+    content,
+    {
+      columns: true,
+    },
+  );
 
   if (records.length === 0) {
     console.error("CSV file has no data rows");
@@ -41,24 +44,26 @@ async function processCsvFile(csvPath: string, outputDir: string): Promise<void>
     process.exit(1);
   }
 
-  const summaryRows: FilenameSummaryRow[] = records.filter((record) => record.archive_filename).map((record) => {
-    const archiveFilename = record.archive_filename ?? "";
-    const captureTs = record.capture_ts ?? "";
-    const captureUrl = record.url ?? "";
+  const summaryRows: FilenameSummaryRow[] = records
+    .filter((record) => record.archive_filename)
+    .map((record) => {
+      const archiveFilename = record.archive_filename ?? "";
+      const captureTs = record.capture_ts ?? "";
+      const captureUrl = record.url ?? "";
 
-    const results = parseRecordFilenameWithCandidates(archiveFilename, captureTs || undefined);
-    const best = results[0];
+      const results = parseRecordFilenameWithCandidates(archiveFilename, captureTs || undefined);
+      const best = results[0];
 
-    return {
-      capture_ts: captureTs,
-      capture_url: captureUrl,
-      archive_filename: archiveFilename,
-      filename_crawl_id: best?.details.crawlIdentifier ?? "",
-      filename_type: best?.filenameType ?? "",
-      filename_provider: best?.details.crawlProvider ?? "",
-      filename_confidence: best?.confidence ?? 0,
-    };
-  });
+      return {
+        capture_ts: captureTs,
+        capture_url: captureUrl,
+        archive_filename: archiveFilename,
+        filename_crawl_id: best?.details.crawlIdentifier ?? "",
+        filename_type: best?.filenameType ?? "",
+        filename_provider: best?.details.crawlProvider ?? "",
+        filename_confidence: best?.confidence ?? 0,
+      };
+    });
 
   fs.mkdirSync(outputDir, { recursive: true });
   const outputPath = path.join(outputDir, "filename_summary.csv");
@@ -82,13 +87,11 @@ async function main(argv: string[]) {
 
   if (filename.toLowerCase().endsWith(".csv")) {
     await processCsvFile(filename, "output");
-  }
-  else {
+  } else {
     const timestamp = argv[3];
     const result = parseRecordFilenameWithCandidates(filename, timestamp);
     console.log(result);
   }
-
 }
 
 main(process.argv);

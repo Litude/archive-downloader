@@ -6,7 +6,6 @@ import {
   removeFileExtensionFromArchiveFilename,
 } from "./record-filename-common.js";
 
-
 function getCrawlerNameFromCrawlIdentifier(crawlIdentifier: string): string | undefined {
   switch (crawlIdentifier) {
     case "aug":

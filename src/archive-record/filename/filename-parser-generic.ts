@@ -116,13 +116,24 @@ function _parseGenericRecordFilenameInternal(
     confidence += 0.2;
   }
 
-  if (["internetarchive", "accelovation"].includes(crawlInfrastructure ?? "") && crawlerNameInfo?.crawlerHostname && !crawlerNameInfo.crawlerName) {
+  if (
+    ["internetarchive", "accelovation"].includes(crawlInfrastructure ?? "") &&
+    crawlerNameInfo?.crawlerHostname &&
+    !crawlerNameInfo.crawlerName
+  ) {
     // Crawler name is first part of hostname for ia and accelovation
     crawlerNameInfo.crawlerName = crawlerNameInfo.crawlerHostname.split(".")[0];
   }
 
-  if (crawlInfrastructure === "internetarchive" && crawlerNameInfo?.crawlerName && !crawlerNameInfo.crawlerHostname) {
-    crawlerNameInfo.crawlerHostname = createWaybackCrawlerHostname(crawlerNameInfo.crawlerName, timestamp);
+  if (
+    crawlInfrastructure === "internetarchive" &&
+    crawlerNameInfo?.crawlerName &&
+    !crawlerNameInfo.crawlerHostname
+  ) {
+    crawlerNameInfo.crawlerHostname = createWaybackCrawlerHostname(
+      crawlerNameInfo.crawlerName,
+      timestamp,
+    );
   }
 
   return {
@@ -147,14 +158,16 @@ function parseGenericRecordFilenameInternal(
   const result = _parseGenericRecordFilenameInternal(filename, captureTimestamp);
   if (!result) {
     // Some files seem to mistakenly have two -- instead of one, so we try repairing such names
-    return _parseGenericRecordFilenameInternal(filename.replace(/-+/g, '-'), captureTimestamp);
-  }
-  else {
+    return _parseGenericRecordFilenameInternal(filename.replace(/-+/g, "-"), captureTimestamp);
+  } else {
     return result;
   }
 }
 
-function detectCrawlInfrastructure(crawlerName: string, crawlIdentifier: string): string | undefined {
+function detectCrawlInfrastructure(
+  crawlerName: string,
+  crawlIdentifier: string,
+): string | undefined {
   const fromCrawlerName = detectCrawlInfrastructureFromCrawlerName(crawlerName);
   if (fromCrawlerName) {
     return fromCrawlerName;
@@ -164,7 +177,11 @@ function detectCrawlInfrastructure(crawlerName: string, crawlIdentifier: string)
 
 function detectCrawlInfrastructureFromCrawlerName(crawlerName: string): string | undefined {
   const lower = crawlerName.toLowerCase();
-  if (lower.includes("archive.org") || (lower.match(/^crawling\d{2,3}$/)) || lower.match(/^ia\d{5,6}$/)) {
+  if (
+    lower.includes("archive.org") ||
+    lower.match(/^crawling\d{2,3}$/) ||
+    lower.match(/^ia\d{5,6}$/)
+  ) {
     return "internetarchive";
   } else if (lower.includes("accelovation.com")) {
     return "accelovation";

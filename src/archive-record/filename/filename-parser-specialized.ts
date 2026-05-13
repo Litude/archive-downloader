@@ -82,7 +82,7 @@ function parseInaRecordFilename(
     return undefined;
   }
   const parts = filename.split("-");
-  const yearPart = parts.find(part => /^(1|2)\d{3}$/.test(part));
+  const yearPart = parts.find((part) => /^(1|2)\d{3}$/.test(part));
 
   if (!preliminaryResult.details.crawlIdentifier.startsWith("INA-HISTORICAL-")) {
     return undefined;
@@ -133,14 +133,18 @@ function parseCdlRecordFilename(
       ...preliminaryResult.details,
       crawlProvider: "cdl",
     },
-  }
+  };
 }
 
 export function parseSpecializedRecordFilename(
   filename: string,
   captureTimestamp?: string,
 ): ParsedRecordFilenameResult[] {
-  const parsers = [parsePortugueseWebArchiveRecordFilename, parseInaRecordFilename, parseCdlRecordFilename];
+  const parsers = [
+    parsePortugueseWebArchiveRecordFilename,
+    parseInaRecordFilename,
+    parseCdlRecordFilename,
+  ];
 
   const results: ParsedRecordFilenameResult[] = [];
   for (const parser of parsers) {

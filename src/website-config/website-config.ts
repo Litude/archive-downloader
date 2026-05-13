@@ -181,10 +181,11 @@ export function readWebsiteJsonConfig(
     const allUrls = noMirrors
       ? urls
       : createAllMirrorUrls(urls, file, mirrors, { maxTimestamp, minTimestamp });
-      
+
     const newUrls = new Set<string>();
     allUrls.forEach((u) => {
-      const normalized = new URL(u.url).toString()
+      const normalized = new URL(u.url)
+        .toString()
         .replace(/^https?:\/\//, "")
         .replace(/^www\d*\./, "");
       if (encounteredUrls.has(normalized)) {
@@ -220,7 +221,10 @@ export function readWebsiteJsonConfig(
       urls: allUrls,
       filename,
       outputDirectory: outputDir,
-      commonCrawlEnabled: file.commonCrawlEnabled ?? (!!file.commonCrawlCollections || undefined) ?? config.commonSettings?.commonCrawlEnabled,
+      commonCrawlEnabled:
+        file.commonCrawlEnabled ??
+        (!!file.commonCrawlCollections || undefined) ??
+        config.commonSettings?.commonCrawlEnabled,
       commonCrawlCollections: file.commonCrawlCollections,
       transformations,
       queryHashParameters: file.queryHashParameters,

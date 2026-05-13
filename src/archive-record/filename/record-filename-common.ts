@@ -36,7 +36,7 @@ export interface ParsedRecordFilename {
   crawlerMacAddress?: string;
   crawlerPid?: string;
   crawlerNode?: string;
-    
+
   /** Timing (chronological order) */
   crawlStartDate?: string; // date when crawl was executed, in format YYYY-MM-DD, e.g. 2020-05-20
   crawlYear?: string; // year when crawl was executed, e.g. 2020
@@ -52,7 +52,7 @@ export interface ParsedRecordFilename {
   fileSegmentTimestamp?: string;
 }
 
-const crawlOrdering: Record<keyof ParsedRecordFilename, number> = {
+export const crawlOrdering: Record<keyof ParsedRecordFilename, number> = {
   crawlIdentifier: 1,
   crawlOriginalIdentifier: 2,
   crawlProvider: 3,
@@ -215,11 +215,14 @@ export function cleanUpRecordFilenameCrawlerName(crawlerName: string): {
   }
 
   // EC2 Xen internal hostname: domU-HH-HH-HH-HH-HH-HH.compute-1.internal → extract embedded MAC address
-  const domUMatch = hostOnly.match(/^domU-([0-9a-f]{2})-([0-9a-f]{2})-([0-9a-f]{2})-([0-9a-f]{2})-([0-9a-f]{2})-([0-9a-f]{2})\.compute-\d+\.internal$/i);
+  const domUMatch = hostOnly.match(
+    /^domU-([0-9a-f]{2})-([0-9a-f]{2})-([0-9a-f]{2})-([0-9a-f]{2})-([0-9a-f]{2})-([0-9a-f]{2})\.compute-\d+\.internal$/i,
+  );
   if (domUMatch) {
     return {
       crawlerHostnameInternal: resolved,
-      crawlerMacAddress: `${domUMatch[1]}:${domUMatch[2]}:${domUMatch[3]}:${domUMatch[4]}:${domUMatch[5]}:${domUMatch[6]}`.toUpperCase(),
+      crawlerMacAddress:
+        `${domUMatch[1]}:${domUMatch[2]}:${domUMatch[3]}:${domUMatch[4]}:${domUMatch[5]}:${domUMatch[6]}`.toUpperCase(),
       ...(pid !== undefined && { crawlerPid: pid }),
     };
   }
@@ -247,7 +250,9 @@ export function cleanUpRecordFilenameCrawlerName(crawlerName: string): {
   };
 }
 
-export function cleanUpRecordFilenameResult(result: ParsedRecordFilenameResult): ParsedRecordFilenameResult {
+export function cleanUpRecordFilenameResult(
+  result: ParsedRecordFilenameResult,
+): ParsedRecordFilenameResult {
   const cleanedDetails: Partial<ParsedRecordFilename> = {};
   for (const key of Object.keys(result.details) as (keyof ParsedRecordFilename)[]) {
     if (result.details[key] !== undefined) {
@@ -257,7 +262,9 @@ export function cleanUpRecordFilenameResult(result: ParsedRecordFilenameResult):
   // Sort details by crawlOrdering
   const sortedDetails = Object.fromEntries(
     Object.entries(cleanedDetails).sort(
-      (a, b) => (crawlOrdering[a[0] as keyof ParsedRecordFilename] ?? 999) - (crawlOrdering[b[0] as keyof ParsedRecordFilename] ?? 999),
+      (a, b) =>
+        (crawlOrdering[a[0] as keyof ParsedRecordFilename] ?? 999) -
+        (crawlOrdering[b[0] as keyof ParsedRecordFilename] ?? 999),
     ),
   ) as unknown as ParsedRecordFilename;
   return {

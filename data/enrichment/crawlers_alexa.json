@@ -48,12 +48,12 @@
     "to": "20000701000000",
     "knownCrawlers": [
       {
-        "crawlerName": "green",
+        "crawlerName": "crawl1",
         "crawlerHostname": "crawl1.alexa.com",
         "crawlerIpAddress": "206.132.186.131"
       },
       {
-        "crawlerName": "sarah",
+        "crawlerName": "crawl2",
         "crawlerHostname": "crawl2.alexa.com",
         "crawlerIpAddress": "206.132.186.140"
       }

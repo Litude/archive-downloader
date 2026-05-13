@@ -209,7 +209,7 @@ describe("parseRecordFilename", () => {
       fileWriteStartTimestamp: "2014-04-23T03:20:06Z",
       fileSerialNumber: "00221",
       crawlerHostnameInternal: "ip-10-147-4-33.ec2.internal",
-      crawlerIpAddressInternal: "10.147.4.33"
+      crawlerIpAddressInternal: "10.147.4.33",
     });
 
     expect(

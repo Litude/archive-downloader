@@ -33,6 +33,7 @@ export async function getWaybackItemDetails(itemId: string): Promise<WaybackItem
         private: file.private,
         mtime: file.mtime,
         size: file.size,
+        md5: file.md5,
       })),
     metadata: details.metadata,
   };

@@ -161,7 +161,9 @@ async function processWebsiteDownloads(
       unavailableEntries,
       skippedEntries,
       metadata: waybackDownloadMetadata,
-    } = waybackEnabled ? await downloadWaybackEntries(input, context, waybackPrefetchedIndex) : { baseEntries: [], unavailableEntries: [], skippedEntries: [], metadata: {} };
+    } = waybackEnabled
+      ? await downloadWaybackEntries(input, context, waybackPrefetchedIndex)
+      : { baseEntries: [], unavailableEntries: [], skippedEntries: [], metadata: {} };
 
     const { filteredEntries: commonCrawlEntries, metadata: commonCrawlDownloadMetadata } =
       commonCrawlEnabled && isCommonCrawlEnabledForInput(input, commonCrawlPrefetchedIndex)

@@ -119,13 +119,13 @@ function get1998CrawlerNameFromIdentifier(
     case "to-crawl":
     case "slash":
     case "robots":
-      if (runTimestamp >= "20000229") {
+      if (runTimestamp >= "20000229080000") {
         return "crawl1";
       } else {
         return "green";
       }
     case "sarah":
-      if (runTimestamp >= "20000229") {
+      if (runTimestamp >= "20000229080000") {
         return "crawl2";
       } else {
         return "sarah";
@@ -233,7 +233,9 @@ export function parseAlexa1998Filename(
   // crawlIdentifier might have a timestamp at the end, check for it and remove it if so
   if (crawlIdentifier.match(/_\d{14}$/)) {
     const potentialTimestamp = crawlIdentifier.slice(-15).slice(1);
-    const date = DateTime.fromFormat(potentialTimestamp, "yyyyMMddHHmmss", { zone: "America/Los_Angeles" });
+    const date = DateTime.fromFormat(potentialTimestamp, "yyyyMMddHHmmss", {
+      zone: "America/Los_Angeles",
+    });
     if (date.isValid && date.year >= 1998 && date.year <= 2000) {
       crawlIdentifier = crawlIdentifier.slice(0, -15);
       batchTimestamp = date;
@@ -257,7 +259,9 @@ export function parseAlexa1998Filename(
     recordFormat: "arc",
     details: {
       crawlIdentifier,
-      crawlStartDate: crawlDate ? DateTime.fromFormat(crawlDate, "yyyyMMdd", { zone: "UTC" }).toFormat("yyyy-MM-dd") : undefined,
+      crawlStartDate: crawlDate
+        ? DateTime.fromFormat(crawlDate, "yyyyMMdd", { zone: "UTC" }).toFormat("yyyy-MM-dd")
+        : undefined,
       crawlBatchStartTimestamp: batchTimestamp?.isValid
         ? batchTimestamp?.toUTC()?.toISO({ suppressMilliseconds: true })
         : undefined,
@@ -565,7 +569,9 @@ export function parseAlexa200102Filename(
   } else {
     const VALID_SUBSETS = ["images", "binary", "binary1", "dad", "amzn"];
     const crawlCounter = firstPart.match(/^(D|E[A-Z]\d*)$/) ? firstPart : undefined;
-    const crawlSubset = VALID_SUBSETS.includes(prefixParts.at(-1) ?? "") ? prefixParts.at(-1) : undefined;
+    const crawlSubset = VALID_SUBSETS.includes(prefixParts.at(-1) ?? "")
+      ? prefixParts.at(-1)
+      : undefined;
     const crawlIdentifier = prefixParts.join("_");
     let confidence = 0.8;
     if (timestampMatch) {
@@ -790,10 +796,13 @@ export function parseAlexa200606Filename(
     confidence += 0.2;
   }
 
-
   const collectionName = filename.split("/")[0];
-  const crawlDateRaw = collectionName.match(/^alexa(\d{8})-\d{2}$/) ? collectionName.match(/^alexa(\d{8})-\d{2}$/)![1] : undefined;
-  const crawlDate = crawlDateRaw ? DateTime.fromFormat(crawlDateRaw, "yyyyMMdd", { zone: "UTC" }) : undefined;
+  const crawlDateRaw = collectionName.match(/^alexa(\d{8})-\d{2}$/)
+    ? collectionName.match(/^alexa(\d{8})-\d{2}$/)![1]
+    : undefined;
+  const crawlDate = crawlDateRaw
+    ? DateTime.fromFormat(crawlDateRaw, "yyyyMMdd", { zone: "UTC" })
+    : undefined;
 
   return {
     confidence,

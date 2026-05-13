@@ -88,6 +88,6 @@ export interface WaybackItemDetails {
 }
 
 export interface WaybackItemCachedDetails {
-  files: Pick<WaybackItemFile, "name" | "private" | "mtime" | "size">[];
+  files: Pick<WaybackItemFile, "name" | "private" | "mtime" | "size" | "md5">[];
   metadata: WaybackMetadata;
 }

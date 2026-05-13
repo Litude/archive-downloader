@@ -2,6 +2,9 @@ import { parseArcHeader } from "../archive-record/arc-header.js";
 import { parseWarcinfoFile } from "../archive-record/warc-info.js";
 import { getHeaderValue } from "../headers/headers.js";
 import { CrawlInfoMetadata, CaptureEntry } from "../types/capture-types.js";
+import { parseRecordFilename } from "../archive-record/filename/record-filename-parser.js";
+import { cleanUpRecordFilenameResult } from "../archive-record/filename/record-filename-common.js";
+import { buildArchiveFileInfo } from "./crawlers-enrichment.js";
 
 export function enrichCaptureEntryWithCrawlData(captureEntry: CaptureEntry) {
   const warcInfo = captureEntry.records
@@ -75,6 +78,18 @@ export function enrichCaptureEntryWithCrawlData(captureEntry: CaptureEntry) {
           captureEntry.metadata.crawlInfo = crawlInfo;
         }
       }
+    }
+  }
+
+  const archiveFilename = captureEntry.cdxEntry.filename;
+  if (archiveFilename) {
+    const parsed = parseRecordFilename(archiveFilename, captureEntry.timestamp);
+    if (parsed) {
+      if (!captureEntry.metadata) {
+        captureEntry.metadata = {};
+      }
+      const details = cleanUpRecordFilenameResult(parsed).details;
+      captureEntry.metadata.archiveFileInfo = buildArchiveFileInfo(details, captureEntry.timestamp);
     }
   }
 }

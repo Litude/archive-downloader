@@ -3,6 +3,7 @@ import { CdxEntry, ExtendedCdxEntry } from "./wayback-types.js";
 import { RawHeader } from "../headers/raw-header-parser.js";
 import { DataCorrection } from "../data-corrections/data-correction.js";
 import { ValidationError } from "../validation/validate-capture.js";
+import { ArchiveFileInfo } from "../enrichment/crawlers-enrichment.js";
 
 export interface CaptureWaybackMetadata {
   item: {
@@ -131,7 +132,6 @@ export interface CaptureEntry {
   downloadStatus: "downloaded" | "digest-match" | "skipped" | "unavailable";
   responseHeaders?: Record<string, string>;
   rawResponseHeaders?: RawHeader[];
-  derivedHeaders?: RawHeader[];
   hostIp?: string;
   responseProtocol?: string;
   headerOutput?: RawHeader[];
@@ -147,6 +147,9 @@ export interface CaptureEntry {
     wayback?: CaptureWaybackMetadata;
     commonCrawl?: CaptureCommonCrawlMetadata;
     crawlInfo?: CrawlInfoMetadata;
+    archiveFileInfo?: ArchiveFileInfo;
+    derivedRequestProtocol?: string;
+    derivedRequestHeaders?: RawHeader[];
     validationErrors?: ValidationError[];
   };
 }

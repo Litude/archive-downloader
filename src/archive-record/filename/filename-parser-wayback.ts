@@ -33,8 +33,7 @@ const WAYBACK_2002_TYPES = ["wb_robots", "wb_urls"];
 export function createWaybackCrawlerHostname(crawlerName: string, timestamp: string): string {
   if (timestamp >= "20060615000000") {
     return `${crawlerName}.us.archive.org`;
-  }
-  else {
+  } else {
     return `${crawlerName}.archive.org`;
   }
 }
@@ -82,15 +81,21 @@ function parseWayback2002Filename(
     return undefined;
   }
   const crawlIdentifier = parts[typeIndex];
-  const crawlerName = [...parts.slice(0, typeIndex), ...parts.slice(typeIndex + 1)].join(".") || undefined;
-  const cleanedCrawlerName = crawlerName ? cleanUpRecordFilenameCrawlerName(crawlerName) : undefined;
+  const crawlerName =
+    [...parts.slice(0, typeIndex), ...parts.slice(typeIndex + 1)].join(".") || undefined;
+  const cleanedCrawlerName = crawlerName
+    ? cleanUpRecordFilenameCrawlerName(crawlerName)
+    : undefined;
   if (!cleanedCrawlerName?.crawlerName && cleanedCrawlerName?.crawlerHostname) {
     // Crawler name is first part of hostname
     cleanedCrawlerName.crawlerName = cleanedCrawlerName.crawlerHostname.split(".")[0];
   }
 
   if (cleanedCrawlerName?.crawlerName && !cleanedCrawlerName.crawlerHostname) {
-    cleanedCrawlerName.crawlerHostname = createWaybackCrawlerHostname(cleanedCrawlerName.crawlerName, rawTimestamp);
+    cleanedCrawlerName.crawlerHostname = createWaybackCrawlerHostname(
+      cleanedCrawlerName.crawlerName,
+      rawTimestamp,
+    );
   }
 
   let confidence = 0.8;
@@ -318,7 +323,12 @@ export function parseWaybackRecordFilename(
   filename: string,
   captureTimestamp?: string,
 ): ParsedRecordFilenameResult[] {
-  const parsers = [parseWayback2002Filename, parseWayback2005Filename, parseWayback2012Filename, parseWaybackLiveFilename];
+  const parsers = [
+    parseWayback2002Filename,
+    parseWayback2005Filename,
+    parseWayback2012Filename,
+    parseWaybackLiveFilename,
+  ];
 
   const results: ParsedRecordFilenameResult[] = [];
   for (const parser of parsers) {
@@ -327,7 +337,7 @@ export function parseWaybackRecordFilename(
       results.push(parsed);
     }
   }
-  
+
   results.sort((a, b) => b.confidence - a.confidence);
   return results.map(cleanUpRecordFilenameResult);
 }
