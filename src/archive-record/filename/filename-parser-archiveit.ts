@@ -238,7 +238,7 @@ export function parseArchiveItBrozzlerFilename(
       fileSerialNumber: serialNumber,
       crawlInterval: recurrence,
       crawlToken,
-      crawlProvider: "internetarchive",
+      crawlProvider: "internet-archive",
       crawlSeedId: seedId,
       crawlJobId: jobId,
     },
@@ -328,7 +328,7 @@ export function parseArchiveIt2006Filename(
       fileWriteStartTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
       fileSerialNumber: serialNumber,
       crawlerName,
-      crawlProvider: "internetarchive",
+      crawlProvider: "internet-archive",
     },
   };
 }
@@ -399,7 +399,7 @@ export function parseArchiveIt2009Filename(
       fileWriteStartTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
       fileSerialNumber: serialNumber,
       crawlerName,
-      crawlProvider: "internetarchive",
+      crawlProvider: "internet-archive",
     },
   };
 }
@@ -482,7 +482,7 @@ export function parseArchiveIt2010Filename(
       fileSerialNumber: serialNumber,
       crawlerName,
       crawlInterval: recurrence,
-      crawlProvider: "internetarchive",
+      crawlProvider: "internet-archive",
       crawlJobId: jobId,
     },
   };
@@ -566,7 +566,7 @@ export function parseArchiveIt2013Filename(
       fileSerialNumber: serialNumber,
       crawlerName,
       crawlInterval: recurrence,
-      crawlProvider: "internetarchive",
+      crawlProvider: "internet-archive",
       crawlJobId: jobId,
     },
   };
@@ -646,7 +646,7 @@ export function parseArchiveIt2015Filename(
       fileWriteStartTimestamp: timestamp.toISO(),
       fileSerialNumber: serialNumber,
       crawlInterval: recurrence,
-      crawlProvider: "internetarchive",
+      crawlProvider: "internet-archive",
       crawlJobId: jobId,
     },
   };
@@ -731,7 +731,7 @@ export function parseArchiveIt2018Filename(
       fileWriteStartTimestamp: timestamp.toISO(),
       fileSerialNumber: serialNumber,
       crawlInterval: recurrence,
-      crawlProvider: "internetarchive",
+      crawlProvider: "internet-archive",
       crawlSeedId: seedId,
       crawlJobId: jobId,
     },

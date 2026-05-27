@@ -138,7 +138,7 @@ export function cleanupWaybackHeaders(
     ) {
       const fixedOriginalKey = getFixedHeaderName(key, server, date);
       const cleanedValue = cleanupUrlHeader(url, value);
-      headerOutput.push([fixedOriginalKey, cleanedValue, UNCONFIRMED_HEADER_MARKER]);
+      headerOutput.push([fixedOriginalKey, cleanedValue]);
     }
   }
   return headerOutput;

@@ -25,17 +25,17 @@
         "console": "integratedTerminal",
         "internalConsoleOptions": "neverOpen",
         "args": [
-            //"--json",
+            "--json",
             //".\\data\\inputs\\aoe2-ms-usa-1999-10.json",
             // "--no-mirrors",
             // "--no-common-crawl",
-            //"--skip-on-302", "10"
             // "--no-include-invalid",
             // "--no-headers",
             // "--no-peek-all"
-            // ".\\data\\inputs\\aoe2-ms-usa-1998-05.json"
-            "--json",  ".\\data\\inputs\\aaa-ip-dumps.json",
-            "--no-deduplication", "--skip-on-302", "10", "--no-fetch-wayback-metadata", "--no-fetch-wayback-original-record", "--no-include-invalid", "--no-common-crawl", "--no-check-timestamps"
+            ".\\data\\inputs\\aoe1-ms-usa.json"
+            // "--json",  ".\\data\\inputs\\aaa-ip-dumps.json",
+            "--skip-on-302", "10"
+            // "--no-deduplication", "--skip-on-302", "10", "--no-fetch-wayback-metadata", "--no-fetch-wayback-original-record", "--no-include-invalid", "--no-common-crawl", "--no-check-timestamps"
         ],
 
         // Files to exclude from debugger (e.g. call stack)

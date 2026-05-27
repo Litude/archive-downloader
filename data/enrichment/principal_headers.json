@@ -1,0 +1,315 @@
+{
+  "live": [
+    {
+      "from": "20110101000000",
+      "to": "20120420235959",
+      "protocol": "HTTP/1.1",
+      "headers": [
+        ["User-Agent", "ia_archiver(OS-Wayback)"],
+        ["Host"]
+      ]
+    },
+    {
+      "from": "20120801000000",
+      "to": "20131101000000",
+      "protocol": "HTTP/1.1",
+      "headers": [
+        ["Host"],
+        ["Accept-Encoding", "identity"],
+        ["User-Agent", "ia_archiver(OS-Wayback)"]
+      ]
+    },
+    
+    {
+      "from": "20110101000000",
+      "to": "20131101000000",
+      "protocol": "HTTP/1.1",
+      "headers": [
+        ["User-Agent", "ia_archiver(OS-Wayback)"]
+      ]
+    },
+  ],
+  "bnf": [
+    {
+      "from": "20041219000000",
+      "to": "20041222235959",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "mozilla/5.0 (compatible; heritrix//1.3.0-200412151053 +http://crawls.archive.org/collections/bnf/crawl.html)"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"]
+      ]
+    },
+    {
+      "from": "20050124000000",
+      "to": "20050124235959",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "mozilla/5.0 (compatible; heritrix/1.3.0-200501171701 +http://bibnum.bnf.fr/robot/index.html)"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"]
+      ]
+    },
+    {
+      "from": "20051012000000",
+      "to": "20051013235959",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible; archive.org_bot/1.5.1-200510112052 +http://bibnum.bnf.fr/robot/)"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"]
+      ]
+    },
+    {
+      "from": "20051016000000",
+      "to": "20051016235959",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible; archive.org_bot/1.5.1-200510131736 +http://bibnum.bnf.fr/robot/)"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"],
+      ]
+    },
+    {
+      "from": "20061116114044",
+      "to": "20061116114044",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible; archive.org_bot/1.10.1 +http://bibnum.bnf.fr/robot/)"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"],
+      ]
+    },
+    {
+      "from": "20061124192221",
+      "to": "20061204094244",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible;archive.org_bot/heritrix-1.10.1 +http://bibnum.bnf.fr/robot/)"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"],
+      ]
+    },
+    {
+      "from": "20071015034125",
+      "to": "20071015034125",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible;archive.org_bot/heritrix-1.13x +http://bibnum.bnf.fr/robot/)"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net", "?"], // might have changed here
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"]
+      ]
+    },
+    {
+      "from": "20081108030433",
+      "to": "20081108044121",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible; archive.org_bot/heritrix-1.14.0 +http://crawler.archive.org/)"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net", "?"], // might have changed here
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"]
+      ]
+    },
+    {
+      "from": "20081113173242",
+      "to": "20081113173321",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible;archive.org_bot/heritrix-1.14.1 +http://bibnum.bnf.fr/robot/)"],
+        ["From", "robot@bnf.fr"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"]
+      ]
+    },
+    {
+      "from": "20080101000000",
+      "to": "20081127182907",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible;archive.org_bot/1.14.1 +http://bibnum.bnf.fr/robot/)"],
+        ["From", "robot@bnf.fr"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"]
+      ]
+    },
+
+    // Final generic entries used as fallback
+    {
+      "from": "20041201000000",
+      "to": "20041231235959",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "mozilla/5.0 (compatible; heritrix//1.3.0-200412151053 +http://crawls.archive.org/collections/bnf/crawl.html)", "?"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"]
+      ]
+    },
+    {
+      "from": "20050101000000",
+      "to": "20051011235959",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "mozilla/5.0 (compatible; heritrix/1.x.x +http://bibnum.bnf.fr/robot/index.html)", "?"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"]
+      ]
+    },
+    {
+      "from": "20051012000000",
+      "to": "20081123133001",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible; archive.org_bot/1.x.x +http://bibnum.bnf.fr/robot/)", "?"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net", "?"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"]
+      ]
+    },
+    {
+      "from": "20081123133002",
+      "to": "20081113173241",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible;archive.org_bot/heritrix-1.x.x +http://bibnum.bnf.fr/robot/)", "?"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net", "?"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"]
+      ]
+    },
+    {
+      "from": "20081113173242",
+      "to": "20090101000000",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible;archive.org_bot/heritrix-1.x.x +http://bibnum.bnf.fr/robot/)", "?"],
+        ["From", "robot@bnf.fr", "?"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"]
+      ]
+    }
+  ],
+  "bncf": [
+    {
+      "from": "20060508000000",
+      "to": "20060508235959",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible; archive.org_bot/1.8.0 +http://www.bncf.firenze.sbn.it/raccolta.txt)"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"]
+      ]
+    },
+    
+    {
+      "from": "20060505000000",
+      "to": "20060624235959",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible; archive.org_bot/1.x.x +http://www.bncf.firenze.sbn.it/raccolta.txt)", "?"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"]
+      ]
+    }
+  ],
+  "nla-au": [
+    {
+      "from": "20060824000000",
+      "to": "20060824235959",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible;archive.org_bot/heritrix-1.9.0-200608171144 +http://pandora.nla.gov.au/crawl.html)"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"],
+      ]
+    },
+    {
+      "from": "20070830200424",
+      "to": "20070830200424",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible; archive.org_bot/heritrix-1.13.1-x +http://pandora.nla.gov.au/crawl.html)"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"],
+      ]
+    },
+    {
+      "from": "20080719213944",
+      "to": "20091013221703",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible; archive.org_bot/heritrix-1.15.1-x +http://pandora.nla.gov.au/crawl.html)"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"],
+      ]
+    },
+    // Fallback entry is last, used when no specific crawl headers are known
+    {
+      "from": "20080719213944",
+      "to": "20091013221703",
+      "protocol": "HTTP/1.0",
+      "headers": [
+        ["User-Agent", "Mozilla/5.0 (compatible; archive.org_bot/heritrix-1.x.x +http://pandora.nla.gov.au/crawl.html)", "?"],
+        ["From", "archive-crawler-agent@lists.sourceforge.net"],
+        ["Connection", "close"],
+        ["Referer"],
+        ["Host"],
+        ["Cookie"],
+      ]
+    },
+  ]
+}

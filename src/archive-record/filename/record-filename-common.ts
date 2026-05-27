@@ -11,7 +11,7 @@ export interface ParsedRecordFilename {
   /** Crawl identification */
   crawlIdentifier: string;
   crawlOriginalIdentifier?: string; // if the crawl is actually an import of a previous crawl or the identifier was later changed for some reason, this can be used to store the original identifier
-  crawlProvider?: string; // e.g. "alexa", "commoncrawl", "compaqsrc", "internetarchive"
+  crawlProvider?: string; // e.g. "alexa", "commoncrawl", "compaqsrc", "internet-archive"
   crawlCollectionId?: string; // archive-it collection, or common crawl collection (for most ia collections the collection name is not very informative and is actually confusing...)
   crawlGenerationCode?: string; // for AA type alexa crawls, e.g. DX, EL, EI
   crawlSequence?: number; // number of alexa crawl that increments also with generation

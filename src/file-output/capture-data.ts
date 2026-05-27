@@ -16,6 +16,7 @@ import { DataCorrection } from "../data-corrections/data-correction.js";
 import { getContentLengthHeader, getHeaderValue } from "../headers/headers.js";
 import { ValidationError } from "../validation/validate-capture.js";
 import { parseWarcFile } from "../archive-record/warc.js";
+import { parseRecordFormatFromArchiveFilename } from "../archive-record/filename/record-filename-common.js";
 
 /** CdxEntry as written to capture JSON files — optional fields are serialized as null rather than omitted */
 export interface CdxEntryJson {
@@ -42,13 +43,14 @@ export interface CaptureDataJson {
     protocol?: string;
     method: string;
     headers?: RawHeader[];
-    headersIncomplete?: true;
+    headersDerived?: true;
   };
   response: {
     protocol?: string;
     statusCode?: number;
     statusText?: string;
     headers?: RawHeader[];
+    headersDerived?: true;
     body: {
       contentSize?: number;
       compressedSize?: number;
@@ -195,16 +197,7 @@ export function writeCaptureData(
       entry.records?.find((r) => ["warc", "arc"].includes(r.type))?.type ?? undefined,
     );
     const archiveFilename = mainCdxEntry.filename;
-    const nonZippedFilename = archiveFilename?.endsWith(".gz")
-      ? archiveFilename.slice(0, -3)
-      : archiveFilename?.endsWith(".zst")
-        ? archiveFilename.slice(0, -4)
-        : archiveFilename;
-    const recordFormat = nonZippedFilename?.endsWith(".warc")
-      ? "warc"
-      : nonZippedFilename?.endsWith(".arc")
-        ? "arc"
-        : undefined;
+    const recordFormat = archiveFilename ? parseRecordFormatFromArchiveFilename(archiveFilename) : undefined;
 
     const contentLengthHeaderSize = getContentLengthHeader(entry.headerOutput);
     const contentEncoding = getHeaderValue(entry.headerOutput, "content-encoding");
@@ -222,13 +215,14 @@ export function writeCaptureData(
         protocol: requestMethodAndProtocol?.protocol,
         method: requestMethodAndProtocol?.method ?? "GET",
         headers: requestHeadersResult?.headers,
-        headersIncomplete: requestHeadersResult?.partial ? true : undefined,
+        headersDerived: requestHeadersResult?.partial ? true : undefined,
       },
       response: {
         protocol: entry.responseProtocol,
         statusCode: entry.statusCode,
         statusText: entry.statusMessage,
         headers: entry.headerOutput,
+        headersDerived: entry.headersDerived ? true : undefined,
         body: {
           contentSize: entry.content?.length,
           compressedSize:

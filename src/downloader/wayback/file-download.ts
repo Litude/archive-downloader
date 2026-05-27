@@ -287,7 +287,7 @@ export async function fetchWaybackFileHeaders(
   timestamp: string,
   url: string,
   statusCodes: number[] | undefined,
-  allow404 = false,
+  { allow404 = false, allowSlashRedirect = false }: { allow404?: boolean, allowSlashRedirect?: boolean } = {},
   context: Context,
 ): Promise<Omit<DownloadedFile, "content" | "corrupt">> {
   let attempt = 1;
@@ -299,6 +299,26 @@ export async function fetchWaybackFileHeaders(
       const waybackUrl = createWaybackDownloadUrl(timestamp, url, attempt - 1);
       console.log(`Fetching file headers for ${timestamp}-${url} (attempt ${attempt})...`);
       const response = await getResponseHeaders(waybackUrl);
+
+      // Special case when duplicate captures exist with the same timestamp where one is a redirect and the other one is not,
+      // we might be looking up the redirect capture url and wayback redirects to the non-redirect url (one might have a trailing slash, the other one does not)
+      if (allowSlashRedirect && response.status === 302 && !url.endsWith("/")) {
+        const redirectLocation = response.headers["location"] ?? "";
+        const { timestamp: redirectTimestamp } = getWaybackCaptureBaseUrl(redirectLocation) ?? {};
+        if (redirectLocation.endsWith("/") && redirectTimestamp === timestamp) {
+          console.log(
+            `Received 302 redirect to ${redirectLocation} for ${timestamp}-${url}, which seems to be a self redirect to the same capture with a trailing slash. Attempting to fetch headers for the redirected URL...`,
+          );
+          return fetchWaybackFileHeaders(
+            timestamp,
+            url + "/",
+            statusCodes,
+            { allow404, allowSlashRedirect: false },
+            context,
+          );
+        }
+      }
+
       if (!isWaybackCaptureResponse(response)) {
         if (response.status === 302 && context?.settings.skipOn302) {
           redirectCount++;

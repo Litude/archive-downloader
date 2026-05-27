@@ -119,7 +119,7 @@ function handleDuplicateCapture({
     .filter(isDefined)
     .filter((entry) =>
       isUrlTrailingSlashMatch(entry.url, requestUrl, duplicateUrlParsingMode, entry.status ?? 0),
-    );
+    ).map((entry) => ({ ...entry, unavailable: true }));
 
   const duplicateFilteredCount =
     potentialDuplicates.length -
@@ -223,12 +223,12 @@ export async function resolveDuplicateSnapshots({
         const possibleStatusCodes = [
           ...new Set(snapshotsAtTimestamp.map((s) => s.status).filter(isDefined)),
         ];
-        const actualSnapShot = snapshotsAtTimestamp[0];
+        const firstSnapShot = snapshotsAtTimestamp[0];
         const result = await fetchWaybackFileHeaders(
           timestamp,
-          actualSnapShot.url,
+          firstSnapShot.url,
           possibleStatusCodes,
-          anyNonRedirectSnapshot,
+          { allow404: !anyNonRedirectSnapshot, allowSlashRedirect: true },
           context,
         );
 
@@ -240,7 +240,7 @@ export async function resolveDuplicateSnapshots({
           )?.url;
           if (!originalUrl) {
             throw new Error(
-              `Missing original URL in Link header when fetching headers for ${timestamp}-${actualSnapShot.url}`,
+              `Missing original URL in Link header when fetching headers for ${timestamp}-${firstSnapShot.url}`,
             );
           }
           response = {
@@ -262,13 +262,13 @@ export async function resolveDuplicateSnapshots({
         }
         if (duplicateResponse.resolvedSnapshot) {
           console.log(
-            `Resolved duplicate snapshots for ${timestamp}-${actualSnapShot.url}: status ${actualSnapShot.status}`,
+            `Resolved duplicate snapshots for ${timestamp}-${duplicateResponse.resolvedSnapshot.url}: status ${duplicateResponse.resolvedSnapshot.status}`,
           );
           uniqueSnapshots.push(duplicateResponse.resolvedSnapshot);
         }
         if (duplicateResponse.unavailableOtherUniqueEntries.length > 0) {
           console.log(
-            `Found ${duplicateResponse.unavailableOtherUniqueEntries.length} unique snapshots with different status code and url combination that are considered unavailable for ${timestamp}-${actualSnapShot.url}`,
+            `Found ${duplicateResponse.unavailableOtherUniqueEntries.length} unique snapshots with different status code and url combination that are considered unavailable for ${timestamp}-${duplicateResponse.resolvedSnapshot?.url ?? firstSnapShot.url}`,
           );
         }
         uniqueSnapshots.push(...duplicateResponse.unavailableOtherUniqueEntries);

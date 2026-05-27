@@ -1,0 +1,17 @@
+[
+  {
+    "from": "20080101000000",
+    "to": "20180602235959",
+    "protocol": "HTTP/1.0",
+    "headers": [
+      // This is not accurate, but will be replaced by the ARC header contents anyway, so it doesn't matter much
+      ["User-Agent", "Arquivo-web-crawler (compatible; heritrix/1.x.x +http://arquivo-web.fccn.pt)", "?"],
+      ["From", "contacto-tomba@fccn.pt"],
+      ["Connection", "close"],
+      ["Referer"],
+      ["Host"],
+      ["Cookie"]
+    ]
+  }
+  // AWP26 was the last crawl that used ARC files
+]

@@ -117,7 +117,7 @@ function _parseGenericRecordFilenameInternal(
   }
 
   if (
-    ["internetarchive", "accelovation"].includes(crawlInfrastructure ?? "") &&
+    ["internet-archive", "accelovation"].includes(crawlInfrastructure ?? "") &&
     crawlerNameInfo?.crawlerHostname &&
     !crawlerNameInfo.crawlerName
   ) {
@@ -126,7 +126,7 @@ function _parseGenericRecordFilenameInternal(
   }
 
   if (
-    crawlInfrastructure === "internetarchive" &&
+    crawlInfrastructure === "internet-archive" &&
     crawlerNameInfo?.crawlerName &&
     !crawlerNameInfo.crawlerHostname
   ) {
@@ -182,7 +182,7 @@ function detectCrawlInfrastructureFromCrawlerName(crawlerName: string): string |
     lower.match(/^crawling\d{2,3}$/) ||
     lower.match(/^ia\d{5,6}$/)
   ) {
-    return "internetarchive";
+    return "internet-archive";
   } else if (lower.includes("accelovation.com")) {
     return "accelovation";
   }
@@ -191,7 +191,7 @@ function detectCrawlInfrastructureFromCrawlerName(crawlerName: string): string |
 
 function detectCrawlInfrastructureFromCrawlIdentifier(crawlIdentifier: string): string | undefined {
   if (crawlIdentifier.startsWith("IA-FOC-")) {
-    return "internetarchive";
+    return "internet-archive";
   }
   return undefined;
 }

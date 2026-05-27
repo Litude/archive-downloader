@@ -164,7 +164,7 @@ export async function downloadWaybackEntries(
           downloadedFile &&
           downloadedFile.classification !== "unavailable" &&
           entry.url === downloadedFile.url &&
-          entry.timestamp === downloadedFile.timestamp;
+          entry.timestamp === downloadedFile.timestamp && entry.status === downloadedFile.statusCode;
         const headers = downloadIsExactMatch
           ? downloadedFile.responseHeaders
           : entry.metadata?.headers;
@@ -199,6 +199,8 @@ export async function downloadWaybackEntries(
             ? downloadedFile.content
             : Buffer.alloc(0);
 
+        const useDigestClassification = entry.digest && classifiedEntries.has(entry.digest) && (downloadIsExactMatch || content.length > 0);
+
         return {
           timestamp: entry.timestamp,
           captureTimestamp: timestamps.captureDate,
@@ -217,7 +219,7 @@ export async function downloadWaybackEntries(
           url: entry.url,
           statusCode: downloadIsExactMatch ? downloadedFile.statusCode : entry.status,
           statusMessage: downloadIsExactMatch ? downloadedFile.statusMessage : undefined,
-          classification: (entry.digest && classifiedEntries.get(entry.digest)) || {
+          classification: (useDigestClassification && entry.digest && classifiedEntries.get(entry.digest)) || {
             type: "unavailable" as const,
           },
           mimetype: extractMimeTypeFromContentType(headers?.["content-type"]) || entry.mimetype,
@@ -300,7 +302,7 @@ export async function downloadWaybackEntries(
         entry.timestamp,
         entry.url,
         entry.statusCode ? [entry.statusCode] : undefined,
-        false,
+        { allow404: false },
         context,
       );
       if (response.classification !== "unavailable") {
@@ -453,6 +455,7 @@ export async function downloadWaybackEntries(
         input.filename,
         entry.captureTimestamp,
       );
+      entry.headersDerived = true;
     }
   }
   await tryToCompleteMissingCdxFields(baseEntries);

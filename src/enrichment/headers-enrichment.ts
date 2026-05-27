@@ -9,6 +9,8 @@ import { parseWarcinfoFile } from "../archive-record/warc-info.js";
 import { getHeaderValue } from "../headers/headers.js";
 import { deriveRefererFromMicrosoftTrackingImage } from "./header-derivation/microsoft-tracking-image.js";
 import { lookupAlexaOverride } from "./alexa-overrides.js";
+import { parseRecordFormatFromArchiveFilename } from "../archive-record/filename/record-filename-common.js";
+import { lookupPrincipalHeaders } from "./principal-overrides.js";
 
 interface HeaderPeriod {
   from: string;
@@ -24,6 +26,7 @@ const PROVIDER_FILES: Record<string, string> = {
   commoncrawl: "headers_commoncrawl.json",
   compaqsrc: "headers_compaqsrc.json",
   accelovation: "headers_accelovation.json",
+  "portuguese-web-archive": "headers_portuguese-web-archive.json",
 };
 
 const cache = new Map<string, HeaderPeriod[]>();
@@ -60,12 +63,13 @@ function buildDerivedHeaders(
   for (const header of headerDefs) {
     const name = header[0];
     const value = header[1];
+    const token = header[2]; // optional token indicating that the value is not certain and may need to be overridden by a value from the capture (e.g. from the Host header or a Referer header that looks like a Microsoft tracking image)
     if (value !== undefined) {
-      result.push([name, value, "?"]);
+      result.push(token === "?" ? [name, value, token] : [name, value]);
     } else if (name.toLowerCase() === "host" && hostValue) {
-      result.push([name, hostValue, "?"]);
+      result.push([name, hostValue]);
     } else if (name.toLowerCase() === "referer" && refererValue) {
-      result.push([name, refererValue, "?"]);
+      result.push([name, refererValue]);
     }
     // length-1 entries with no special handling → omit
   }
@@ -73,6 +77,14 @@ function buildDerivedHeaders(
 }
 
 export function enrichWithRequestHeaders(captureEntry: CaptureEntry): void {
+
+  const archiveFilename = captureEntry.cdxEntry.filename;
+  const recordFormat = archiveFilename ? parseRecordFormatFromArchiveFilename(archiveFilename) : undefined;
+  if (recordFormat === "warc") {
+    // WARC files include full request headers, no need for deducing these
+    return;
+  }
+
   const provider = captureEntry.metadata?.archiveFileInfo?.crawlProvider;
 
   let headers: RawHeader[] | undefined;
@@ -106,6 +118,33 @@ export function enrichWithRequestHeaders(captureEntry: CaptureEntry): void {
         if (result.length > 0) {
           headers = result;
         }
+      }
+    }
+  }
+
+  if (provider === "internet-archive") {
+    const crawlIdentifier = captureEntry.metadata?.archiveFileInfo?.crawlIdentifier;
+    const headerEntry = crawlIdentifier ? lookupPrincipalHeaders(crawlIdentifier, captureEntry.timestamp) : undefined;
+    if (headerEntry) {
+      usedOverride = true;
+      if (headerEntry.protocol) {
+        if (!captureEntry.metadata) {
+          captureEntry.metadata = {};
+        }
+        captureEntry.metadata.derivedRequestProtocol = headerEntry.protocol;
+      }
+      const refererValue = deriveRefererFromMicrosoftTrackingImage(captureEntry)?.[0]?.[1];
+      let hostValue: string | undefined;
+      try {
+        const parsed = new URL(captureEntry.url);
+        // ia_archiver (Alexa) never included non-standard port numbers in the Host header
+        hostValue = parsed.host;
+      } catch {
+        // ignore malformed URLs
+      }
+      const result = buildDerivedHeaders(headerEntry.headers, hostValue, refererValue);
+      if (result.length > 0) {
+        headers = result;
       }
     }
   }

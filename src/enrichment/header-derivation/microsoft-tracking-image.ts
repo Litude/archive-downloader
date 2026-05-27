@@ -40,7 +40,7 @@ export function deriveRefererFromMicrosoftTrackingImage(
   }
   const finalUrl = allUrls[0];
   if (finalUrl) {
-    return [["Referer", finalUrl, "?"]];
+    return [["Referer", finalUrl]];
   }
   return undefined;
 }

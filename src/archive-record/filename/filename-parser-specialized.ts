@@ -47,7 +47,7 @@ function parsePortugueseWebArchiveRecordFilename(
     recordFormat: preliminaryResult.recordFormat,
     details: {
       ...preliminaryResult.details,
-      crawlProvider: "arquivo.pt",
+      crawlProvider: "portuguese-web-archive",
       crawlIdentifier: actualIdentifier,
     },
   };

@@ -109,7 +109,7 @@ function parseWayback2002Filename(
     recordFormat,
     details: {
       crawlIdentifier,
-      crawlProvider: "internetarchive",
+      crawlProvider: "internet-archive",
       // This seems to be slightly later than capture timestamp, so it must be when the arc was closed?
       fileWriteEndTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
       ...cleanedCrawlerName,
@@ -168,7 +168,7 @@ function parseWayback2005Filename(
     recordFormat,
     details: {
       crawlIdentifier,
-      crawlProvider: "internetarchive",
+      crawlProvider: "internet-archive",
       fileWriteEndTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
       crawlerName,
       crawlerHostname,
@@ -250,7 +250,7 @@ function parseWayback2012Filename(
     recordFormat,
     details: {
       crawlIdentifier,
-      crawlProvider: "internetarchive",
+      crawlProvider: "internet-archive",
       fileWriteStartTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
       fileSerialNumber: serialNumber,
       crawlerName,
@@ -312,7 +312,7 @@ export function parseWaybackLiveFilename(
     recordFormat,
     details: {
       crawlIdentifier: "live",
-      crawlProvider: "internetarchive",
+      crawlProvider: "internet-archive",
       fileWriteStartTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
       fileSerialNumber: serialNumber,
     },
