@@ -52,7 +52,7 @@ describe("deriveReferrerFromMicrosoftTrackingImage", () => {
     const trackingUrl = `http://c.microsoft.com/trans_pixel.asp?TrackID=1&r=${encodeURIComponent(referer)}&source=www`;
     const entry = makeEntry(primaryHtml(trackingUrl));
     const result = deriveRefererFromMicrosoftTrackingImage(entry as CaptureEntry);
-    expect(result).toEqual([["Referer", referer, "?"]]);
+    expect(result).toEqual([["Referer", referer]]);
   });
 
   it("extracts referrer from secondary tracking image using r= param with &amp; separator", () => {
@@ -60,7 +60,7 @@ describe("deriveReferrerFromMicrosoftTrackingImage", () => {
     const trackingUrl = `http://c.microsoft.com/trans_pixel.asp?TrackID=1&amp;r=${encodeURIComponent(referer)}&amp;source=www`;
     const entry = makeEntry(secondaryHtml(trackingUrl));
     const result = deriveRefererFromMicrosoftTrackingImage(entry as CaptureEntry);
-    expect(result).toEqual([["Referer", referer, "?"]]);
+    expect(result).toEqual([["Referer", referer]]);
   });
 
   it("extracts referrer from complex URI param (toolbar asp.aspx path)", () => {
@@ -70,7 +70,7 @@ describe("deriveReferrerFromMicrosoftTrackingImage", () => {
     const trackingUrl = `http://c.microsoft.com/trans_pixel.asp?TrackID=1&URI=${uri}&source=www`;
     const entry = makeEntry(primaryHtml(trackingUrl));
     const result = deriveRefererFromMicrosoftTrackingImage(entry as CaptureEntry);
-    expect(result).toEqual([["Referer", referer, "?"]]);
+    expect(result).toEqual([["Referer", referer]]);
   });
 
   it("prefers primary URL when both primary and secondary are present and equal", () => {
@@ -79,7 +79,7 @@ describe("deriveReferrerFromMicrosoftTrackingImage", () => {
     const secondaryUrl = `http://c.microsoft.com/trans_pixel.asp?TrackID=1&amp;r=${encodeURIComponent(referer)}&amp;source=www`;
     const entry = makeEntry(primaryHtml(primaryUrl) + secondaryHtml(secondaryUrl));
     const result = deriveRefererFromMicrosoftTrackingImage(entry as CaptureEntry);
-    expect(result).toEqual([["Referer", referer, "?"]]);
+    expect(result).toEqual([["Referer", referer]]);
   });
 
   it("throws when primary and secondary URLs resolve to different referrers", () => {
@@ -96,7 +96,7 @@ describe("deriveReferrerFromMicrosoftTrackingImage", () => {
     const entry = makeEntry(primaryHtml(primaryUrl));
     const result = deriveRefererFromMicrosoftTrackingImage(entry as CaptureEntry);
     expect(result).toEqual([
-      ["Referer", "http://www.microsoft.com/france/jeux/aoeexpansion/default.asp", "?"],
+      ["Referer", "http://www.microsoft.com/france/jeux/aoeexpansion/default.asp"],
     ]);
   });
 });

@@ -32,7 +32,7 @@ export function isRelatedRecord(
 ) {
   try {
     // It is possible that there might be something else than WARC records, skip these
-    if (record.subarray(0, 6).toString() !== "WARC/1") {
+    if (record.subarray(0, 5).toString() !== "WARC/") {
       return false;
     }
     const parsed = parseWarcFile(record);

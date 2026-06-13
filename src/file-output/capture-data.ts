@@ -197,7 +197,9 @@ export function writeCaptureData(
       entry.records?.find((r) => ["warc", "arc"].includes(r.type))?.type ?? undefined,
     );
     const archiveFilename = mainCdxEntry.filename;
-    const recordFormat = archiveFilename ? parseRecordFormatFromArchiveFilename(archiveFilename) : undefined;
+    const recordFormat = archiveFilename
+      ? parseRecordFormatFromArchiveFilename(archiveFilename)
+      : undefined;
 
     const contentLengthHeaderSize = getContentLengthHeader(entry.headerOutput);
     const contentEncoding = getHeaderValue(entry.headerOutput, "content-encoding");

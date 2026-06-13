@@ -91,7 +91,7 @@ export async function getSnapshotsForWebsiteFile(
       limitedCaptureFiltered: dupeLimitCapture,
     } = await resolveDuplicateSnapshots({
       requestUrl: url.url,
-      slashMode: url.trailingSlashParsingMode ?? TrailingSlashParsingMode.Lax,
+      slashMode: url.trailingSlashParsingMode ?? TrailingSlashParsingMode.Strict,
       snapshots,
       limitedCaptures: limitedCaptureConfigs,
       context,
@@ -111,6 +111,13 @@ export async function getSnapshotsForWebsiteFile(
         ? !input.expectedStatusCodes.includes(snapshot.status || 0)
         : !snapshot.status?.toString().startsWith("2"),
     );
+    if (url.excludeInvalid && invalidSnapshots.length > 0) {
+      console.log(
+        `Excluding ${invalidSnapshots.length} snapshots for ${url.url} based on URL entry settings (excludeInvalid=true).`,
+      );
+      invalidSnapshots = [];
+    }
+
     console.log(`Found ${validSnapShots.length} valid snapshots for ${url.url}`);
     if (invalidSnapshots.length > 0) {
       console.log(`Found ${invalidSnapshots.length} invalid snapshots for ${url.url}`);

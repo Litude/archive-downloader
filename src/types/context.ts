@@ -9,6 +9,7 @@ export interface Context {
     fetchOriginalRecord?: boolean;
     sanityCheckTimestamps?: boolean;
     websiteOutputDirectory: string;
+    downloadAllFiles?: boolean;
   };
 }
 

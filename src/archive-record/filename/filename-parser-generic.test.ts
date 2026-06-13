@@ -15,10 +15,11 @@ describe("parseRecordFilename", () => {
       )?.details,
     ).toEqual({
       crawlIdentifier: "BNF-FOCUSEDCRAWL-001",
-      crawlProvider: "internet-archive",
+      crawlProvider: "internetarchive",
       fileWriteStartTimestamp: "2005-10-25T21:12:53Z",
       fileSerialNumber: "09395",
       crawlerName: "crawling013",
+      crawlerHostname: "crawling013.archive.org",
     });
 
     expect(
@@ -31,7 +32,7 @@ describe("parseRecordFilename", () => {
       fileSerialNumber: "00206",
       crawlerName: "crawling001",
       crawlerHostname: "crawling001.archive.org",
-      crawlProvider: "internet-archive",
+      crawlProvider: "internetarchive",
     });
 
     expect(
@@ -55,7 +56,7 @@ describe("parseRecordFilename", () => {
       fileSerialNumber: "00010",
       crawlerName: "crawling04",
       crawlerHostname: "crawling04.us.archive.org",
-      crawlProvider: "internet-archive",
+      crawlProvider: "internetarchive",
     });
 
     expect(
@@ -68,7 +69,7 @@ describe("parseRecordFilename", () => {
       fileSerialNumber: "01600",
       crawlerName: "crawling213",
       crawlerHostname: "crawling213.us.archive.org",
-      crawlProvider: "internet-archive",
+      crawlProvider: "internetarchive",
     });
 
     expect(
@@ -124,7 +125,7 @@ describe("parseRecordFilename", () => {
       fileSerialNumber: "00007",
       crawlerName: "wbgrp-crawl058",
       crawlerHostname: "wbgrp-crawl058.us.archive.org:6442",
-      crawlProvider: "internet-archive",
+      crawlProvider: "internetarchive",
     });
 
     expect(
@@ -183,7 +184,7 @@ describe("parseRecordFilename", () => {
       crawlerPid: "21509",
       crawlerName: "wbgrp-crawl302",
       crawlerHostname: "wbgrp-crawl302.us.archive.org:8443",
-      crawlProvider: "internet-archive",
+      crawlProvider: "internetarchive",
     });
 
     expect(
@@ -197,7 +198,7 @@ describe("parseRecordFilename", () => {
       crawlerPid: "29002",
       crawlerName: "ia360910",
       crawlerHostname: "ia360910.us.archive.org:9443",
-      crawlProvider: "internet-archive",
+      crawlProvider: "internetarchive",
     });
 
     expect(

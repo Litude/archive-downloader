@@ -291,7 +291,7 @@ async function downloadUrlCommonCrawlEntries(
   const { filteredEntries, redirectNonSlashFiltered } = filterNonTrailingSlashRedirects(
     captureEntries,
     urlEntry.url,
-    urlEntry.trailingSlashParsingMode ?? TrailingSlashParsingMode.Lax,
+    urlEntry.trailingSlashParsingMode ?? TrailingSlashParsingMode.Strict,
   );
 
   if (redirectNonSlashFiltered > 0) {

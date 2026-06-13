@@ -104,14 +104,15 @@ function handleDuplicateCapture({
     ...new Set(
       potentialDuplicates
         .map((entry) => `${entry.status}-${entry.url}`)
-        .filter((key) => key !== `${response?.statusCode}-${response?.originalUrl}`),
+        .filter((key) => key !== `${response?.statusCode?.toString()}-${response?.originalUrl}`),
     ),
   ];
   const unavailableOtherUniqueEntries = groupedNonMatchingEntryKeys
     .map((key) => {
-      const [status, url] = [key.slice(0, key.indexOf("-")), key.slice(key.indexOf("-") + 1)];
+      const [rawStatus, url] = [key.slice(0, key.indexOf("-")), key.slice(key.indexOf("-") + 1)];
+      const status = rawStatus === "undefined" ? undefined : Number(rawStatus);
       const entriesWithStatus = potentialDuplicates.filter(
-        (entry) => entry.status === Number(status) && entry.url === url,
+        (entry) => entry.status === status && entry.url === url,
       );
       const mergedEntry = getMergedSnapshotForShadowedEntries(entriesWithStatus);
       return mergedEntry;
@@ -119,7 +120,8 @@ function handleDuplicateCapture({
     .filter(isDefined)
     .filter((entry) =>
       isUrlTrailingSlashMatch(entry.url, requestUrl, duplicateUrlParsingMode, entry.status ?? 0),
-    ).map((entry) => ({ ...entry, unavailable: true }));
+    )
+    .map((entry) => ({ ...entry, unavailable: true }));
 
   const duplicateFilteredCount =
     potentialDuplicates.length -

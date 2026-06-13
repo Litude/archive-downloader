@@ -167,6 +167,7 @@ describe("parseAlexaRecordFilename", () => {
   it("parses 2001-05 crawl filenames correctly", () => {
     expect(parseAlexaRecordFilenamePickBest("DD_arc22.20010204140533.arc.gz")?.details).toEqual({
       crawlIdentifier: "DD",
+      crawlGenerationCode: "DD",
       crawlProvider: "alexa",
       crawlerName: "arc22",
       fileWriteStartTimestamp: "2001-02-04T14:05:33Z",
@@ -174,6 +175,7 @@ describe("parseAlexaRecordFilename", () => {
 
     expect(parseAlexaRecordFilenamePickBest("DE_crawl2.20010413151635.arc.gz")?.details).toEqual({
       crawlIdentifier: "DE",
+      crawlGenerationCode: "DE",
       crawlProvider: "alexa",
       crawlerName: "crawl2",
       fileWriteStartTimestamp: "2001-04-13T15:16:35Z",
@@ -193,6 +195,7 @@ describe("parseAlexaRecordFilename", () => {
       parseAlexaRecordFilenamePickBest("DX_images_crawl30.20040608014709.arc.gz")?.details,
     ).toEqual({
       crawlIdentifier: "DX_images",
+      crawlGenerationCode: "DX",
       crawlProvider: "alexa",
       crawlSubset: "images",
       crawlerName: "crawl30",
@@ -203,6 +206,7 @@ describe("parseAlexaRecordFilename", () => {
       parseAlexaRecordFilenamePickBest("DX_dad_crawl31.20040611073353.arc.gz")?.details,
     ).toEqual({
       crawlIdentifier: "DX_dad",
+      crawlGenerationCode: "DX",
       crawlProvider: "alexa",
       crawlSubset: "dad",
       crawlerName: "crawl31",

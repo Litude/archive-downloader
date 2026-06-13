@@ -110,11 +110,20 @@ export async function downloadWaybackEntries(
   const fetchAllHeaders = context.settings.peekAllFiles;
   const fetchMetadata = context.settings.fetchMetadata;
   const fetchOriginalRecord = context.settings.fetchOriginalRecord;
+  const downloadAllFiles = context.settings.downloadAllFiles ?? false;
   const allEntries = [...validCdxEntries, ...invalidCdxEntries, ...unavailableCdxEntries];
   // We must ensure that every file has some sort of digest
+  // In downloadAllFiles mode, override ALL entry digests with unique TEMP values so that
+  // downloadUniqueDigestsForSnapshots downloads every entry individually.
+  const originalDigests = new Map<string, string | undefined>();
   allEntries.forEach((entry) => {
-    if (entry.unavailable !== true && !entry.digest) {
-      entry.digest = `TEMP-${crypto.randomUUID()}`;
+    if (entry.unavailable !== true) {
+      if (downloadAllFiles) {
+        originalDigests.set(`${entry.timestamp}|${entry.status}|${entry.url}`, entry.digest);
+        entry.digest = `TEMP-${crypto.randomUUID()}`;
+      } else if (!entry.digest) {
+        entry.digest = `TEMP-${crypto.randomUUID()}`;
+      }
     }
   });
 
@@ -164,7 +173,8 @@ export async function downloadWaybackEntries(
           downloadedFile &&
           downloadedFile.classification !== "unavailable" &&
           entry.url === downloadedFile.url &&
-          entry.timestamp === downloadedFile.timestamp && entry.status === downloadedFile.statusCode;
+          entry.timestamp === downloadedFile.timestamp &&
+          entry.status === downloadedFile.statusCode;
         const headers = downloadIsExactMatch
           ? downloadedFile.responseHeaders
           : entry.metadata?.headers;
@@ -199,7 +209,10 @@ export async function downloadWaybackEntries(
             ? downloadedFile.content
             : Buffer.alloc(0);
 
-        const useDigestClassification = entry.digest && classifiedEntries.has(entry.digest) && (downloadIsExactMatch || content.length > 0);
+        const useDigestClassification =
+          entry.digest &&
+          classifiedEntries.has(entry.digest) &&
+          (downloadIsExactMatch || content.length > 0);
 
         return {
           timestamp: entry.timestamp,
@@ -219,7 +232,9 @@ export async function downloadWaybackEntries(
           url: entry.url,
           statusCode: downloadIsExactMatch ? downloadedFile.statusCode : entry.status,
           statusMessage: downloadIsExactMatch ? downloadedFile.statusMessage : undefined,
-          classification: (useDigestClassification && entry.digest && classifiedEntries.get(entry.digest)) || {
+          classification: (useDigestClassification &&
+            entry.digest &&
+            classifiedEntries.get(entry.digest)) || {
             type: "unavailable" as const,
           },
           mimetype: extractMimeTypeFromContentType(headers?.["content-type"]) || entry.mimetype,
@@ -336,11 +351,20 @@ export async function downloadWaybackEntries(
     }
   }
 
-  baseEntries.forEach((entry) => {
+  for (const entry of [...baseEntries, ...unavailableEntries, ...skippedEntries]) {
     if (entry.cdxEntry.digest?.startsWith("TEMP-")) {
-      delete entry.cdxEntry.digest;
+      if (downloadAllFiles) {
+        const originalDigest = originalDigests.get(`${entry.timestamp}|${entry.statusCode}|${entry.url}`);
+        if (originalDigest !== undefined) {
+          entry.cdxEntry.digest = originalDigest;
+        } else {
+          delete entry.cdxEntry.digest;
+        }
+      } else {
+        delete entry.cdxEntry.digest;
+      }
     }
-  });
+  };
 
   if (fetchMetadata) {
     console.log("Fetching metadata for all entries...");
@@ -475,7 +499,8 @@ export async function downloadWaybackEntries(
       if (
         contentLength !== undefined &&
         contentLength !== -1 &&
-        entry.content.length !== contentLength
+        entry.content.length !== contentLength &&
+        !entry.classification.type.includes("corrupt")
       ) {
         // If the original content was gzip compressed, this could be the content-length of the compressed payload
         if (getHeaderValue(entry.headerOutput, "content-encoding") === "gzip") {

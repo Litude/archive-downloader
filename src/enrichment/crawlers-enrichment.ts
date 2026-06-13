@@ -64,7 +64,7 @@ const dataDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../d
 const PROVIDER_FILES: Record<string, string> = {
   alexa: "crawlers_alexa.json",
   commoncrawl: "crawlers_commoncrawl.json",
-  compaqsrc: "crawlers_compaqsrc.json",
+  "compaq-src": "crawlers_compaq-src.json",
   accelovation: "crawlers_accelovation.json",
 };
 

@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import { parseArchiveRecordHeadersToPairs, RawHeader } from "../headers/raw-header-parser.js";
-import { dechunkChunkedResponse } from "./dechunk.js";
+import { extractRecordContent } from "./record-content-extract.js";
 
 export interface ArcParsingOptions {
   metadataPrefixes?: string[];
@@ -102,14 +102,7 @@ export function parseArcFile(
   const statusMessage = statusMessageParts.join(" ");
 
   const parsedHeaders = parseArchiveRecordHeadersToPairs(httpHeaderLines.slice(1));
-
-  const isChunked = parsedHeaders.some(
-    ([name, value]) =>
-      name.toLowerCase() === "transfer-encoding" && value.toLowerCase() === "chunked",
-  );
-  if (isChunked && !parsingOptions?.alreadyDechunked) {
-    payloadBuffer = dechunkChunkedResponse(payloadBuffer);
-  }
+  payloadBuffer = extractRecordContent(payloadBuffer, parsedHeaders, { alreadyDechunked: parsingOptions?.alreadyDechunked });
 
   const metadataPrefixes = parsingOptions?.metadataPrefixes;
 

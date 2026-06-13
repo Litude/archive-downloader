@@ -32,7 +32,7 @@ describe("cleanupHeaders", () => {
 
     expect(result).toEqual([
       ["content-type", "text/html", UNCONFIRMED_HEADER_MARKER],
-      ["location", "http://example.com/page", UNCONFIRMED_HEADER_MARKER],
+      ["location", "http://example.com/page"],
     ]);
   });
 
@@ -94,11 +94,7 @@ describe("cleanupHeaders", () => {
 
     expect(result).toEqual([
       ["content-type", "text/html", UNCONFIRMED_HEADER_MARKER],
-      [
-        "location",
-        "/japan/library/404/error.aspx?url=/japan/games/empires/default.asp",
-        UNCONFIRMED_HEADER_MARKER,
-      ],
+      ["location", "/japan/library/404/error.aspx?url=/japan/games/empires/default.asp"],
     ]);
   });
 
@@ -127,11 +123,7 @@ describe("cleanupHeaders", () => {
 
     expect(result).toEqual([
       ["content-type", "text/html", UNCONFIRMED_HEADER_MARKER],
-      [
-        "location",
-        "http://www.microsoft.com:80/japan/games/empires/download/up10a.asp",
-        UNCONFIRMED_HEADER_MARKER,
-      ],
+      ["location", "http://www.microsoft.com:80/japan/games/empires/download/up10a.asp"],
     ]);
   });
 });

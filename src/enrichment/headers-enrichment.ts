@@ -24,9 +24,9 @@ const dataDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../d
 const PROVIDER_FILES: Record<string, string> = {
   alexa: "headers_alexa.json",
   commoncrawl: "headers_commoncrawl.json",
-  compaqsrc: "headers_compaqsrc.json",
+  "compaq-src": "headers_compaq-src.json",
   accelovation: "headers_accelovation.json",
-  "portuguese-web-archive": "headers_portuguese-web-archive.json",
+  "arquivo-pt": "headers_arquivo-pt.json",
 };
 
 const cache = new Map<string, HeaderPeriod[]>();
@@ -77,9 +77,10 @@ function buildDerivedHeaders(
 }
 
 export function enrichWithRequestHeaders(captureEntry: CaptureEntry): void {
-
   const archiveFilename = captureEntry.cdxEntry.filename;
-  const recordFormat = archiveFilename ? parseRecordFormatFromArchiveFilename(archiveFilename) : undefined;
+  const recordFormat = archiveFilename
+    ? parseRecordFormatFromArchiveFilename(archiveFilename)
+    : undefined;
   if (recordFormat === "warc") {
     // WARC files include full request headers, no need for deducing these
     return;
@@ -122,9 +123,11 @@ export function enrichWithRequestHeaders(captureEntry: CaptureEntry): void {
     }
   }
 
-  if (provider === "internet-archive") {
+  if (provider === "internetarchive") {
     const crawlIdentifier = captureEntry.metadata?.archiveFileInfo?.crawlIdentifier;
-    const headerEntry = crawlIdentifier ? lookupPrincipalHeaders(crawlIdentifier, captureEntry.timestamp) : undefined;
+    const headerEntry = crawlIdentifier
+      ? lookupPrincipalHeaders(crawlIdentifier, captureEntry.timestamp)
+      : undefined;
     if (headerEntry) {
       usedOverride = true;
       if (headerEntry.protocol) {

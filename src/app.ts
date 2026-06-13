@@ -43,7 +43,7 @@ function mergeWaybackAndCommonCrawlEntries(
   );
 
   for (const waybackEntry of waybackCommonCrawlEntries) {
-    const matchingCcEntry = ccEntries.find(
+    let matchingCcEntry = ccEntries.find(
       (ccEntry) =>
         ccEntry.timestamp === waybackEntry.timestamp &&
         ccEntry.url === waybackEntry.url &&
@@ -51,6 +51,22 @@ function mergeWaybackAndCommonCrawlEntries(
         ccEntry.cdxEntry.digest === waybackEntry.cdxEntry.digest &&
         ccEntry.cdxEntry.length === waybackEntry.cdxEntry.length,
     );
+    // For some entries, it seems that wayback has possibly recalculated a digest for the truncated part served by wayback,
+    // so it does not necessarily match
+    if (!matchingCcEntry) {
+      matchingCcEntry = ccEntries.find(
+        (ccEntry) =>
+          ccEntry.timestamp === waybackEntry.timestamp &&
+          ccEntry.url === waybackEntry.url &&
+          ccEntry.statusCode === waybackEntry.statusCode &&
+          ccEntry.cdxEntry.length === waybackEntry.cdxEntry.length,
+      );
+      if (matchingCcEntry) {
+        console.warn(
+          `Found matching Common Crawl entry for wayback entry with timestamp ${waybackEntry.timestamp} and url ${waybackEntry.url} based on all fields except digest, likely due to digest mismatch caused by corrupt wayback playback`,
+        );
+      }
+    }
     if (matchingCcEntry) {
       if (!matchingCcEntry.metadata) {
         matchingCcEntry.metadata = {};
@@ -123,6 +139,7 @@ async function processWebsiteDownloads(
     fetchMetadata = true,
     fetchOriginalRecord = true,
     sanityCheckTimestamps = true,
+    downloadAllFiles = false,
   }: {
     includeInvalid?: boolean;
     peekAllFiles?: boolean;
@@ -137,6 +154,7 @@ async function processWebsiteDownloads(
     fetchMetadata?: boolean;
     fetchOriginalRecord?: boolean;
     sanityCheckTimestamps?: boolean;
+    downloadAllFiles?: boolean;
   },
 ) {
   const context: Context = {
@@ -149,6 +167,7 @@ async function processWebsiteDownloads(
       skipOn302: skipOn302 ? skipOn302 : undefined,
       sanityCheckTimestamps,
       websiteOutputDirectory,
+      downloadAllFiles,
     },
     fileContext: {},
   };
@@ -429,6 +448,12 @@ async function main() {
       describe:
         "Whether to perform sanity checks on timestamps (capture date, memento date, server date, last modified) for each capture and abort if any inconsistencies are detected",
     })
+    .option("download-all", {
+      type: "boolean",
+      default: true,
+      describe:
+        "Download every capture individually without digest deduplication; each CDX entry is fetched from the archive regardless of whether another entry shares the same digest (recommended since wayback digests are not actually good for detecting unique captures in all cases)",
+    })
     .demandCommand(0)
     .parse();
 
@@ -454,6 +479,7 @@ async function main() {
     console.log(`Fetch Wayback metadata: ${argv["fetch-wayback-metadata"]}`);
     console.log(`Fetch Wayback original record: ${argv["fetch-wayback-original-record"]}`);
     console.log(`Sanity check timestamps: ${argv["check-timestamps"]}`);
+    console.log(`Download all (no digest deduplication): ${argv["download-all"]}`);
     console.log("================\n");
     const waybackEnabled = argv["wayback"];
     const commonCrawlEnabled = argv["common-crawl"];
@@ -488,6 +514,7 @@ async function main() {
       fetchMetadata: argv["fetch-wayback-metadata"],
       fetchOriginalRecord: argv["fetch-wayback-original-record"],
       sanityCheckTimestamps: argv["check-timestamps"],
+      downloadAllFiles: argv["download-all"],
     });
     return;
   } else {

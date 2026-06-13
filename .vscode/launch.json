@@ -32,9 +32,9 @@
             // "--no-include-invalid",
             // "--no-headers",
             // "--no-peek-all"
-            ".\\data\\inputs\\aoe1-ms-usa.json"
+            ".\\data\\inputs\\aoe2-common-downloads.json",
             // "--json",  ".\\data\\inputs\\aaa-ip-dumps.json",
-            "--skip-on-302", "10"
+            "--skip-on-302", "20"
             // "--no-deduplication", "--skip-on-302", "10", "--no-fetch-wayback-metadata", "--no-fetch-wayback-original-record", "--no-include-invalid", "--no-common-crawl", "--no-check-timestamps"
         ],
 

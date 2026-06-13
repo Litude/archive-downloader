@@ -27,10 +27,17 @@ function load(): PrincipalOverridesFile {
   return cache;
 }
 
-export function lookupPrincipalHeaders(crawlIdentifier: string, timestamp: string): PrincipalOverrideEntry | undefined {
+export function lookupPrincipalHeaders(
+  crawlIdentifier: string,
+  timestamp: string,
+): PrincipalOverrideEntry | undefined {
   const overrides = load();
   const providers = Object.keys(overrides);
-  const matchingProvider = providers.find((p) => crawlIdentifier.toLowerCase() === p.toLowerCase() || crawlIdentifier.toLowerCase().startsWith(`${p.toLowerCase()}-`));
+  const matchingProvider = providers.find(
+    (p) =>
+      crawlIdentifier.toLowerCase() === p.toLowerCase() ||
+      crawlIdentifier.toLowerCase().startsWith(`${p.toLowerCase()}-`),
+  );
   if (!matchingProvider) {
     return undefined;
   }

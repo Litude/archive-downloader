@@ -157,7 +157,7 @@ async function fetchAllBytes(url: string, statusCode: number, maxAttempts = 10) 
   };
 }
 
-export async function fetchPartiallyArchivedFileData(url: string, statusCode: number) {
+export async function fetchPartiallyArchivedFileData(url: string, statusCode: number, padContent: boolean = false) {
   // Example usage:
   const {
     buffer,
@@ -179,7 +179,7 @@ export async function fetchPartiallyArchivedFileData(url: string, statusCode: nu
       `Download incomplete after max attempts: got ${buffer.length} bytes but content size was ${headers?.["content-length"]} (missing ${missingBytes} bytes)`,
     );
 
-    if (missingBytes > 0) {
+    if (padContent && missingBytes > 0) {
       const paddingBuffer = Buffer.alloc(missingBytes, 0);
       finalBuffer = Buffer.concat([buffer, paddingBuffer]);
     }

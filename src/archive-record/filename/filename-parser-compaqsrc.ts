@@ -205,7 +205,7 @@ export function parseCompaqSrcRecordFilename(
   for (const parser of parsers) {
     const result = parser(filename, captureTimestamp);
     if (result) {
-      results.push({ ...result, details: { ...result.details, crawlProvider: "compaqsrc" } });
+      results.push({ ...result, details: { ...result.details, crawlProvider: "compaq-src" } });
     }
   }
 

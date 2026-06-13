@@ -568,7 +568,7 @@ export function parseAlexa200102Filename(
     };
   } else {
     const VALID_SUBSETS = ["images", "binary", "binary1", "dad", "amzn"];
-    const crawlCounter = firstPart.match(/^(D|E[A-Z]\d*)$/) ? firstPart : undefined;
+    const crawlCounter = firstPart.match(/^(D|E)[A-Z]\d*$/) ? firstPart : undefined;
     const crawlSubset = VALID_SUBSETS.includes(prefixParts.at(-1) ?? "")
       ? prefixParts.at(-1)
       : undefined;

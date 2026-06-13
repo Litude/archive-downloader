@@ -133,7 +133,7 @@ async function attemptToFetchRedirectUrl(
       }
       if (expectedStatusCode !== response.status) {
         console.log(
-          `Received ${response.status} for ${waybackUrl} which was expected to be a ${expectedStatusCode}. Retrying in ${responseBackoff / 1000} seconds (Attempt ${responseAttempt})`,
+          `Received ${response.status} for ${waybackUrl} which was expected to be a ${expectedStatusCode}. Retrying in ${responseBackoff / 1000} seconds (Attempt ${responseAttempt}/${maxAttempts})`,
         );
       } else {
         console.log(
@@ -287,7 +287,10 @@ export async function fetchWaybackFileHeaders(
   timestamp: string,
   url: string,
   statusCodes: number[] | undefined,
-  { allow404 = false, allowSlashRedirect = false }: { allow404?: boolean, allowSlashRedirect?: boolean } = {},
+  {
+    allow404 = false,
+    allowSlashRedirect = false,
+  }: { allow404?: boolean; allowSlashRedirect?: boolean } = {},
   context: Context,
 ): Promise<Omit<DownloadedFile, "content" | "corrupt">> {
   let attempt = 1;

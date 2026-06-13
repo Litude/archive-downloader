@@ -1,5 +1,5 @@
 import { parseArchiveRecordHeadersToPairs, RawHeader } from "../headers/raw-header-parser.js";
-import { dechunkChunkedResponse } from "./dechunk.js";
+import { extractRecordContent } from "./record-content-extract.js";
 
 interface WarcParsingOptions {
   undoCommonCrawlHeaderNaming?: boolean;
@@ -74,14 +74,7 @@ export function parseWarcFile(
     const httpHeaders = parseArchiveRecordHeadersToPairs(httpHeaderLines.slice(1));
     const dividerSize = options?.extraBlankLineAfterHeaders ? 6 : 4;
     let payloadBuffer = mainBlock.subarray(httpHeaderEnd + dividerSize);
-
-    const isChunked = httpHeaders.some(
-      ([name, value]) =>
-        name.toLowerCase() === "transfer-encoding" && value.toLowerCase() === "chunked",
-    );
-    if (isChunked) {
-      payloadBuffer = dechunkChunkedResponse(payloadBuffer);
-    }
+    payloadBuffer = extractRecordContent(payloadBuffer, httpHeaders);
 
     // Common crawl removes or replaces some headers, and the originals have the "X-Crawler-" prefix.
     // We need to undo this, and if a replacement header existed we move it to metadata instead

@@ -20,7 +20,7 @@
   {
     // first month of CC-MAIN-2009-2010
     "from": "20090701000000",
-    "to": "20090705235959",
+    "to": "20090715235959",
     "protocol": "HTTP/1.1",
     "headers": [
       ["x-cc-list"], // values such as: "List:1 For:219.94.192.83" (probably crawler seed list?)

@@ -43,11 +43,11 @@ function parsePortugueseWebArchiveRecordFilename(
 
   return {
     confidence: 1,
-    filenameType: "portuguese-web-archive",
+    filenameType: "arquivo-pt",
     recordFormat: preliminaryResult.recordFormat,
     details: {
       ...preliminaryResult.details,
-      crawlProvider: "portuguese-web-archive",
+      crawlProvider: "arquivo-pt",
       crawlIdentifier: actualIdentifier,
     },
   };

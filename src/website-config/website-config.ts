@@ -247,10 +247,6 @@ export function readWebsiteJsonConfig(
     minTimestamp,
   );
 
-  console.log(
-    `Expanded Wayback CDX index queries:\n${JSON.stringify(expandedWaybackCdxIndexQueries, null, 2)}`,
-  );
-
   return {
     downloadInputs: result,
     commonCrawlIndexQueries: commonCrawlCdxIndexQueries,
