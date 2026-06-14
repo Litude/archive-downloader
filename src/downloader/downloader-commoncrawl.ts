@@ -247,7 +247,7 @@ function filterNonTrailingSlashRedirects(
 } {
   let redirectNonSlashFiltered = 0;
 
-  entries.filter((snapshot) => {
+  const filteredEntries = entries.filter((snapshot) => {
     if (!isUrlTrailingSlashMatch(snapshot.url, requestUrl, mode, snapshot.statusCode)) {
       redirectNonSlashFiltered++;
       return false;
@@ -255,7 +255,7 @@ function filterNonTrailingSlashRedirects(
     return true;
   });
 
-  return { filteredEntries: entries, redirectNonSlashFiltered };
+  return { filteredEntries, redirectNonSlashFiltered };
 }
 
 async function downloadUrlCommonCrawlEntries(

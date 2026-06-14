@@ -232,6 +232,10 @@ export function readWebsiteJsonConfig(
       expectedStatusCodes: file.expectedStatusCodes,
       skippedCaptures:
         file.skippedCaptures && file.skippedCaptures.length > 0 ? file.skippedCaptures : undefined,
+      waybackCdxPatches:
+        file.waybackCdxPatches && file.waybackCdxPatches.length > 0
+          ? file.waybackCdxPatches
+          : undefined,
     } satisfies DownloadFileInput;
   });
 

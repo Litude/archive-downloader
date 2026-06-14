@@ -23,7 +23,7 @@ export interface CdxEntryJson {
   urlkey: string;
   timestamp: string;
   url: string;
-  status?: number;
+  status?: number | null;
   digest: string | null;
   mimetype: string;
   filename: string | null;
@@ -91,7 +91,7 @@ function cdxToOutputData(entry: CdxEntry): CdxEntryJson {
     urlkey: entry.urlkey,
     timestamp: entry.timestamp,
     url: entry.url,
-    status: entry.status,
+    status: entry.status ?? null,
     digest: entry.digest ?? null,
     mimetype: entry.mimetype,
     filename: entry.filename ?? null,
@@ -179,7 +179,8 @@ export function writeCaptureData(
       entry.captureIndex ? entry.captureIndex : undefined,
     );
 
-    const mainCdxEntry = entry.cdxEntry.revisitEntry ?? entry.cdxEntry;
+    const mainCdxEntry =
+      entry.cdxEntry.revisitEntry ?? entry.cdxEntry.unpatchedEntry ?? entry.cdxEntry;
     const resolvedRevisitCdxEntry = entry.cdxEntry.revisitEntry ? entry.cdxEntry : undefined;
 
     const responseHeadersResult = entry.headerOutput;

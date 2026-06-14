@@ -2,7 +2,11 @@ import zlib from "zlib";
 import { RawHeader } from "../headers/raw-header-parser.js";
 import { dechunkChunkedResponse } from "./dechunk.js";
 
-export function extractRecordContent(content: Buffer, headers: RawHeader[], { alreadyDechunked = false }: { alreadyDechunked?: boolean; } = {}): Buffer {
+export function extractRecordContent(
+  content: Buffer,
+  headers: RawHeader[],
+  { alreadyDechunked = false }: { alreadyDechunked?: boolean } = {},
+): Buffer {
   let finalBuffer = content;
   const isChunked = headers.some(
     ([name, value]) =>
@@ -13,8 +17,7 @@ export function extractRecordContent(content: Buffer, headers: RawHeader[], { al
   }
 
   const isPossiblyGzipped = headers.some(
-    ([name, value]) =>
-      name.toLowerCase() === "content-encoding" && value.toLowerCase() === "gzip",
+    ([name, value]) => name.toLowerCase() === "content-encoding" && value.toLowerCase() === "gzip",
   );
   if (isPossiblyGzipped) {
     // Sometimes the entry might already be stored decompressed even if the header indicates it would be gzipped,

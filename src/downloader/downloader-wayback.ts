@@ -227,6 +227,12 @@ export async function downloadWaybackEntries(
                   filename: waybackFilename ?? entry.revisitEntry.filename,
                 }
               : undefined,
+            unpatchedEntry: entry.unpatchedEntry
+              ? {
+                  ...entry.unpatchedEntry,
+                  filename: waybackFilename ?? entry.unpatchedEntry.filename,
+                }
+              : undefined,
           },
           lastModified,
           url: entry.url,
@@ -345,6 +351,9 @@ export async function downloadWaybackEntries(
         if (entry.cdxEntry.revisitEntry) {
           entry.cdxEntry.revisitEntry.filename = waybackFilename;
         }
+        if (entry.cdxEntry.unpatchedEntry) {
+          entry.cdxEntry.unpatchedEntry.filename = waybackFilename;
+        }
       } else {
         entry.classification = { type: "unavailable" };
       }
@@ -354,7 +363,9 @@ export async function downloadWaybackEntries(
   for (const entry of [...baseEntries, ...unavailableEntries, ...skippedEntries]) {
     if (entry.cdxEntry.digest?.startsWith("TEMP-")) {
       if (downloadAllFiles) {
-        const originalDigest = originalDigests.get(`${entry.timestamp}|${entry.statusCode}|${entry.url}`);
+        const originalDigest = originalDigests.get(
+          `${entry.timestamp}|${entry.statusCode}|${entry.url}`,
+        );
         if (originalDigest !== undefined) {
           entry.cdxEntry.digest = originalDigest;
         } else {
@@ -364,7 +375,7 @@ export async function downloadWaybackEntries(
         delete entry.cdxEntry.digest;
       }
     }
-  };
+  }
 
   if (fetchMetadata) {
     console.log("Fetching metadata for all entries...");
@@ -457,6 +468,9 @@ export async function downloadWaybackEntries(
           entry.cdxEntry.offset = fullCdx.offset;
           if (entry.cdxEntry.revisitEntry) {
             entry.cdxEntry.revisitEntry.offset = fullCdx.offset;
+          }
+          if (entry.cdxEntry.unpatchedEntry) {
+            entry.cdxEntry.unpatchedEntry.offset = fullCdx.offset;
           }
           const records = await fetchArchiveRecord(entry);
           entry.records = records;

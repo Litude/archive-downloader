@@ -48,7 +48,18 @@ export async function getSnapshotsForWebsiteFile(
   let allSnapshots: ExtendedCdxEntry[] = [];
   for (const url of input.urls) {
     const snapshots = await getSnapshotsForUrl(url, waybackPrefetchedIndex);
-    const filteredSnapshots = snapshots.filter((snapshot) => snapshot.mimetype !== "warc/revisit");
+    const patchedSnapshots =
+      input.waybackCdxPatches && input.waybackCdxPatches.length > 0
+        ? snapshots.map((snapshot) => {
+            const patch = input.waybackCdxPatches!.find(
+              (p) => p.url === snapshot.url && p.timestamp === snapshot.timestamp,
+            );
+            return patch ? { ...snapshot, ...patch.patch, unpatchedEntry: snapshot } : snapshot;
+          })
+        : snapshots;
+    const filteredSnapshots = patchedSnapshots.filter(
+      (snapshot) => snapshot.mimetype !== "warc/revisit",
+    );
     if (filteredSnapshots.length !== snapshots.length) {
       console.log(
         `Filtered out ${snapshots.length - filteredSnapshots.length} warc/revisit snapshots for ${url.url}`,

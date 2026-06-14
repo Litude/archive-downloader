@@ -16,6 +16,7 @@ wb_urls.ia331419.us.archive.org.20070930201038.arc.gz
 cgi2.archive.org.wb_robots.20021101062333.arc.gz
 cgi5.archive.org.wb_urls.20021109025316.arc.gz
 cgi3.archive.org.wb_urls.20021109211541.arc.gz
+spn2-20251028145414-wwwb-spn22.us.archive.org-8001.warc.gz
  * 
  */
 
@@ -319,6 +320,66 @@ export function parseWaybackLiveFilename(
   };
 }
 
+export function parseWaybackSavePageNowFilename(
+  filename: string,
+  captureTimestamp?: string,
+): ParsedRecordFilenameResult | undefined {
+  // Matches names such as:
+  // spn2-20251028145414-wwwb-spn22.us.archive.org-8001.warc.gz
+
+  // Date range:
+  // Minimum: 20200101000000
+  // Maximum: Inf (still used)
+
+  const timestampMatch = captureTimestamp && captureTimestamp >= "20200101000000";
+
+  const baseName = removeFileExtensionFromArchiveFilename(filename.split("/").pop() ?? "");
+  const recordFormat = parseRecordFormatFromArchiveFilename(filename);
+  if (recordFormat !== "warc") {
+    return undefined;
+  }
+  const parts = baseName.split("-");
+  if (parts.length < 4) {
+    return undefined;
+  }
+  const identifier = parts.shift();
+  if (identifier !== "spn2") {
+    return undefined;
+  }
+  const timestampRaw = parts.shift();
+  if (!timestampRaw || timestampRaw.length !== 14) {
+    return undefined;
+  }
+  const timestamp = DateTime.fromFormat(timestampRaw, "yyyyMMddHHmmss", { zone: "UTC" });
+  if (!timestamp.isValid || timestamp.year < 2020) {
+    return undefined;
+  }
+  const crawlerHostnamePartial = parts.slice(0, -1).join("-");
+  const port = parts.slice(-1)[0];
+  if (!port.match(/^\d+$/)) {
+    return undefined;
+  }
+  const crawlerHostname = `${crawlerHostnamePartial}:${port}`;
+  const crawlerName = crawlerHostnamePartial.split(".")[0];
+
+  let confidence = 0.8;
+  if (timestampMatch) {
+    confidence += 0.2;
+  }
+  return {
+    confidence,
+    filenameType: "wayback-spn",
+    recordFormat,
+    details: {
+      crawlIdentifier: identifier,
+      crawlerName,
+      crawlProvider: "internetarchive",
+      fileWriteStartTimestamp: timestamp.toISO({ suppressMilliseconds: true }),
+      crawlerHostname,
+    },
+  };
+}
+
 export function parseWaybackRecordFilename(
   filename: string,
   captureTimestamp?: string,
@@ -328,6 +389,7 @@ export function parseWaybackRecordFilename(
     parseWayback2005Filename,
     parseWayback2012Filename,
     parseWaybackLiveFilename,
+    parseWaybackSavePageNowFilename,
   ];
 
   const results: ParsedRecordFilenameResult[] = [];

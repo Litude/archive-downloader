@@ -37,6 +37,7 @@ export interface WebsiteFileEntryJson {
     url: string; // must match CDX index url exactly
     timestamp: string;
   }[];
+  waybackCdxPatches?: WaybackCdxPatch[];
   /** @deprecated should be handled by classifier or by getting all headers */
   excludedCaptures?: string[];
   /** @deprecated should be handled by getting all headers */
@@ -45,6 +46,14 @@ export interface WebsiteFileEntryJson {
   forcedUniqueEntries?: { urls: string[]; timestamps?: string[] };
   /** @deprecated use transformation */
   normalizeTrackingImageUrl?: boolean;
+}
+
+export interface WaybackCdxPatch {
+  url: string;
+  timestamp: string;
+  patch: {
+    status?: number;
+  };
 }
 
 export interface TransformationJson {

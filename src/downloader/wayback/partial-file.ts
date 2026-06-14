@@ -157,7 +157,11 @@ async function fetchAllBytes(url: string, statusCode: number, maxAttempts = 10) 
   };
 }
 
-export async function fetchPartiallyArchivedFileData(url: string, statusCode: number, padContent: boolean = false) {
+export async function fetchPartiallyArchivedFileData(
+  url: string,
+  statusCode: number,
+  padContent: boolean = false,
+) {
   // Example usage:
   const {
     buffer,

@@ -29,6 +29,8 @@ export interface ExtendedCdxEntry extends CdxEntry {
   unavailable?: boolean;
   /** For entries that were originally warc/revisit and are resolved, this contains the original entry with the warc/revisit content type */
   revisitEntry?: CdxEntry;
+  /** If entry is modified due to CDX issues, this is the unpatched entry */
+  unpatchedEntry?: CdxEntry;
   // /** Things stored by the processing pipeline not part of the actual cdx entry */
   metadata?: {
     headers: Record<string, string>;

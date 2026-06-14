@@ -1,7 +1,7 @@
 import { TrailingSlashParsingMode } from "../url/trailing-slash.js";
 import { CaptureClassification } from "./capture-types.js";
 import { Transformation } from "./transformation-types.js";
-import { QueryHashParameter } from "./website-types.js";
+import { QueryHashParameter, WaybackCdxPatch } from "./website-types.js";
 
 export interface DownloadFileInput {
   urls: UrlEntry[];
@@ -17,6 +17,7 @@ export interface DownloadFileInput {
     url: string; // must match CDX index url exactly
     timestamp: string;
   }[];
+  waybackCdxPatches?: WaybackCdxPatch[];
 }
 
 export interface LimitedCaptureRange {

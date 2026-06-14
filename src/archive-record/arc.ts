@@ -102,7 +102,9 @@ export function parseArcFile(
   const statusMessage = statusMessageParts.join(" ");
 
   const parsedHeaders = parseArchiveRecordHeadersToPairs(httpHeaderLines.slice(1));
-  payloadBuffer = extractRecordContent(payloadBuffer, parsedHeaders, { alreadyDechunked: parsingOptions?.alreadyDechunked });
+  payloadBuffer = extractRecordContent(payloadBuffer, parsedHeaders, {
+    alreadyDechunked: parsingOptions?.alreadyDechunked,
+  });
 
   const metadataPrefixes = parsingOptions?.metadataPrefixes;
 

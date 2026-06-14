@@ -65,7 +65,8 @@ async function downloadCdx(cdxFilename: string, entryFilename: string, entry: Ca
   const itemId = entryFilename.split("/")[0];
   const cdxEntries = await fetchRecordArchiveCdx(cdxFilename, itemId);
   // Filter CDX entries to only those that match the capture timestamp and URL of the original entry, to avoid downloading unnecessary records
-  const mainCdxEntry = entry.cdxEntry.revisitEntry ?? entry.cdxEntry;
+  const mainCdxEntry =
+    entry.cdxEntry.revisitEntry ?? entry.cdxEntry.unpatchedEntry ?? entry.cdxEntry;
   const matchingEntries = cdxEntries.filter(
     (cdxEntry) =>
       cdxEntry.timestamp === mainCdxEntry.timestamp &&
@@ -76,11 +77,11 @@ async function downloadCdx(cdxFilename: string, entryFilename: string, entry: Ca
   );
   if (matchingEntries.length === 0) {
     throw new Error(
-      `No matching CDX entries found for ${cdxFilename} with timestamp ${entry.timestamp} and URL ${entry.url}?!`,
+      `No matching CDX entries found for ${cdxFilename} with timestamp ${mainCdxEntry.timestamp} and URL ${mainCdxEntry.url}?!`,
     );
   } else if (matchingEntries.length > 1) {
     console.warn(
-      `Multiple matching CDX entries found for ${cdxFilename} with timestamp ${entry.timestamp} and URL ${entry.url}! Picking first.`,
+      `Multiple matching CDX entries found for ${cdxFilename} with timestamp ${mainCdxEntry.timestamp} and URL ${mainCdxEntry.url}! Picking first.`,
     );
   }
   return matchingEntries[0];
